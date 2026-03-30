@@ -52,10 +52,46 @@ class AutonomousPipeline:
             print('Scheduler already running')
             return
 
+        # Use cron scheduling constrained to IDX market hours (Asia/Jakarta timezone)
+        try:
+            # Python 3.9+: use zoneinfo
+            from zoneinfo import ZoneInfo
+
+            tz = ZoneInfo('Asia/Jakarta')
+        except Exception:
+            try:
+                import pytz
+
+                tz = pytz.timezone('Asia/Jakarta')
+            except Exception:
+                tz = None
+
         self._scheduler = BackgroundScheduler()
-        self._scheduler.add_job(self._job, 'interval', minutes=self.interval, max_instances=1)
+        if tz is not None:
+            # Run only on business days during market hours (09:00-16:00 WIB)
+            self._scheduler.add_job(
+                self._job,
+                'cron',
+                day_of_week='mon-fri',
+                hour='9-16',
+                minute=f'*/{self.interval}',
+                max_instances=1,
+                timezone=tz,
+            )
+            print(f'AutonomousPipeline scheduled (Asia/Jakarta) — fetching {self.symbols} every {self.interval} minutes during 09:00-16:00 WIB')
+        else:
+            # Fallback: approximate UTC hours (WIB = UTC+7 => 02:00-09:00 UTC)
+            self._scheduler.add_job(
+                self._job,
+                'cron',
+                day_of_week='mon-fri',
+                hour='2-9',
+                minute=f'*/{self.interval}',
+                max_instances=1,
+            )
+            print(f'AutonomousPipeline scheduled (UTC fallback) — fetching {self.symbols} every {self.interval} minutes during approx market hours (02:00-09:00 UTC)')
+
         self._scheduler.start()
-        print(f'AutonomousPipeline started — fetching {self.symbols} every {self.interval} minutes')
 
     def stop(self):
         if self._scheduler:

@@ -11,7 +11,6 @@ from typing import Dict
 
 def train_model(dataset_csv: str, target_col: str = 'label', model_out: str = 'models/model.joblib', test_size: float = 0.2, random_state: int = 42) -> Dict:
     import pandas as pd
-    from sklearn.model_selection import train_test_split
     from sklearn.metrics import classification_report, roc_auc_score
 
     df = pd.read_csv(dataset_csv)
@@ -26,7 +25,15 @@ def train_model(dataset_csv: str, target_col: str = 'label', model_out: str = 'm
     # fill na
     X = X.fillna(0.0)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state, stratify=y)
+    # Chronological split for time-series data to avoid data leakage.
+    split_idx = int(len(X) * (1.0 - float(test_size)))
+    if split_idx <= 0 or split_idx >= len(X):
+        raise RuntimeError('Invalid split index computed; check dataset size and test_size')
+
+    X_train = X.iloc[:split_idx].reset_index(drop=True)
+    X_test = X.iloc[split_idx:].reset_index(drop=True)
+    y_train = y.iloc[:split_idx].reset_index(drop=True)
+    y_test = y.iloc[split_idx:].reset_index(drop=True)
 
     model = None
     try:

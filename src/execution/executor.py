@@ -30,16 +30,22 @@ class PaperBroker(BrokerInterface):
     def place_order(self, symbol: str, side: str, qty: int, price: float):
         now = datetime.utcnow().isoformat() + 'Z'
         qty = int(qty)
+        # realistic broker fees (approx): buy fee ~0.15%, sell fee ~0.25% (incl. taxes)
+        buy_fee_pct = 0.0015
+        sell_fee_pct = 0.0025
+
         if side.lower() == 'buy':
             cost = price * qty
-            if cost <= self.cash:
-                self.cash -= cost
+            fee = cost * buy_fee_pct
+            total_cost = cost + fee
+            if total_cost <= self.cash:
+                self.cash -= total_cost
                 self.positions[symbol] = self.positions.get(symbol, 0) + qty
-                trade = {'time': now, 'symbol': symbol, 'side': 'buy', 'qty': qty, 'price': price, 'status': 'filled'}
+                trade = {'time': now, 'symbol': symbol, 'side': 'buy', 'qty': qty, 'price': price, 'status': 'filled', 'fee': float(fee)}
                 self.trades.append(trade)
                 return trade
             else:
-                trade = {'time': now, 'symbol': symbol, 'side': 'buy', 'qty': qty, 'price': price, 'status': 'rejected', 'reason': 'insufficient_cash'}
+                trade = {'time': now, 'symbol': symbol, 'side': 'buy', 'qty': qty, 'price': price, 'status': 'rejected', 'reason': 'insufficient_cash', 'required': float(total_cost)}
                 self.trades.append(trade)
                 return trade
 
@@ -48,8 +54,10 @@ class PaperBroker(BrokerInterface):
             if qty <= pos:
                 self.positions[symbol] = pos - qty
                 proceeds = price * qty
-                self.cash += proceeds
-                trade = {'time': now, 'symbol': symbol, 'side': 'sell', 'qty': qty, 'price': price, 'status': 'filled'}
+                fee = proceeds * sell_fee_pct
+                net = proceeds - fee
+                self.cash += net
+                trade = {'time': now, 'symbol': symbol, 'side': 'sell', 'qty': qty, 'price': price, 'status': 'filled', 'fee': float(fee), 'net': float(net)}
                 self.trades.append(trade)
                 return trade
             else:

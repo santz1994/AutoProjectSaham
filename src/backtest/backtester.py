@@ -11,8 +11,9 @@ def simple_backtest(prices, signals, starting_cash=10000.0):
     for i, price in enumerate(prices):
         sig = signals[i]
         if sig == 1:
-            # buy a single unit when signalled
-            qty = 1
+            # buy 1 lot (100 shares) when signalled — IDX uses lot-based trading
+            lot_size = 100
+            qty = 1 * lot_size
             cost = price * qty
             if cost <= cash:
                 cash -= cost
