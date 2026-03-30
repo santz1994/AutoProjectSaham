@@ -55,12 +55,17 @@ class TradingEnv:
 
         # lazy imports to avoid hard dependencies
         from src.execution.manager import ExecutionManager
+        from src.execution.executor import PaperBroker
         from src.ml.feature_store import compute_latest_features
+            # record today's price and current portfolio value (before action)
+            old_price = float(self.prices[self.t])
+            prev_balance = self.manager.get_balance({self.symbol: old_price})
 
         self.ExecutionManager = ExecutionManager
         self.compute_latest_features = compute_latest_features
 
-        self.manager = ExecutionManager()
+        # initialize manager with a PaperBroker seeded with this environment's starting cash
+        self.manager = ExecutionManager(broker=PaperBroker(cash=self.starting_cash))
         self.manager.start_day({self.symbol: self.prices[0]})
 
         # observation/action spaces when gym available
@@ -80,7 +85,11 @@ class TradingEnv:
         self.cash = self.starting_cash
         self.pos = 0
         self._start_balance = self.starting_cash
-        self.manager = self.ExecutionManager()
+        # recreate manager with broker seeded to this env starting cash so
+        # the RL episode has the correct buying power (avoid hardcoded defaults)
+        from src.execution.executor import PaperBroker
+
+        self.manager = self.ExecutionManager(broker=PaperBroker(cash=self.starting_cash))
         self.manager.start_day({self.symbol: self.prices[self.t]})
         obs = self._get_obs()
         # gymnasium requires reset to return (obs, info)
