@@ -9,14 +9,21 @@ from __future__ import annotations
 import glob
 import json
 import os
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 
 
-def compute_latest_features(prices: List[float], short: int = 5, long: int = 20) -> Dict:
-    arr = np.array(prices, dtype=float)
+def compute_latest_features(prices: List[float], volumes: Optional[List[float]] = None, short: int = 5, long: int = 20) -> Dict:
+        """Compute a small set of technical features from a price series.
+
+        - `prices` is a list of floats (most callers pass the `prices` array).
+        - `volumes` is optional and, if provided, is used to compute a 5-day
+            average volume feature useful for liquidity estimation.
+        """
+
+        arr = np.array(prices, dtype=float)
     n = len(arr)
     if n < 2:
         return {}
@@ -30,6 +37,16 @@ def compute_latest_features(prices: List[float], short: int = 5, long: int = 20)
     momentum = float(arr[-1] / arr[-short] - 1.0) if n >= short else float(arr[-1] / arr[0] - 1.0)
     last_price = float(arr[-1])
 
+    # optional 5-day average volume (liquidity signal)
+    avg_vol_5 = 0.0
+    if volumes:
+        try:
+            v = np.array(volumes, dtype=float)
+            if len(v) >= 1:
+                avg_vol_5 = float(np.mean(v[-5:])) if len(v) >= 5 else float(np.mean(v))
+        except Exception:
+            avg_vol_5 = 0.0
+
     return {
         'last_price': last_price,
         'short_sma': short_sma,
@@ -37,6 +54,7 @@ def compute_latest_features(prices: List[float], short: int = 5, long: int = 20)
         'volatility': vol,
         'momentum': momentum,
         'n_obs': n,
+        'avg_vol_5': avg_vol_5,
     }
 
 
@@ -51,9 +69,10 @@ def build_feature_snapshot(price_dir: str = 'data/prices', out_csv: str = 'data/
                 payload = json.load(fh)
             sym = payload.get('symbol') or os.path.splitext(os.path.basename(fpath))[0]
             prices = payload.get('prices') or payload.get('price') or payload.get('prices_list') or []
+            volumes = payload.get('volumes') or payload.get('volume') or payload.get('volumes_list') or None
             if not prices:
                 continue
-            feats = compute_latest_features(prices, short=short, long=long)
+            feats = compute_latest_features(prices, volumes=volumes, short=short, long=long)
             if not feats:
                 continue
             row = {'symbol': sym}

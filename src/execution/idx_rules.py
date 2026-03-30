@@ -21,11 +21,8 @@ def fraksi_harga_tick(price: float) -> int:
         return 5
     if p < 5000:
         return 10
-    if p < 20000:
-        return 25
-    if p < 100000:
-        return 50
-    return 100
+    # Per BEI rules, tick size tops out at 25 IDR for prices >= 5,000
+    return 25
 
 
 def round_down_to_tick(price: float, tick: int) -> int:
@@ -42,19 +39,17 @@ def calculate_idx_limits(previous_close: float) -> dict:
     Returns a dict: {'ara': <max_buy_price>, 'arb': <min_sell_price>, 'tick': <tick>}
     Prices are rounded to the nearest tick size.
     """
-    # ARB is a flat 15% as of the referenced rules
-    arb_percentage = 0.15
-
-    # ARA tiers (heuristic)
+    # ARA/ARB are symmetrical under current IDX rules.
+    # Use sensible limit percentages by price tiers.
     if previous_close < 200:
-        ara_percentage = 0.35
+        limit_percentage = 0.35
     elif 200 <= previous_close <= 5000:
-        ara_percentage = 0.25
+        limit_percentage = 0.25
     else:
-        ara_percentage = 0.20
+        limit_percentage = 0.20
 
-    raw_ara = previous_close * (1 + ara_percentage)
-    raw_arb = previous_close * (1 - arb_percentage)
+    raw_ara = previous_close * (1 + limit_percentage)
+    raw_arb = previous_close * (1 - limit_percentage)
 
     tick = fraksi_harga_tick(previous_close)
 
