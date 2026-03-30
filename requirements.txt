@@ -1,0 +1,12 @@
+pandas
+numpy
+requests
+scikit-learn
+yfinance
+newsapi-python
+apscheduler
+lightgbm
+joblib
+gymnasium
+prometheus-client
+python-dotenv

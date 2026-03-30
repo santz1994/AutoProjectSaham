@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.10, 3.11]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Generate demo prices
+        run: |
+          python bin/runner.py scripts/generate_demo_prices.py -- --symbols BBCA.JK TLKM.JK BMRI.JK --n 200
+
+      - name: Run execution manager smoke test
+        run: |
+          python bin/runner.py scripts/test_execution_manager.py
+
+      - name: Run backtester smoke test
+        run: |
+          python bin/runner.py scripts/test_backtester.py
+
+      - name: Train lightweight model
+        run: |
+          python bin/runner.py scripts/train_model.py -- --limit 1
+
+      - name: Run unit tests
+        run: |
+          python -m unittest discover -s tests
