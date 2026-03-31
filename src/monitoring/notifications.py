@@ -14,38 +14,38 @@ import requests
 
 from src.utils.secrets import get_secret
 
-log = logging.getLogger('autosaham.notifications')
+log = logging.getLogger("autosaham.notifications")
 
 
 def send_slack_alert(text: str, webhook_url: Optional[str] = None) -> bool:
-    webhook = webhook_url or get_secret('SLACK_WEBHOOK_URL')
+    webhook = webhook_url or get_secret("SLACK_WEBHOOK_URL")
     if not webhook:
         return False
     try:
-        payload = {'text': text}
+        payload = {"text": text}
         r = requests.post(webhook, json=payload, timeout=5)
         r.raise_for_status()
         return True
     except Exception:
-        log.exception('failed to send slack alert')
+        log.exception("failed to send slack alert")
         return False
 
 
 def send_email_alert(subject: str, body: str, to: Optional[str] = None) -> bool:
-    to_addr = to or get_secret('ALERT_EMAIL_TO')
+    to_addr = to or get_secret("ALERT_EMAIL_TO")
     if not to_addr:
         return False
-    host = get_secret('SMTP_HOST')
-    port = int(get_secret('SMTP_PORT') or 587)
-    user = get_secret('SMTP_USER')
-    pwd = get_secret('SMTP_PASS')
+    host = get_secret("SMTP_HOST")
+    port = int(get_secret("SMTP_PORT") or 587)
+    user = get_secret("SMTP_USER")
+    pwd = get_secret("SMTP_PASS")
     if not host:
         return False
     try:
         msg = EmailMessage()
-        msg['Subject'] = subject
-        msg['From'] = user or f'no-reply@{host}'
-        msg['To'] = to_addr
+        msg["Subject"] = subject
+        msg["From"] = user or f"no-reply@{host}"
+        msg["To"] = to_addr
         msg.set_content(body)
 
         with smtplib.SMTP(host, port, timeout=10) as s:
@@ -55,21 +55,21 @@ def send_email_alert(subject: str, body: str, to: Optional[str] = None) -> bool:
             s.send_message(msg)
         return True
     except Exception:
-        log.exception('failed to send email alert')
+        log.exception("failed to send email alert")
         return False
 
 
 def notify_event(ev: dict) -> None:
     """Send a short notification for the event to configured channels."""
     try:
-        etype = ev.get('type', 'event')
+        etype = ev.get("type", "event")
         # craft a concise message
-        subject = f'AutoSaham alert: {etype}'
-        body_lines = [f'{k}: {v}' for k, v in ev.items()]
-        body = '\n'.join(body_lines)
+        subject = f"AutoSaham alert: {etype}"
+        body_lines = [f"{k}: {v}" for k, v in ev.items()]
+        body = "\n".join(body_lines)
         # best-effort: Slack then email
         try:
-            send_slack_alert(f'*{subject}*\n{body}')
+            send_slack_alert(f"*{subject}*\n{body}")
         except Exception:
             pass
         try:
@@ -77,4 +77,4 @@ def notify_event(ev: dict) -> None:
         except Exception:
             pass
     except Exception:
-        log.exception('notify_event failed')
+        log.exception("notify_event failed")

@@ -6,7 +6,7 @@ returns common performance metrics and an equity curve.
 from __future__ import annotations
 
 import math
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 import pandas as pd
 
@@ -26,7 +26,7 @@ def backtest_signals(
     position_size: integer units to buy on each buy signal
     """
     if len(prices) != len(signals):
-        raise ValueError('prices and signals must have the same length')
+        raise ValueError("prices and signals must have the same length")
 
     s = pd.Series(prices)
     sig = pd.Series(signals).fillna(0).astype(int)
@@ -50,11 +50,11 @@ def backtest_signals(
                 pos += qty
                 trades.append(
                     {
-                        't': t,
-                        'side': 'buy',
-                        'qty': qty,
-                        'price': exec_price,
-                        'commission': commission,
+                        "t": t,
+                        "side": "buy",
+                        "qty": qty,
+                        "price": exec_price,
+                        "commission": commission,
                     }
                 )
         elif action == -1:
@@ -66,11 +66,11 @@ def backtest_signals(
                 cash += proceeds
                 trades.append(
                     {
-                        't': t,
-                        'side': 'sell',
-                        'qty': qty,
-                        'price': exec_price,
-                        'commission': commission,
+                        "t": t,
+                        "side": "sell",
+                        "qty": qty,
+                        "price": exec_price,
+                        "commission": commission,
                     }
                 )
                 pos = 0
@@ -83,18 +83,18 @@ def backtest_signals(
     cum_return = float(eq.iloc[-1] / initial_cash - 1.0)
     returns_std = returns.std()
     sharpe = (
-        returns.mean() / returns_std * math.sqrt(252)
-    ) if returns_std > 0 else None
+        (returns.mean() / returns_std * math.sqrt(252)) if returns_std > 0 else None
+    )
 
     cummax = eq.cummax()
     drawdown = (eq - cummax) / cummax
     max_dd = float(drawdown.min()) if not drawdown.empty else 0.0
 
     return {
-        'final_balance': float(eq.iloc[-1]) if not eq.empty else float(initial_cash),
-        'equity_curve': eq.tolist(),
-        'cum_return': cum_return,
-        'sharpe': sharpe,
-        'max_drawdown': max_dd,
-        'trades': trades,
+        "final_balance": float(eq.iloc[-1]) if not eq.empty else float(initial_cash),
+        "equity_curve": eq.tolist(),
+        "cum_return": cum_return,
+        "sharpe": sharpe,
+        "max_drawdown": max_dd,
+        "trades": trades,
     }

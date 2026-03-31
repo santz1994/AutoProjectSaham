@@ -20,9 +20,16 @@ async def stream_idx_market_data(redis_client, symbols: List[str]):
         market_updates = []  # await fetch_live_websocket_idx(symbols)
 
         for update in market_updates:
-            payload = json.dumps({'s': update.symbol, 'p': update.price, 'v': update.volume, 't': update.timestamp})
+            payload = json.dumps(
+                {
+                    "s": update.symbol,
+                    "p": update.price,
+                    "v": update.volume,
+                    "t": update.timestamp,
+                }
+            )
             try:
-                await redis_client.xadd('stream:idx:market', {'data': payload})
+                await redis_client.xadd("stream:idx:market", {"data": payload})
             except Exception:
                 # Best-effort: ignore publishing errors
                 pass

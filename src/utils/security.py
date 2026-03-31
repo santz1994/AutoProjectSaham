@@ -7,7 +7,6 @@ variable (not stored on disk) for security.
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 try:
     from cryptography.fernet import Fernet
@@ -19,7 +18,9 @@ class CredentialVault:
     def __init__(self, master_key_env_var: str = "VAULT_MASTER_KEY"):
         master_key = os.environ.get(master_key_env_var)
         if not master_key:
-            raise RuntimeError("CRITICAL: Master Key for vault decryption not found in environment")
+            raise RuntimeError(
+                "CRITICAL: Master Key for vault decryption not found in environment"
+            )
         if Fernet is None:
             raise RuntimeError("cryptography package required for CredentialVault")
         self.cipher = Fernet(master_key.encode())
@@ -31,4 +32,4 @@ class CredentialVault:
         in persistent variables.
         """
         decrypted = self.cipher.decrypt(encrypted_pin_b64.encode())
-        return decrypted.decode('utf-8')
+        return decrypted.decode("utf-8")

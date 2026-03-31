@@ -10,7 +10,11 @@ import numpy as np
 from scipy.stats import ks_2samp
 
 
-def detect_market_regime_drift(recent_returns: Sequence[float], baseline_returns: Sequence[float], threshold: float = 0.05) -> bool:
+def detect_market_regime_drift(
+    recent_returns: Sequence[float],
+    baseline_returns: Sequence[float],
+    threshold: float = 0.05,
+) -> bool:
     """
     Return True when KS test indicates a significant distributional change.
 

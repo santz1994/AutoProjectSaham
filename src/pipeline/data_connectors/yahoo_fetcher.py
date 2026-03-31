@@ -17,6 +17,7 @@ import os
 import sqlite3
 import time
 from typing import List
+
 from .schemas import validate_price_series
 
 try:
@@ -38,10 +39,11 @@ class YahooFetcher:
     ):
         if requests is None:
             raise RuntimeError(
-                'requests and urllib3 are required for YahooFetcher; install with `pip install requests`'
+                "requests and urllib3 are required for YahooFetcher; "
+                "install with `pip install requests`"
             )
 
-        self.cache_db = cache_db or os.path.join(os.getcwd(), 'data', 'yahoo_cache.db')
+        self.cache_db = cache_db or os.path.join(os.getcwd(), "data", "yahoo_cache.db")
         os.makedirs(os.path.dirname(self.cache_db), exist_ok=True)
         self.min_delay = float(min_delay)
         self.timeout = int(timeout)
@@ -53,11 +55,13 @@ class YahooFetcher:
             total=retries,
             backoff_factor=backoff_factor,
             status_forcelist=(429, 500, 502, 503, 504),
-            allowed_methods=frozenset(['GET']),
+            allowed_methods=frozenset(["GET"]),
         )
         adapter = HTTPAdapter(max_retries=retry)
-        self.session.mount('https://', adapter)
-        self.session.headers.update({'User-Agent': 'AutoSaham/1.0 (+https://github.com)'})
+        self.session.mount("https://", adapter)
+        self.session.headers.update(
+            {"User-Agent": "AutoSaham/1.0 (+https://github.com)"}
+        )
 
         # DB connection
         self._conn = sqlite3.connect(self.cache_db, check_same_thread=False)
@@ -66,19 +70,22 @@ class YahooFetcher:
     def _ensure_db(self):
         cur = self._conn.cursor()
         cur.execute(
-            '''CREATE TABLE IF NOT EXISTS price_cache (
+            """CREATE TABLE IF NOT EXISTS price_cache (
                    symbol TEXT NOT NULL,
                    period TEXT NOT NULL,
                    fetched_at INTEGER NOT NULL,
                    csv TEXT,
                    PRIMARY KEY(symbol, period)
-               )'''
+               )"""
         )
         self._conn.commit()
 
     def _get_cached(self, symbol: str, period: str, ttl: int):
         cur = self._conn.cursor()
-        cur.execute('SELECT fetched_at, csv FROM price_cache WHERE symbol=? AND period=?', (symbol, period))
+        cur.execute(
+            "SELECT fetched_at, csv FROM price_cache WHERE symbol=? AND period=?",
+            (symbol, period),
+        )
         row = cur.fetchone()
         if not row:
             return None
@@ -89,7 +96,11 @@ class YahooFetcher:
 
     def _set_cache(self, symbol: str, period: str, csv_text: str):
         cur = self._conn.cursor()
-        cur.execute('INSERT OR REPLACE INTO price_cache(symbol, period, fetched_at, csv) VALUES(?,?,?,?)', (symbol, period, int(time.time()), csv_text))
+        cur.execute(
+            "INSERT OR REPLACE INTO price_cache(symbol, period, fetched_at, csv) "
+            "VALUES(?,?,?,?)",
+            (symbol, period, int(time.time()), csv_text),
+        )
         self._conn.commit()
 
     def _sleep_if_needed(self):
@@ -97,7 +108,14 @@ class YahooFetcher:
         if elapsed < self.min_delay:
             time.sleep(self.min_delay - elapsed)
 
-    def fetch(self, symbol: str, period: str = '1y', use_cache: bool = True, cache_ttl: int = 60 * 60 * 24, force_refresh: bool = False) -> List[float]:
+    def fetch(
+        self,
+        symbol: str,
+        period: str = "1y",
+        use_cache: bool = True,
+        cache_ttl: int = 60 * 60 * 24,
+        force_refresh: bool = False,
+    ) -> List[float]:
         """Fetch historical adjusted-close prices for `symbol`.
 
         symbol: ticker string (e.g. 'BBCA.JK' or 'AAPL')
@@ -112,16 +130,17 @@ class YahooFetcher:
 
         # compute unix timestamps for period
         from datetime import datetime, timedelta, timezone
+
         end_dt = datetime.now(timezone.utc)
         days = 365
         if isinstance(period, str):
-            if period.endswith('y'):
+            if period.endswith("y"):
                 try:
                     years = int(period[:-1]) if period[:-1] else 1
                     days = years * 365
                 except Exception:
                     days = 365
-            elif period.endswith('mo'):
+            elif period.endswith("mo"):
                 try:
                     months = int(period[:-2]) if period[:-2] else 6
                     days = months * 30
@@ -130,12 +149,14 @@ class YahooFetcher:
 
         start_dt = end_dt - timedelta(days=days)
         import calendar as _calendar
+
         period1 = int(_calendar.timegm(start_dt.utctimetuple()))
         period2 = int(_calendar.timegm(end_dt.utctimetuple()))
 
         url = (
-            f'https://query1.finance.yahoo.com/v7/finance/download/{symbol}'
-            f'?period1={period1}&period2={period2}&interval=1d&events=history&includeAdjustedClose=true'
+            f"https://query1.finance.yahoo.com/v7/finance/download/{symbol}"
+            f"?period1={period1}&period2={period2}&interval=1d&events=history&"
+            f"includeAdjustedClose=true"
         )
 
         self._sleep_if_needed()
@@ -143,22 +164,27 @@ class YahooFetcher:
         self._last_request = time.time()
 
         if resp.status_code != 200:
-            # some Yahoo CSV endpoints now require authentication/crumbs; fall back to yfinance
+            # some Yahoo CSV endpoints now require authentication/crumbs;
+            # fall back to yfinance
             try:
                 import yfinance as yf
-                df = yf.download(symbol, period=period, interval='1d', progress=False)
+
+                df = yf.download(symbol, period=period, interval="1d", progress=False)
                 if df is not None and not df.empty:
                     # handle both single- and multi-index columns robustly
                     try:
-                        if 'Adj Close' in df.columns:
-                            series = df['Adj Close']
-                        elif 'Close' in df.columns:
-                            series = df['Close']
+                        if "Adj Close" in df.columns:
+                            series = df["Adj Close"]
+                        elif "Close" in df.columns:
+                            series = df["Close"]
                         else:
                             # multiindex columns (e.g., ('Close', 'AAPL'))
                             found = None
                             for col in df.columns:
-                                if isinstance(col, tuple) and col[0] in ('Adj Close', 'Close'):
+                                if isinstance(col, tuple) and col[0] in (
+                                    "Adj Close",
+                                    "Close",
+                                ):
                                     found = col
                                     break
                             if found is not None:
@@ -167,8 +193,9 @@ class YahooFetcher:
                                 # fallback to last column
                                 series = df.iloc[:, -1]
 
-                        # series may be a DataFrame (if multiple tickers), select first column
-                        if hasattr(series, 'shape') and getattr(series, 'ndim', 1) > 1:
+                        # series may be a DataFrame (if multiple tickers),
+                        # select first column
+                        if hasattr(series, "shape") and getattr(series, "ndim", 1) > 1:
                             # pick first column
                             series = series.iloc[:, 0]
 
@@ -183,7 +210,10 @@ class YahooFetcher:
                 # continue to raise the original error below
                 pass
 
-            raise RuntimeError(f'Yahoo CSV fetch failed for {symbol}: status={resp.status_code} body={resp.text[:300]}')
+            raise RuntimeError(
+                f"Yahoo CSV fetch failed for {symbol}: status={resp.status_code} "
+                f"body={resp.text[:300]}"
+            )
 
         csv_text = resp.text
         prices = self._parse_csv_to_prices(csv_text)
@@ -203,20 +233,24 @@ class YahooFetcher:
         reader = csv.reader(f)
         rows = list(reader)
         if not rows:
-            raise RuntimeError('Empty CSV returned from Yahoo')
+            raise RuntimeError("Empty CSV returned from Yahoo")
 
         header = rows[0]
         try:
-            adj_idx = header.index('Adj Close') if 'Adj Close' in header else header.index('Close')
+            adj_idx = (
+                header.index("Adj Close")
+                if "Adj Close" in header
+                else header.index("Close")
+            )
         except ValueError:
-            raise RuntimeError('Unexpected CSV format from Yahoo')
+            raise RuntimeError("Unexpected CSV format from Yahoo")
 
         prices: List[float] = []
         for row in rows[1:]:
             if len(row) <= adj_idx:
                 continue
             val = row[adj_idx]
-            if val in ('', 'null', 'NA'):
+            if val in ("", "null", "NA"):
                 continue
             try:
                 prices.append(float(val))
@@ -224,18 +258,18 @@ class YahooFetcher:
                 continue
 
         if not prices:
-            raise RuntimeError('No numeric prices parsed from Yahoo CSV')
+            raise RuntimeError("No numeric prices parsed from Yahoo CSV")
 
         return prices
 
     def clear_cache(self):
         cur = self._conn.cursor()
-        cur.execute('DELETE FROM price_cache')
+        cur.execute("DELETE FROM price_cache")
         self._conn.commit()
 
     def close(self):
         try:
-            if getattr(self, '_conn', None):
+            if getattr(self, "_conn", None):
                 try:
                     self._conn.close()
                 except Exception:

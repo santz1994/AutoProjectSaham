@@ -28,13 +28,13 @@ class PaperBroker(BrokerInterface):
         self.trades = []
 
     def place_order(self, symbol: str, side: str, qty: int, price: float):
-        now = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+        now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         qty = int(qty)
         # realistic broker fees (approx): buy fee ~0.15%, sell fee ~0.25% (incl. taxes)
         buy_fee_pct = 0.0015
         sell_fee_pct = 0.0025
 
-        if side.lower() == 'buy':
+        if side.lower() == "buy":
             cost = price * qty
             fee = cost * buy_fee_pct
             total_cost = cost + fee
@@ -42,31 +42,31 @@ class PaperBroker(BrokerInterface):
                 self.cash -= total_cost
                 self.positions[symbol] = self.positions.get(symbol, 0) + qty
                 trade = {
-                    'time': now,
-                    'symbol': symbol,
-                    'side': 'buy',
-                    'qty': qty,
-                    'price': price,
-                    'status': 'filled',
-                    'fee': float(fee),
+                    "time": now,
+                    "symbol": symbol,
+                    "side": "buy",
+                    "qty": qty,
+                    "price": price,
+                    "status": "filled",
+                    "fee": float(fee),
                 }
                 self.trades.append(trade)
                 return trade
             else:
                 trade = {
-                    'time': now,
-                    'symbol': symbol,
-                    'side': 'buy',
-                    'qty': qty,
-                    'price': price,
-                    'status': 'rejected',
-                    'reason': 'insufficient_cash',
-                    'required': float(total_cost),
+                    "time": now,
+                    "symbol": symbol,
+                    "side": "buy",
+                    "qty": qty,
+                    "price": price,
+                    "status": "rejected",
+                    "reason": "insufficient_cash",
+                    "required": float(total_cost),
                 }
                 self.trades.append(trade)
                 return trade
 
-        if side.lower() == 'sell':
+        if side.lower() == "sell":
             pos = self.positions.get(symbol, 0)
             if qty <= pos:
                 self.positions[symbol] = pos - qty
@@ -75,38 +75,38 @@ class PaperBroker(BrokerInterface):
                 net = proceeds - fee
                 self.cash += net
                 trade = {
-                    'time': now,
-                    'symbol': symbol,
-                    'side': 'sell',
-                    'qty': qty,
-                    'price': price,
-                    'status': 'filled',
-                    'fee': float(fee),
-                    'net': float(net),
+                    "time": now,
+                    "symbol": symbol,
+                    "side": "sell",
+                    "qty": qty,
+                    "price": price,
+                    "status": "filled",
+                    "fee": float(fee),
+                    "net": float(net),
                 }
                 self.trades.append(trade)
                 return trade
             else:
                 trade = {
-                    'time': now,
-                    'symbol': symbol,
-                    'side': 'sell',
-                    'qty': qty,
-                    'price': price,
-                    'status': 'rejected',
-                    'reason': 'insufficient_position',
+                    "time": now,
+                    "symbol": symbol,
+                    "side": "sell",
+                    "qty": qty,
+                    "price": price,
+                    "status": "rejected",
+                    "reason": "insufficient_position",
                 }
                 self.trades.append(trade)
                 return trade
 
         trade = {
-            'time': now,
-            'symbol': symbol,
-            'side': side,
-            'qty': qty,
-            'price': price,
-            'status': 'rejected',
-            'reason': 'unknown_side',
+            "time": now,
+            "symbol": symbol,
+            "side": side,
+            "qty": qty,
+            "price": price,
+            "status": "rejected",
+            "reason": "unknown_side",
         }
         self.trades.append(trade)
         return trade

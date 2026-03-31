@@ -3,9 +3,9 @@
 Provides a simple `AutonomousPipeline` class with `run_once()` and `start()`.
 Runs `src.pipeline.etl.run_etl` and persists each run to `data/etl_<timestamp>.json`.
 """
-from datetime import datetime, timezone
 import json
 import os
+from datetime import datetime, timezone
 
 from .etl import run_etl
 
@@ -15,10 +15,10 @@ class AutonomousPipeline:
         self,
         symbols=None,
         news_api_key=None,
-        data_dir='data',
+        data_dir="data",
         interval_minutes=5,
     ):
-        self.symbols = symbols or ['BBCA']
+        self.symbols = symbols or ["BBCA"]
         self.news_api_key = news_api_key
         self.data_dir = data_dir
         self.interval = int(interval_minutes)
@@ -28,23 +28,28 @@ class AutonomousPipeline:
         os.makedirs(self.data_dir, exist_ok=True)
 
     def _job(self):
-        ts = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         try:
             payload = {
-                'timestamp': ts,
-                'symbols': self.symbols,
-                'data': run_etl(self.symbols, news_api_key=self.news_api_key),
+                "timestamp": ts,
+                "symbols": self.symbols,
+                "data": run_etl(self.symbols, news_api_key=self.news_api_key),
             }
-            fname = os.path.join(self.data_dir, f'etl_{ts}.json')
-            with open(fname, 'w', encoding='utf-8') as fh:
+            fname = os.path.join(self.data_dir, f"etl_{ts}.json")
+            with open(fname, "w", encoding="utf-8") as fh:
                 json.dump(payload, fh, ensure_ascii=False, indent=2)
-            print(f'ETL run saved to {fname}')
+            print(f"ETL run saved to {fname}")
             return fname
         except Exception as e:
-            err_fname = os.path.join(self.data_dir, f'etl_error_{ts}.json')
-            with open(err_fname, 'w', encoding='utf-8') as fh:
-                json.dump({'timestamp': ts, 'error': repr(e)}, fh, ensure_ascii=False, indent=2)
-            print(f'ETL error saved to {err_fname}')
+            err_fname = os.path.join(self.data_dir, f"etl_error_{ts}.json")
+            with open(err_fname, "w", encoding="utf-8") as fh:
+                json.dump(
+                    {"timestamp": ts, "error": repr(e)},
+                    fh,
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            print(f"ETL error saved to {err_fname}")
             return err_fname
 
     def run_once(self):
@@ -55,11 +60,13 @@ class AutonomousPipeline:
         try:
             from apscheduler.schedulers.background import BackgroundScheduler
         except Exception:
-            raise RuntimeError('apscheduler not installed; install with `pip install apscheduler`')
+            raise RuntimeError(
+                "apscheduler not installed; install with `pip install apscheduler`"
+            )
 
         self._ensure_dir()
         if self._scheduler is not None:
-            print('Scheduler already running')
+            print("Scheduler already running")
             return
 
         # Use cron scheduling constrained to IDX market hours (Asia/Jakarta timezone)
@@ -67,12 +74,12 @@ class AutonomousPipeline:
             # Python 3.9+: use zoneinfo
             from zoneinfo import ZoneInfo
 
-            tz = ZoneInfo('Asia/Jakarta')
+            tz = ZoneInfo("Asia/Jakarta")
         except Exception:
             try:
                 import pytz
 
-                tz = pytz.timezone('Asia/Jakarta')
+                tz = pytz.timezone("Asia/Jakarta")
             except Exception:
                 tz = None
 
@@ -81,30 +88,32 @@ class AutonomousPipeline:
             # Run only on business days during market hours (09:00-16:00 WIB)
             self._scheduler.add_job(
                 self._job,
-                'cron',
-                day_of_week='mon-fri',
-                hour='9-16',
-                minute=f'*/{self.interval}',
+                "cron",
+                day_of_week="mon-fri",
+                hour="9-16",
+                minute=f"*/{self.interval}",
                 max_instances=1,
                 timezone=tz,
             )
             print(
-                f'AutonomousPipeline scheduled (Asia/Jakarta) — fetching {self.symbols} '
-                f'every {self.interval} minutes during 09:00-16:00 WIB'
+                "AutonomousPipeline scheduled (Asia/Jakarta) — fetching "
+                f"{self.symbols} every {self.interval} minutes "
+                "during 09:00-16:00 WIB"
             )
         else:
             # Fallback: approximate UTC hours (WIB = UTC+7 => 02:00-09:00 UTC)
             self._scheduler.add_job(
                 self._job,
-                'cron',
-                day_of_week='mon-fri',
-                hour='2-9',
-                minute=f'*/{self.interval}',
+                "cron",
+                day_of_week="mon-fri",
+                hour="2-9",
+                minute=f"*/{self.interval}",
                 max_instances=1,
             )
             print(
-                f'AutonomousPipeline scheduled (UTC fallback) — fetching {self.symbols} '
-                f'every {self.interval} minutes during approx market hours (02:00-09:00 UTC)'
+                "AutonomousPipeline scheduled (UTC fallback) — fetching "
+                f"{self.symbols} every {self.interval} minutes "
+                "during approx market hours (02:00-09:00 UTC)"
             )
 
         self._scheduler.start()
@@ -113,4 +122,4 @@ class AutonomousPipeline:
         if self._scheduler:
             self._scheduler.shutdown(wait=False)
             self._scheduler = None
-            print('AutonomousPipeline stopped')
+            print("AutonomousPipeline stopped")

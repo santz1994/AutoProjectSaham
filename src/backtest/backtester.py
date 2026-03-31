@@ -23,13 +23,15 @@ class OrderEvent:
 class IDXEventDrivenBacktester:
     def __init__(self):
         self.order_queue = deque()
-        self.current_market_data = {'traded_volume': 0}
+        self.current_market_data = {"traded_volume": 0}
         self.trades = []
 
     def update_market_data(self, traded_volume: int):
-        self.current_market_data['traded_volume'] = int(traded_volume)
+        self.current_market_data["traded_volume"] = int(traded_volume)
 
-    def simulate_idx_matching_engine(self, order: OrderEvent, current_volume_at_price: int) -> Optional[int]:
+    def simulate_idx_matching_engine(
+        self, order: OrderEvent, current_volume_at_price: int
+    ) -> Optional[int]:
         """
         Simulate Price-Time Priority BEI.
 
@@ -40,7 +42,7 @@ class IDXEventDrivenBacktester:
         queue_position_ahead = int(current_volume_at_price)
         executed_volume = 0
 
-        traded = int(self.current_market_data.get('traded_volume', 0))
+        traded = int(self.current_market_data.get("traded_volume", 0))
         # while there is traded volume above the queue ahead and we still have volume
         while traded > queue_position_ahead and order.volume > 0:
             fill_amount = min(order.volume, traded - queue_position_ahead)
@@ -69,11 +71,21 @@ class IDXEventDrivenBacktester:
                 # different price level; skip
                 continue
 
-            executed = self.simulate_idx_matching_engine(order, current_volume_at_price=0)
+            executed = self.simulate_idx_matching_engine(
+                order, current_volume_at_price=0
+            )
             if executed is not None and executed > 0:
-                fills.append({'order': order, 'filled': int(executed)})
+                fills.append({"order": order, "filled": int(executed)})
                 # record trade
-                self.trades.append({'symbol': order.symbol, 'side': order.order_type, 'price': order.price, 'volume': executed, 'timestamp': order.timestamp})
+                self.trades.append(
+                    {
+                        "symbol": order.symbol,
+                        "side": order.order_type,
+                        "price": order.price,
+                        "volume": executed,
+                        "timestamp": order.timestamp,
+                    }
+                )
                 # remove order from queue if fully filled
                 if order.volume <= 0:
                     try:
@@ -82,11 +94,11 @@ class IDXEventDrivenBacktester:
                         pass
 
         return fills
-"""Very small backtester for strategy signals.
 
-Executes signals at next-day prices (EoD semantics) to avoid lookahead bias
-and supports deterministic slippage and fees for realistic simulation.
-"""
+    # Very small backtester for strategy signals.
+    #
+    # Executes signals at next-day prices (EoD semantics) to avoid lookahead bias
+    # and supports deterministic slippage and fees for realistic simulation.
 
 
 def simple_backtest(
@@ -115,7 +127,7 @@ def simple_backtest(
 
     n = len(prices)
     if n == 0:
-        return {'final_balance': cash, 'trades': trades}
+        return {"final_balance": cash, "trades": trades}
 
     # iterate signals up to the penultimate day (signals on last day cannot execute)
     for i in range(0, n - 1):
@@ -134,11 +146,11 @@ def simple_backtest(
                 pos += qty
                 trades.append(
                     (
-                        'buy',
+                        "buy",
                         exec_idx,
                         exec_price,
                         qty,
-                        {'slippage': float(slippage_cost), 'fee': float(fee)},
+                        {"slippage": float(slippage_cost), "fee": float(fee)},
                     )
                 )
             else:
@@ -159,11 +171,11 @@ def simple_backtest(
                         pos += qty2
                         trades.append(
                             (
-                                'buy_partial',
+                                "buy_partial",
                                 exec_idx,
                                 exec_price,
                                 qty2,
-                                {'slippage': float(slippage2), 'fee': float(fee2)},
+                                {"slippage": float(slippage2), "fee": float(fee2)},
                             )
                         )
 
@@ -176,14 +188,14 @@ def simple_backtest(
             cash += net_proceeds
             trades.append(
                 (
-                    'sell',
+                    "sell",
                     exec_idx,
                     exec_price,
                     qty,
-                    {'slippage': float(slippage_cost), 'fee': float(fee)},
+                    {"slippage": float(slippage_cost), "fee": float(fee)},
                 )
             )
             pos = 0
 
     final_bal = cash + pos * (prices[-1] if prices else 0)
-    return {'final_balance': final_bal, 'trades': trades}
+    return {"final_balance": final_bal, "trades": trades}

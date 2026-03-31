@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import Mock
 
 # ensure src package is importable
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
@@ -17,7 +17,7 @@ class SchedulerTests(unittest.TestCase):
 
         from src.pipeline.scheduler import PipelineScheduler
 
-        sched = PipelineScheduler(mock_pipeline, symbols=['AAA'], interval_seconds=0.05)
+        sched = PipelineScheduler(mock_pipeline, symbols=["AAA"], interval_seconds=0.05)
         started = sched.start()
         self.assertTrue(started)
         # allow a few intervals to pass
@@ -32,10 +32,10 @@ class SchedulerTests(unittest.TestCase):
         mock_pipeline.run = Mock()
         from src.pipeline.scheduler import PipelineScheduler
 
-        sched = PipelineScheduler(mock_pipeline, symbols=['AAA'], interval_seconds=1.0)
+        sched = PipelineScheduler(mock_pipeline, symbols=["AAA"], interval_seconds=1.0)
         sched.run_once()
         mock_pipeline.run.assert_called_once()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

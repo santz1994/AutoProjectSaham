@@ -3,15 +3,14 @@ import sys
 import unittest
 
 # ensure src package is importable when tests run directly
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
-
-from src.brokers.retry_wrapper import RetryBrokerAdapter
 
 
 class FlakyAdapter:
     """A minimal adapter that fails a configurable number of times before succeeding."""
+
     def __init__(self, place_fail_times: int = 0, connect_fail_times: int = 0):
         self.place_calls = 0
         self.connect_calls = 0
@@ -23,19 +22,19 @@ class FlakyAdapter:
     def connect(self):
         self.connect_calls += 1
         if self.connect_calls <= self.connect_fail_times:
-            raise RuntimeError('connect temporary error')
+            raise RuntimeError("connect temporary error")
         return True
 
     def place_order(self, symbol, side, qty, price):
         self.place_calls += 1
         if self.place_calls <= self.place_fail_times:
-            raise RuntimeError('temporary place failure')
+            raise RuntimeError("temporary place failure")
         # simple deterministic fill
-        if side.lower() == 'buy':
+        if side.lower() == "buy":
             self.positions[symbol] = self.positions.get(symbol, 0) + int(qty)
             self.cash -= float(price) * int(qty)
-            return {'status': 'filled'}
-        return {'status': 'rejected'}
+            return {"status": "filled"}
+        return {"status": "rejected"}
 
     def cancel_order(self, order_id):
         return False
@@ -58,15 +57,17 @@ class FlakyAdapter:
 
     def reconcile(self):
         return {
-            'positions': self.get_positions(),
-            'cash': self.get_cash(),
-            'balance': self.get_balance({}),
+            "positions": self.get_positions(),
+            "cash": self.get_cash(),
+            "balance": self.get_balance({}),
         }
 
 
 class RetryWrapperTests(unittest.TestCase):
     def test_place_order_succeeds_after_retries(self):
         flaky = FlakyAdapter(place_fail_times=2)
+        from src.brokers.retry_wrapper import RetryBrokerAdapter
+
         wrapper = RetryBrokerAdapter(
             flaky,
             max_retries=3,
@@ -74,11 +75,13 @@ class RetryWrapperTests(unittest.TestCase):
             max_backoff=0.005,
             jitter=0.0,
         )
-        res = wrapper.place_order('X', 'buy', 1, 10.0)
-        self.assertEqual(res.get('status'), 'filled')
+        res = wrapper.place_order("X", "buy", 1, 10.0)
+        self.assertEqual(res.get("status"), "filled")
 
     def test_place_order_exceeds_retries(self):
         flaky = FlakyAdapter(place_fail_times=5)
+        from src.brokers.retry_wrapper import RetryBrokerAdapter
+
         wrapper = RetryBrokerAdapter(
             flaky,
             max_retries=3,
@@ -87,10 +90,12 @@ class RetryWrapperTests(unittest.TestCase):
             jitter=0.0,
         )
         with self.assertRaises(RuntimeError):
-            wrapper.place_order('X', 'buy', 1, 10.0)
+            wrapper.place_order("X", "buy", 1, 10.0)
 
     def test_connect_retries(self):
         flaky = FlakyAdapter(connect_fail_times=2)
+        from src.brokers.retry_wrapper import RetryBrokerAdapter
+
         wrapper = RetryBrokerAdapter(
             flaky,
             max_retries=3,
@@ -101,5 +106,5 @@ class RetryWrapperTests(unittest.TestCase):
         self.assertTrue(wrapper.connect())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

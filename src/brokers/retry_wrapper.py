@@ -36,7 +36,7 @@ class RetryBrokerAdapter(BrokerAdapter):
         self._mult = float(backoff_multiplier)
         self._jitter = float(jitter)
         self._retry_on = retry_on_exceptions
-        self._logger = logger or logging.getLogger('autosaham.brokers.retry')
+        self._logger = logger or logging.getLogger("autosaham.brokers.retry")
 
     def _retry_call(self, fn: Callable, *args, **kwargs):
         delay = self._initial_backoff
@@ -47,14 +47,16 @@ class RetryBrokerAdapter(BrokerAdapter):
             except self._retry_on as e:
                 last_exc = e
                 if attempt == self._max_retries:
-                    self._logger.debug('retry max reached for %s', getattr(fn, '__name__', str(fn)))
+                    self._logger.debug(
+                        "retry max reached for %s", getattr(fn, "__name__", str(fn))
+                    )
                     raise
                 # sleep with jitter
                 jitter_amt = random.uniform(0, self._jitter * delay)
                 sleep_for = min(self._max_backoff, delay) + jitter_amt
                 self._logger.debug(
-                    'retrying %s after %.3fs (attempt %d/%d): %s',
-                    getattr(fn, '__name__', str(fn)),
+                    "retrying %s after %.3fs (attempt %d/%d): %s",
+                    getattr(fn, "__name__", str(fn)),
                     sleep_for,
                     attempt,
                     self._max_retries,
@@ -68,47 +70,57 @@ class RetryBrokerAdapter(BrokerAdapter):
 
     # BrokerAdapter interface methods: delegate to underlying adapter with retries
     def connect(self) -> bool:
-        return self._retry_call(getattr(self._adapter, 'connect'))
+        return self._retry_call(getattr(self._adapter, "connect"))
 
     def place_order(self, symbol: str, side: str, qty: int, price: float) -> dict:
-        return self._retry_call(lambda: self._adapter.place_order(
-            symbol,
-            side,
-            qty,
-            price,
-        ))
+        return self._retry_call(
+            lambda: self._adapter.place_order(
+                symbol,
+                side,
+                qty,
+                price,
+            )
+        )
 
     def cancel_order(self, order_id: str) -> bool:
-        return self._retry_call(lambda: self._adapter.cancel_order(
-            order_id,
-        ))
+        return self._retry_call(
+            lambda: self._adapter.cancel_order(
+                order_id,
+            )
+        )
 
     def get_positions(self) -> dict:
-        return self._retry_call(getattr(self._adapter, 'get_positions'))
+        return self._retry_call(getattr(self._adapter, "get_positions"))
 
     def get_cash(self) -> float:
-        return float(self._retry_call(getattr(self._adapter, 'get_cash')))
+        return float(self._retry_call(getattr(self._adapter, "get_cash")))
 
     def get_balance(self, price_map: Optional[dict] = None) -> float:
-        return float(self._retry_call(lambda: self._adapter.get_balance(
-            price_map,
-        )))
+        return float(
+            self._retry_call(
+                lambda: self._adapter.get_balance(
+                    price_map,
+                )
+            )
+        )
 
     def disconnect(self) -> None:
         try:
-            return self._retry_call(getattr(self._adapter, 'disconnect'))
+            return self._retry_call(getattr(self._adapter, "disconnect"))
         except Exception:
             # best-effort
-            self._logger.exception('disconnect failed')
+            self._logger.exception("disconnect failed")
 
     def reconcile(self) -> dict:
         # reconcile may be heavier; still retry
-        if hasattr(self._adapter, 'reconcile'):
-            return self._retry_call(getattr(self._adapter, 'reconcile'))
+        if hasattr(self._adapter, "reconcile"):
+            return self._retry_call(getattr(self._adapter, "reconcile"))
         return {}
 
-    def reconcile_with_expected(self, expected_positions: dict, expected_cash: Optional[float] = None) -> dict:
-        if hasattr(self._adapter, 'reconcile_with_expected'):
+    def reconcile_with_expected(
+        self, expected_positions: dict, expected_cash: Optional[float] = None
+    ) -> dict:
+        if hasattr(self._adapter, "reconcile_with_expected"):
             return self._retry_call(
                 lambda: self._adapter.reconcile_with_expected(
                     expected_positions, expected_cash

@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-import numpy as np
 import pandas as pd
 
 try:
@@ -15,7 +14,9 @@ except Exception:
     shap = None
 
 
-def generate_trade_explanation(model, current_features: pd.DataFrame, feature_names: List[str]) -> Dict:
+def generate_trade_explanation(
+    model, current_features: pd.DataFrame, feature_names: List[str]
+) -> Dict:
     """
     Return a compact SHAP-based explanation for the latest row in `current_features`.
 
@@ -23,10 +24,10 @@ def generate_trade_explanation(model, current_features: pd.DataFrame, feature_na
     """
     if shap is None:
         return {
-            'base_value': None,
-            'top_bullish_drivers': [],
-            'top_bearish_drivers': [],
-            'note': 'shap not installed',
+            "base_value": None,
+            "top_bullish_drivers": [],
+            "top_bearish_drivers": [],
+            "note": "shap not installed",
         }
 
     explainer = shap.TreeExplainer(model)
@@ -45,8 +46,12 @@ def generate_trade_explanation(model, current_features: pd.DataFrame, feature_na
         zip(feature_names, last_vals), key=lambda x: abs(x[1]), reverse=True
     )
 
-    top_bullish = [{'feature': f, 'impact': float(v)} for f, v in feature_impact if v > 0][:3]
-    top_bearish = [{'feature': f, 'impact': float(v)} for f, v in feature_impact if v < 0][:3]
+    top_bullish = [
+        {"feature": f, "impact": float(v)} for f, v in feature_impact if v > 0
+    ][:3]
+    top_bearish = [
+        {"feature": f, "impact": float(v)} for f, v in feature_impact if v < 0
+    ][:3]
 
     base_value = None
     try:
@@ -59,7 +64,7 @@ def generate_trade_explanation(model, current_features: pd.DataFrame, feature_na
         base_value = None
 
     return {
-        'base_value': base_value,
-        'top_bullish_drivers': top_bullish,
-        'top_bearish_drivers': top_bearish,
+        "base_value": base_value,
+        "top_bullish_drivers": top_bullish,
+        "top_bearish_drivers": top_bearish,
     }

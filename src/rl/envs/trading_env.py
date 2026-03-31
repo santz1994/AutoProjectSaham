@@ -15,7 +15,6 @@ momentum, distance_to_ara, distance_to_arb, position_notional_fraction]
 """
 from __future__ import annotations
 
-
 from typing import List, Optional
 
 import numpy as np
@@ -40,7 +39,7 @@ class TradingEnv:
         self,
         prices: List[float],
         volumes: Optional[List[float]] = None,
-        symbol: str = 'ENV',
+        symbol: str = "ENV",
         starting_cash: float = 10000.0,
         position_size: int = 1,
         commission_pct: float = 0.0005,
@@ -48,7 +47,7 @@ class TradingEnv:
     ):
         self.prices = list(prices)
         if not self.prices:
-            raise ValueError('prices must be non-empty')
+            raise ValueError("prices must be non-empty")
         self.symbol = symbol
         self.starting_cash = float(starting_cash)
         self.position_size = int(position_size)
@@ -65,14 +64,15 @@ class TradingEnv:
         self._start_balance = self.starting_cash
 
         # lazy imports to avoid hard dependencies
-        from src.execution.manager import ExecutionManager
         from src.execution.executor import PaperBroker
+        from src.execution.manager import ExecutionManager
         from src.ml.feature_store import compute_latest_features
 
         self.ExecutionManager = ExecutionManager
         self.compute_latest_features = compute_latest_features
 
-        # initialize manager with a PaperBroker seeded with this environment's starting cash
+        # initialize manager with a PaperBroker seeded with this
+        # environment's starting cash
         self.manager = ExecutionManager(broker=PaperBroker(cash=self.starting_cash))
         self.manager.start_day({self.symbol: self.prices[0]})
 
@@ -98,7 +98,9 @@ class TradingEnv:
         # the RL episode has the correct buying power (avoid hardcoded defaults)
         from src.execution.executor import PaperBroker
 
-        self.manager = self.ExecutionManager(broker=PaperBroker(cash=self.starting_cash))
+        self.manager = self.ExecutionManager(
+            broker=PaperBroker(cash=self.starting_cash)
+        )
         self.manager.start_day({self.symbol: self.prices[self.t]})
         obs = self._get_obs()
         # gymnasium requires reset to return (obs, info)
@@ -117,18 +119,20 @@ class TradingEnv:
         from src.execution.idx_rules import calculate_idx_limits
 
         limits = calculate_idx_limits(prev_close)
-        ara = limits['ara']
-        arb = limits['arb']
+        ara = limits["ara"]
+        arb = limits["arb"]
 
         # distance to bounds (normalized)
         dist_ara = (ara - last) / last if last > 0 else 0.0
         dist_arb = (last - arb) / last if last > 0 else 0.0
 
         # fetch live broker state so the agent can see its positions/cash
-        live_cash = getattr(getattr(self.manager, 'broker', None), 'cash', self.cash)
+        live_cash = getattr(getattr(self.manager, "broker", None), "cash", self.cash)
         live_pos = 0
         try:
-            live_pos = getattr(self.manager.broker, 'positions', {}).get(self.symbol, int(self.pos))
+            live_pos = getattr(self.manager.broker, "positions", {}).get(
+                self.symbol, int(self.pos)
+            )
         except Exception:
             live_pos = int(self.pos)
 
@@ -141,11 +145,11 @@ class TradingEnv:
 
         obs = np.array(
             [
-                feats.get('last_price', last),
-                feats.get('short_sma', last),
-                feats.get('long_sma', last),
-                feats.get('volatility', 0.0),
-                feats.get('momentum', 0.0),
+                feats.get("last_price", last),
+                feats.get("short_sma", last),
+                feats.get("long_sma", last),
+                feats.get("volatility", 0.0),
+                feats.get("momentum", 0.0),
                 dist_ara,
                 dist_arb,
                 pos_fraction,
@@ -190,10 +194,10 @@ class TradingEnv:
         # 1) Let manager process any pending limit orders for this tick
         try:
             tick_res = self.manager.process_market_tick({self.symbol: price})
-            if tick_res.get('executed'):
-                for e in tick_res['executed']:
-                    if e.get('order', {}).get('symbol') == self.symbol:
-                        info['limit_executed'] = True
+            if tick_res.get("executed"):
+                for e in tick_res["executed"]:
+                    if e.get("order", {}).get("symbol") == self.symbol:
+                        info["limit_executed"] = True
                         reward += 2.0
                         break
         except Exception:
@@ -206,20 +210,28 @@ class TradingEnv:
             # liquidity-aware slippage model (10% of daily volume is liquid)
             current_volume = self.volumes[self.t] if self.t < len(self.volumes) else 0
             trade_size = int(self.position_size)
-            max_executable_vol = max(1, int(current_volume * 0.10)) if current_volume else None
+            max_executable_vol = (
+                max(1, int(current_volume * 0.10)) if current_volume else None
+            )
 
             exec_price = price
             if max_executable_vol and abs(trade_size) > max_executable_vol:
-                excess_ratio = (abs(trade_size) - max_executable_vol) / max_executable_vol
-                slippage_factor = min(0.05, 0.005 * (excess_ratio ** 1.5))
+                excess_ratio = (
+                    abs(trade_size) - max_executable_vol
+                ) / max_executable_vol
+                slippage_factor = min(0.05, 0.005 * (excess_ratio**1.5))
                 exec_price = price * (1.0 + slippage_factor)
 
             trade = self.manager.place_order(
-                self.symbol, 'buy', self.position_size, exec_price, previous_close=prev_close
+                self.symbol,
+                "buy",
+                self.position_size,
+                exec_price,
+                previous_close=prev_close,
             )
-            if trade.get('status') == 'rejected':
+            if trade.get("status") == "rejected":
                 reward -= 1.0
-                info['rejected'] = trade.get('reason')
+                info["rejected"] = trade.get("reason")
             else:
                 # set take-profit target based on bracket
                 limit_price = None
@@ -233,46 +245,58 @@ class TradingEnv:
                     from src.execution.idx_rules import calculate_idx_limits
 
                     limits = calculate_idx_limits(prev_close)
-                    limit_price = limits['ara']
+                    limit_price = limits["ara"]
 
                 if limit_price is not None:
                     # register pending limit with manager
-                    res = self.manager.place_limit_order(self.symbol, 'sell', self.position_size, limit_price, previous_close=prev_close)
-                    if res.get('status') == 'pending':
-                        info['limit_order_id'] = res.get('order_id')
-                        info['limit_set'] = float(limit_price)
+                    res = self.manager.place_limit_order(
+                        self.symbol,
+                        "sell",
+                        self.position_size,
+                        limit_price,
+                        previous_close=prev_close,
+                    )
+                    if res.get("status") == "pending":
+                        info["limit_order_id"] = res.get("order_id")
+                        info["limit_set"] = float(limit_price)
                     else:
-                        info['limit_rejected'] = res.get('reason')
+                        info["limit_rejected"] = res.get("reason")
 
         elif decision == 2:
             # SELL market (manual override)
             qty = self.manager.broker.positions.get(self.symbol, 0)
             if qty > 0:
-                current_volume = self.volumes[self.t] if self.t < len(self.volumes) else 0
+                current_volume = (
+                    self.volumes[self.t] if self.t < len(self.volumes) else 0
+                )
                 trade_size = int(qty)
-                max_executable_vol = max(1, int(current_volume * 0.10)) if current_volume else None
+                max_executable_vol = (
+                    max(1, int(current_volume * 0.10)) if current_volume else None
+                )
 
                 exec_price = price
                 if max_executable_vol and abs(trade_size) > max_executable_vol:
-                    excess_ratio = (abs(trade_size) - max_executable_vol) / max_executable_vol
-                    slippage_factor = min(0.05, 0.005 * (excess_ratio ** 1.5))
+                    excess_ratio = (
+                        abs(trade_size) - max_executable_vol
+                    ) / max_executable_vol
+                    slippage_factor = min(0.05, 0.005 * (excess_ratio**1.5))
                     exec_price = price * (1.0 - slippage_factor)
 
                 trade = self.manager.place_order(
-                    self.symbol, 'sell', qty, exec_price, previous_close=prev_close
+                    self.symbol, "sell", qty, exec_price, previous_close=prev_close
                 )
-                if trade.get('status') == 'rejected':
+                if trade.get("status") == "rejected":
                     reward -= 1.0
-                    info['rejected'] = trade.get('reason')
+                    info["rejected"] = trade.get("reason")
                 else:
                     # clear any pending TP / limit orders for this symbol
                     cancelled = self.manager.cancel_all_pending_for_symbol(self.symbol)
-                    info['cancelled_pending'] = int(cancelled)
+                    info["cancelled_pending"] = int(cancelled)
 
         elif decision == 3:
             # cancel pending limits for this symbol
             cancelled = self.manager.cancel_all_pending_for_symbol(self.symbol)
-            info['cancelled_pending'] = int(cancelled)
+            info["cancelled_pending"] = int(cancelled)
 
         # advance time
         done = False
@@ -289,12 +313,13 @@ class TradingEnv:
         )
         reward += float(new_balance - prev_balance)
 
-        # Always return a valid observation (SB3 requires an observation even at terminal)
+        # Always return a valid observation (SB3 requires an observation
+        # even at terminal)
         obs = self._get_obs()
 
         # include info about active TP for debugging
-        if getattr(self, 'active_limit_sell_price', None) is not None:
-            info['active_limit'] = float(self.active_limit_sell_price)
+        if getattr(self, "active_limit_sell_price", None) is not None:
+            info["active_limit"] = float(self.active_limit_sell_price)
 
         # gymnasium expects: obs, reward, terminated, truncated, info
         if GYM is not None:
@@ -308,5 +333,5 @@ class TradingEnv:
         price_str = self.prices[self.t - 1] if self.t > 0 else self.prices[0]
         pos = self.manager.broker.positions.get(self.symbol, 0)
         cash = self.manager.broker.cash
-        print(f't={self.t} price={price_str} cash={cash}')
-        print(f'pos={pos} balance={bal}')
+        print(f"t={self.t} price={price_str} cash={cash}")
+        print(f"pos={pos} balance={bal}")

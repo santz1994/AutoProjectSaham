@@ -5,7 +5,7 @@ listing page) and returns a list of dicts with `code` and `name` keys when
 possible. Functions are defensive and provide clear errors when network access
 or parsing fails.
 """
-from typing import List, Dict
+from typing import Dict, List
 
 
 def get_idx_listings(timeout: int = 10) -> List[Dict[str, str]]:
@@ -20,14 +20,22 @@ def get_idx_listings(timeout: int = 10) -> List[Dict[str, str]]:
     try:
         import requests
     except Exception as e:
-        raise RuntimeError('requests not installed; install with `pip install requests`') from e
+        raise RuntimeError(
+            "requests not installed; install with `pip install requests`"
+        ) from e
 
-    headers = {'User-Agent': 'AutoSaham/1.0 (+https://github.com)'}
+    headers = {"User-Agent": "AutoSaham/1.0 (+https://github.com)"}
 
     candidate_urls = [
-        'https://www.idx.co.id/umbraco/Surface/ListedCompany/GetListedCompanies',
-        'https://www.idx.co.id/umbraco/Surface/ListedCompany/GetListedCompanies?category=1',
-        'https://www.idx.co.id/umbraco/Surface/ListedCompany/GetListedCompanies?type=1',
+        "https://www.idx.co.id/umbraco/Surface/ListedCompany/GetListedCompanies",
+        (
+            "https://www.idx.co.id/umbraco/Surface/"
+            "ListedCompany/GetListedCompanies?category=1"
+        ),
+        (
+            "https://www.idx.co.id/umbraco/Surface/"
+            "ListedCompany/GetListedCompanies?type=1"
+        ),
     ]
 
     for url in candidate_urls:
@@ -51,27 +59,54 @@ def get_idx_listings(timeout: int = 10) -> List[Dict[str, str]]:
             for item in payload:
                 if not isinstance(item, dict):
                     continue
-                code = item.get('CompanyCode') or item.get('Code') or item.get('companyCode') or item.get('code')
-                name = item.get('CompanyName') or item.get('Name') or item.get('companyName') or item.get('name')
-                out.append({'code': code, 'name': name})
+                code = (
+                    item.get("CompanyCode")
+                    or item.get("Code")
+                    or item.get("companyCode")
+                    or item.get("code")
+                )
+                name = (
+                    item.get("CompanyName")
+                    or item.get("Name")
+                    or item.get("companyName")
+                    or item.get("name")
+                )
+                out.append({"code": code, "name": name})
             if out:
-                    from .schemas import validate_listings
+                from .schemas import validate_listings
 
-                    validate_listings(out)
-                    return out
+                validate_listings(out)
+                return out
 
         if isinstance(payload, dict):
             # common keys that may hold lists
-            for key in ('Data', 'data', 'Result', 'results', 'Items', 'ListedCompanies'):
+            for key in (
+                "Data",
+                "data",
+                "Result",
+                "results",
+                "Items",
+                "ListedCompanies",
+            ):
                 val = payload.get(key)
                 if isinstance(val, list):
                     out = []
                     for item in val:
                         if not isinstance(item, dict):
                             continue
-                        code = item.get('CompanyCode') or item.get('Code') or item.get('companyCode') or item.get('code')
-                        name = item.get('CompanyName') or item.get('Name') or item.get('companyName') or item.get('name')
-                        out.append({'code': code, 'name': name})
+                        code = (
+                            item.get("CompanyCode")
+                            or item.get("Code")
+                            or item.get("companyCode")
+                            or item.get("code")
+                        )
+                        name = (
+                            item.get("CompanyName")
+                            or item.get("Name")
+                            or item.get("companyName")
+                            or item.get("name")
+                        )
+                        out.append({"code": code, "name": name})
                     if out:
                         from .schemas import validate_listings
 
@@ -84,9 +119,18 @@ def get_idx_listings(timeout: int = 10) -> List[Dict[str, str]]:
                     out = []
                     for item in v:
                         if isinstance(item, dict):
-                            code = item.get('CompanyCode') or item.get('Code') or item.get('symbol') or item.get('code')
-                            name = item.get('CompanyName') or item.get('Name') or item.get('name')
-                            out.append({'code': code, 'name': name})
+                            code = (
+                                item.get("CompanyCode")
+                                or item.get("Code")
+                                or item.get("symbol")
+                                or item.get("code")
+                            )
+                            name = (
+                                item.get("CompanyName")
+                                or item.get("Name")
+                                or item.get("name")
+                            )
+                            out.append({"code": code, "name": name})
                     if out:
                         from .schemas import validate_listings
 
@@ -95,8 +139,8 @@ def get_idx_listings(timeout: int = 10) -> List[Dict[str, str]]:
 
     # Fallback: try public listing pages and extract a numeric count (best-effort)
     fallback_pages = [
-        'https://stockanalysis.com/list/indonesia-stock-exchange/',
-        'https://stockanalysis.com/stocks/',
+        "https://stockanalysis.com/list/indonesia-stock-exchange/",
+        "https://stockanalysis.com/stocks/",
     ]
 
     import re
@@ -115,13 +159,15 @@ def get_idx_listings(timeout: int = 10) -> List[Dict[str, str]]:
         if m:
             count = int(m.group(1))
             # return placeholder entries with None codes when exact tickers unavailable
-            res = [{'code': None, 'name': None} for _ in range(count)]
+            res = [{"code": None, "name": None} for _ in range(count)]
             from .schemas import validate_listings
 
             validate_listings(res)
             return res
 
-    raise RuntimeError('Unable to fetch IDX listings from known sources; network or parsing error')
+    raise RuntimeError(
+        "Unable to fetch IDX listings from known sources; network or parsing error"
+    )
 
 
 def get_idx_count() -> int:
@@ -132,5 +178,5 @@ def get_idx_count() -> int:
     try:
         items = get_idx_listings()
         return len(items)
-    except Exception as e:
+    except Exception:
         raise

@@ -27,7 +27,7 @@ class PipelineScheduler:
         self.symbols = list(symbols)
         self.interval_seconds = float(interval_seconds)
         self.persist_db = persist_db
-        self.logger = logger or logging.getLogger('autosaham.pipeline.scheduler')
+        self.logger = logger or logging.getLogger("autosaham.pipeline.scheduler")
 
         self._thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
@@ -40,10 +40,12 @@ class PipelineScheduler:
     def _loop(self) -> None:
         while not self._stop_event.wait(self.interval_seconds):
             try:
-                self.logger.info('Scheduler invoking pipeline.run for %d symbols', len(self.symbols))
+                self.logger.info(
+                    "Scheduler invoking pipeline.run for %d symbols", len(self.symbols)
+                )
                 self.pipeline.run(self.symbols, persist_db=self.persist_db)
             except Exception:
-                self.logger.exception('scheduled run failed')
+                self.logger.exception("scheduled run failed")
 
     def start(self) -> bool:
         """Start the background scheduler thread. Returns False if already running."""
@@ -51,7 +53,9 @@ class PipelineScheduler:
             if self._thread and self._thread.is_alive():
                 return False
             self._stop_event.clear()
-            self._thread = threading.Thread(target=self._loop, name='PipelineScheduler', daemon=True)
+            self._thread = threading.Thread(
+                target=self._loop, name="PipelineScheduler", daemon=True
+            )
             self._thread.start()
             return True
 
@@ -67,7 +71,7 @@ class PipelineScheduler:
     def run_once(self) -> None:
         """Run the pipeline once synchronously."""
         try:
-            self.logger.info('Manual run_once for %d symbols', len(self.symbols))
+            self.logger.info("Manual run_once for %d symbols", len(self.symbols))
             self.pipeline.run(self.symbols, persist_db=self.persist_db)
         except Exception:
-            self.logger.exception('run_once failed')
+            self.logger.exception("run_once failed")

@@ -11,8 +11,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from .batch_fetcher import BatchFetcher
 from . import etl as etl_module
+from .batch_fetcher import BatchFetcher
 
 # backward-compatible module-level hook: tests may patch `src.pipeline.runner.run_etl`
 # If set, `run()` prefers this global; otherwise it calls `etl_module.run_etl`.
@@ -26,8 +26,10 @@ class AutonomousPipeline:
         batch_min_delay: float = 1.0,
         logger: Optional[logging.Logger] = None,
     ):
-        self.logger = logger or logging.getLogger('autosaham.pipeline')
-        self.batch_fetcher = batch_fetcher or BatchFetcher(min_delay=float(batch_min_delay))
+        self.logger = logger or logging.getLogger("autosaham.pipeline")
+        self.batch_fetcher = batch_fetcher or BatchFetcher(
+            min_delay=float(batch_min_delay)
+        )
 
     def run(
         self,
@@ -44,11 +46,11 @@ class AutonomousPipeline:
         Returns a dict containing `etl` results and optional `prices` fetch report.
         """
         if not isinstance(symbols, (list, tuple)):
-            raise ValueError('symbols must be a list of tickers')
+            raise ValueError("symbols must be a list of tickers")
 
         # run connector ETL (stocks, forex, news)
         try:
-            etl_func = globals().get('run_etl') or etl_module.run_etl
+            etl_func = globals().get("run_etl") or etl_module.run_etl
             etl_result = etl_func(
                 symbols,
                 start_date=start_date,
@@ -56,30 +58,30 @@ class AutonomousPipeline:
                 news_api_key=news_api_key,
             )
         except Exception as e:
-            self.logger.exception('ETL run failed')
-            etl_result = {'error': str(e)}
+            self.logger.exception("ETL run failed")
+            etl_result = {"error": str(e)}
 
         prices_report = None
         if fetch_prices and symbols:
             try:
                 prices_report = self.batch_fetcher.fetch_symbols(
-                    symbols, period='1y', out_dir='data/prices', limit=price_limit
+                    symbols, period="1y", out_dir="data/prices", limit=price_limit
                 )
             except Exception as e:
-                self.logger.exception('batch price fetch failed')
+                self.logger.exception("batch price fetch failed")
                 prices_report = [
-                    {'symbol': s, 'status': 'error', 'error': str(e)} for s in symbols
+                    {"symbol": s, "status": "error", "error": str(e)} for s in symbols
                 ]
 
-        result = {'etl': etl_result, 'prices': prices_report}
+        result = {"etl": etl_result, "prices": prices_report}
 
         if persist_db:
             try:
                 from .persistence import save_etl_run
 
                 rid = save_etl_run(etl_result, prices_report, db_path=persist_db)
-                result['persisted_run_id'] = rid
+                result["persisted_run_id"] = rid
             except Exception:
-                self.logger.exception('failed to persist ETL run')
+                self.logger.exception("failed to persist ETL run")
 
         return result

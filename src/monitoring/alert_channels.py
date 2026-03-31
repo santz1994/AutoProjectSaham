@@ -12,33 +12,33 @@ import time
 import uuid
 from typing import Dict, Optional
 
-from src.monitoring.notifications import send_slack_alert, send_email_alert
+from src.monitoring.notifications import send_email_alert, send_slack_alert
 
-LOG = logging.getLogger('autosaham.alert_channels')
+LOG = logging.getLogger("autosaham.alert_channels")
 
-_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
+_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data"))
 os.makedirs(_DATA_DIR, exist_ok=True)
 
-_THROTTLE_FILE = os.path.join(_DATA_DIR, 'alert_throttle.json')
-_ACK_FILE = os.path.join(_DATA_DIR, 'alert_acks.json')
+_THROTTLE_FILE = os.path.join(_DATA_DIR, "alert_throttle.json")
+_ACK_FILE = os.path.join(_DATA_DIR, "alert_acks.json")
 
 
 def _load_json(path: str) -> Dict:
     try:
         if os.path.exists(path):
-            with open(path, 'r', encoding='utf-8') as fh:
+            with open(path, "r", encoding="utf-8") as fh:
                 return json.load(fh)
     except Exception:
-        LOG.exception('failed to load %s', path)
+        LOG.exception("failed to load %s", path)
     return {}
 
 
 def _save_json(path: str, data: Dict) -> None:
     try:
-        with open(path, 'w', encoding='utf-8') as fh:
+        with open(path, "w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=2)
     except Exception:
-        LOG.exception('failed to save %s', path)
+        LOG.exception("failed to save %s", path)
 
 
 class AlertThrottler:
@@ -73,48 +73,60 @@ class AckStore:
 
     def create_ack(self, ev: Dict) -> str:
         token = str(uuid.uuid4())
-        self._data[token] = {'time': time.time(), 'event': ev}
+        self._data[token] = {"time": time.time(), "event": ev}
         _save_json(self.path, self._data)
         return token
 
     def ack(self, token: str) -> bool:
         if token in self._data:
-            self._data[token]['acked_at'] = time.time()
+            self._data[token]["acked_at"] = time.time()
             _save_json(self.path, self._data)
             return True
         return False
 
     def list_unacked(self) -> Dict:
-        return {t: v for t, v in self._data.items() if 'acked_at' not in v}
+        return {t: v for t, v in self._data.items() if "acked_at" not in v}
 
 
 _THROTTLER = AlertThrottler()
 _ACKSTORE = AckStore()
 
 
-def format_message(ev: Dict, include_ack: bool = False, ack_token: Optional[str] = None) -> str:
+def format_message(
+    ev: Dict, include_ack: bool = False, ack_token: Optional[str] = None
+) -> str:
     lines = []
-    et = ev.get('type') or ev.get('event') or 'alert'
-    lines.append(f'*AutoSaham {et}*')
+    et = ev.get("type") or ev.get("event") or "alert"
+    lines.append(f"*AutoSaham {et}*")
     for k, v in ev.items():
-        lines.append(f'{k}: {v}')
+        lines.append(f"{k}: {v}")
     if include_ack:
         if not ack_token:
             ack_token = _ACKSTORE.create_ack(ev)
-        lines.append('Ack token: ' + ack_token)
-        lines.append('To ack this alert run: `python -m src.monitoring.alert_channels ack ' + ack_token + '`')
-    return '\n'.join(lines)
+        lines.append("Ack token: " + ack_token)
+        lines.append(
+            "To ack this alert run: `python -m src.monitoring.alert_channels ack "
+            + ack_token
+            + "`"
+        )
+    return "\n".join(lines)
 
 
-def notify_with_throttle(ev: Dict, cooldown_seconds: int = 60, require_ack: bool = False, slack_webhook: Optional[str] = None, email_to: Optional[str] = None) -> bool:
+def notify_with_throttle(
+    ev: Dict,
+    cooldown_seconds: int = 60,
+    require_ack: bool = False,
+    slack_webhook: Optional[str] = None,
+    email_to: Optional[str] = None,
+) -> bool:
     """Send the event to Slack/email while respecting throttling and optional ack.
 
     Returns True if the message was sent (or simulated), False otherwise.
     """
     try:
-        key = ev.get('type', 'event') + '::' + str(ev.get('symbol', 'ALL'))
+        key = ev.get("type", "event") + "::" + str(ev.get("symbol", "ALL"))
         if not _THROTTLER.should_send(key, cooldown_seconds):
-            LOG.info('throttle suppressed alert for %s', key)
+            LOG.info("throttle suppressed alert for %s", key)
             return False
 
         ack_token = None
@@ -128,7 +140,7 @@ def notify_with_throttle(ev: Dict, cooldown_seconds: int = 60, require_ack: bool
         try:
             sent = send_slack_alert(msg, webhook_url=slack_webhook) or sent
         except Exception:
-            LOG.exception('slack send failed')
+            LOG.exception("slack send failed")
 
         # try email
         try:
@@ -139,11 +151,11 @@ def notify_with_throttle(ev: Dict, cooldown_seconds: int = 60, require_ack: bool
             else:
                 sent = send_email_alert(subject, body) or sent
         except Exception:
-            LOG.exception('email send failed')
+            LOG.exception("email send failed")
 
         return bool(sent)
     except Exception:
-        LOG.exception('notify_with_throttle failed')
+        LOG.exception("notify_with_throttle failed")
         return False
 
 
@@ -151,19 +163,19 @@ def ack(token: str) -> bool:
     return _ACKSTORE.ack(token)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import argparse
 
     p = argparse.ArgumentParser()
-    p.add_argument('cmd', choices=['list-unacked', 'ack'])
-    p.add_argument('arg', nargs='?')
+    p.add_argument("cmd", choices=["list-unacked", "ack"])
+    p.add_argument("arg", nargs="?")
     args = p.parse_args()
-    if args.cmd == 'list-unacked':
+    if args.cmd == "list-unacked":
         print(json.dumps(_ACKSTORE.list_unacked(), indent=2))
-    elif args.cmd == 'ack':
+    elif args.cmd == "ack":
         tok = args.arg
         if not tok:
-            print('token required')
+            print("token required")
         else:
             ok = ack(tok)
-            print('acked' if ok else 'not found')
+            print("acked" if ok else "not found")

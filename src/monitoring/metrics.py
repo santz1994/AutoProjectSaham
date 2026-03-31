@@ -7,7 +7,14 @@ missing the functions are safe no-ops (or raise when rendering metrics).
 from __future__ import annotations
 
 try:
-    from prometheus_client import CollectorRegistry, Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import (
+        CONTENT_TYPE_LATEST,
+        CollectorRegistry,
+        Counter,
+        Histogram,
+        generate_latest,
+    )
+
     PROM_AVAILABLE = True
 except Exception:
     PROM_AVAILABLE = False
@@ -40,7 +47,9 @@ if PROM_AVAILABLE:
         registry=registry,
     )
 
-    def record_etl_run(duration_seconds: float | None = None, success: bool = True) -> None:
+    def record_etl_run(
+        duration_seconds: float | None = None, success: bool = True
+    ) -> None:
         etl_runs_total.inc()
         if success:
             etl_runs_success.inc()
@@ -48,12 +57,16 @@ if PROM_AVAILABLE:
             etl_runs_failure.inc()
             if duration_seconds is not None:
                 etl_duration_seconds.observe(float(duration_seconds))
+
     def metrics_text() -> tuple[bytes, str]:
         """Return the latest metrics payload and content type."""
         return generate_latest(registry), CONTENT_TYPE_LATEST
 
 else:
-    def record_etl_run(duration_seconds: float | None = None, success: bool = True) -> None:
+
+    def record_etl_run(
+        duration_seconds: float | None = None, success: bool = True
+    ) -> None:
         # no-op when prometheus_client is unavailable
         return
 

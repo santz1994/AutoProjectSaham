@@ -42,13 +42,17 @@ async def execute_twap_order(
 
         try:
             current_market = await api_client.get_quote(symbol)
-            best_ask = float(current_market.get('best_ask', 0.0))
+            best_ask = float(current_market.get("best_ask", 0.0))
         except Exception:
             best_ask = None
 
-        if best_ask is not None and (max_price_limit is None or best_ask <= float(max_price_limit)):
+        if best_ask is not None and (
+            max_price_limit is None or best_ask <= float(max_price_limit)
+        ):
             try:
-                await api_client.place_order(symbol, action='BUY', volume=current_slice, price=best_ask)
+                await api_client.place_order(
+                    symbol, action="BUY", volume=current_slice, price=best_ask
+                )
                 lots_remaining -= current_slice
             except Exception:
                 # best-effort: skip a slice on error
@@ -58,4 +62,4 @@ async def execute_twap_order(
         sleep_base = (duration_minutes * 60) / slices
         await asyncio.sleep(sleep_base * random.uniform(0.8, 1.2))
 
-    return {'status': 'done', 'remaining': max(0, lots_remaining)}
+    return {"status": "done", "remaining": max(0, lots_remaining)}

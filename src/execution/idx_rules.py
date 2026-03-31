@@ -54,7 +54,7 @@ def calculate_idx_limits(previous_close: float, is_fca: bool = False) -> dict:
         ara = round_down_to_tick(raw_ara, tick)
         arb = max(1, round_up_to_tick(raw_arb, tick))
 
-        return {'ara': int(ara), 'arb': int(arb), 'tick': int(tick)}
+        return {"ara": int(ara), "arb": int(arb), "tick": int(tick)}
 
     # Regular / Main board: symmetric tiered percentages
     if previous_close < 200:
@@ -70,8 +70,8 @@ def calculate_idx_limits(previous_close: float, is_fca: bool = False) -> dict:
     ara = round_down_to_tick(raw_ara, tick)
     arb = max(50, round_up_to_tick(raw_arb, tick))
 
-    return {'ara': int(ara), 'arb': int(arb), 'tick': int(tick)}
+    return {"ara": int(ara), "arb": int(arb), "tick": int(tick)}
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print(calculate_idx_limits(10000))

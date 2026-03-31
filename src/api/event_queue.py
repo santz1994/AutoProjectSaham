@@ -5,10 +5,9 @@ connected clients. This is intentionally simple and memory-bounded.
 """
 from __future__ import annotations
 
-from collections import deque
 import threading
+from collections import deque
 from typing import Any, List
-
 
 _QUEUE_MAX = 1000
 _queue = deque(maxlen=_QUEUE_MAX)

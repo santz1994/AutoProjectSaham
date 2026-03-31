@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Optional, Callable, Any, Dict
+from typing import Any, Callable, Dict, Optional
 
 from .idx_rules import calculate_idx_limits
 
@@ -18,13 +18,21 @@ from .idx_rules import calculate_idx_limits
 try:
     from prometheus_client import Counter, Gauge
 
-    ORDERS_PLACED = Counter('autosaham_orders_placed_total', 'Number of orders placed')
-    ORDERS_REJECTED = Counter('autosaham_orders_rejected_total', 'Number of orders rejected')
-    ORDERS_FILLED = Counter('autosaham_orders_filled_total', 'Number of orders filled')
-    PENDING_ORDERS = Gauge('autosaham_pending_orders', 'Number of pending limit orders')
-    PENDING_CREATED = Counter('autosaham_pending_orders_created_total', 'Pending limit orders created')
-    PENDING_REMOVED = Counter('autosaham_pending_orders_removed_total', 'Pending limit orders removed')
-    DAILY_FREEZES = Counter('autosaham_daily_freezes_total', 'Number of daily loss freezes')
+    ORDERS_PLACED = Counter("autosaham_orders_placed_total", "Number of orders placed")
+    ORDERS_REJECTED = Counter(
+        "autosaham_orders_rejected_total", "Number of orders rejected"
+    )
+    ORDERS_FILLED = Counter("autosaham_orders_filled_total", "Number of orders filled")
+    PENDING_ORDERS = Gauge("autosaham_pending_orders", "Number of pending limit orders")
+    PENDING_CREATED = Counter(
+        "autosaham_pending_orders_created_total", "Pending limit orders created"
+    )
+    PENDING_REMOVED = Counter(
+        "autosaham_pending_orders_removed_total", "Pending limit orders removed"
+    )
+    DAILY_FREEZES = Counter(
+        "autosaham_daily_freezes_total", "Number of daily loss freezes"
+    )
     PROM_AVAILABLE = True
 except Exception:
     ORDERS_PLACED = None
@@ -70,7 +78,7 @@ class ExecutionManager:
         self.alert_callback = alert_callback
         # optional list of webhook URLs to POST alerts to (best-effort)
         self.alert_webhooks = list(alert_webhooks) if alert_webhooks else []
-        self.logger = logger or logging.getLogger('autosaham.execution')
+        self.logger = logger or logging.getLogger("autosaham.execution")
 
         # lazily create a default paper broker if none provided
         if self.broker is None:
@@ -95,9 +103,9 @@ class ExecutionManager:
     def _get_positions(self) -> dict:
         if self.broker is None:
             return {}
-        if hasattr(self.broker, 'positions'):
-            return getattr(self.broker, 'positions')
-        if hasattr(self.broker, 'get_positions'):
+        if hasattr(self.broker, "positions"):
+            return getattr(self.broker, "positions")
+        if hasattr(self.broker, "get_positions"):
             return self.broker.get_positions()
         return {}
 
@@ -105,10 +113,10 @@ class ExecutionManager:
         price_map = price_map or {}
         if self.broker is None:
             return 0.0
-        if hasattr(self.broker, 'get_balance'):
+        if hasattr(self.broker, "get_balance"):
             return float(self.broker.get_balance(price_map))
         # fallback: compute from `cash` and `positions` attributes if present
-        cash = float(getattr(self.broker, 'cash', 0.0))
+        cash = float(getattr(self.broker, "cash", 0.0))
         positions = self._get_positions()
         total = cash
         for sym, qty in positions.items():
@@ -119,29 +127,29 @@ class ExecutionManager:
 
     def _place(self, symbol: str, side: str, qty: int, price: float) -> dict:
         if self.broker is None:
-            return {'status': 'rejected', 'reason': 'no_broker'}
+            return {"status": "rejected", "reason": "no_broker"}
         # adapter or raw broker should expose place_order
-        if hasattr(self.broker, 'place_order'):
+        if hasattr(self.broker, "place_order"):
             return self.broker.place_order(symbol, side, qty, price)
-        return {'status': 'rejected', 'reason': 'broker_missing_place_order'}
+        return {"status": "rejected", "reason": "broker_missing_place_order"}
 
     def _alert(self, ev: dict) -> None:
         try:
             if self.alert_callback:
                 self.alert_callback(ev)
         except Exception:
-            self.logger.exception('alert callback failed')
+            self.logger.exception("alert callback failed")
         # also attempt to send to configured webhook URLs (best-effort)
         try:
-            if getattr(self, 'alert_webhooks', None) and send_alert_webhook:
-                payload = {'ts': int(time.time()), 'event': ev}
+            if getattr(self, "alert_webhooks", None) and send_alert_webhook:
+                payload = {"ts": int(time.time()), "event": ev}
                 for url in list(self.alert_webhooks):
                     try:
                         send_alert_webhook(url, payload)
                     except Exception:
-                        self.logger.exception('failed sending webhook alert to %s', url)
+                        self.logger.exception("failed sending webhook alert to %s", url)
         except Exception:
-            self.logger.exception('webhook alert flow failed')
+            self.logger.exception("webhook alert flow failed")
         # best-effort: push to API event queue for WebSocket clients
         try:
             from src.api.event_queue import push_event  # type: ignore
@@ -159,15 +167,17 @@ class ExecutionManager:
         self._start_balance = self._get_balance(price_map or {})
         self._frozen = False
         self._frozen_reason = None
-        self.logger.info('start_day balance=%.2f', float(self._start_balance))
+        self.logger.info("start_day balance=%.2f", float(self._start_balance))
         # initialize expected positions/cash from broker if available
         try:
             self._expected_positions = dict(self._get_positions())
-            if hasattr(self.broker, 'get_cash'):
+            if hasattr(self.broker, "get_cash"):
                 self._expected_cash = float(self.broker.get_cash())
             else:
                 # best-effort fallback: use cash attribute or balance
-                self._expected_cash = float(getattr(self.broker, 'cash', self._get_balance({})))
+                self._expected_cash = float(
+                    getattr(self.broker, "cash", self._get_balance({}))
+                )
         except Exception:
             self._expected_positions = {}
             self._expected_cash = None
@@ -180,15 +190,15 @@ class ExecutionManager:
         if loss >= self.daily_loss_limit:
             self._frozen = True
             self._frozen_reason = (
-                f'daily loss exceeded: {loss:.3f} >= {self.daily_loss_limit}'
+                f"daily loss exceeded: {loss:.3f} >= {self.daily_loss_limit}"
             )
             ev = {
-                'type': 'daily_loss_freeze',
-                'loss': loss,
-                'limit': self.daily_loss_limit,
-                'reason': self._frozen_reason,
+                "type": "daily_loss_freeze",
+                "loss": loss,
+                "limit": self.daily_loss_limit,
+                "reason": self._frozen_reason,
             }
-            self.logger.warning('execution frozen: %s', self._frozen_reason)
+            self.logger.warning("execution frozen: %s", self._frozen_reason)
             self._alert(ev)
             try:
                 if DAILY_FREEZES:
@@ -198,80 +208,96 @@ class ExecutionManager:
             return False
         return True
 
-    def pre_trade_check(self, symbol: str, side: str, qty: int, price: float, previous_close: Optional[float] = None) -> tuple[bool, str]:
+    def pre_trade_check(
+        self,
+        symbol: str,
+        side: str,
+        qty: int,
+        price: float,
+        previous_close: Optional[float] = None,
+    ) -> tuple[bool, str]:
         if self._frozen:
-            return False, f'Execution frozen: {self._frozen_reason}'
+            return False, f"Execution frozen: {self._frozen_reason}"
 
         # check quantity
         if qty <= 0:
-            return False, 'qty must be > 0'
+            return False, "qty must be > 0"
 
         # position limit
         pos_map = self._get_positions()
         pos = int(pos_map.get(symbol, 0))
-        if side.lower() == 'buy' and (pos + qty) > self.max_position_per_symbol:
+        if side.lower() == "buy" and (pos + qty) > self.max_position_per_symbol:
             return False, (
-                f'position limit exceeded for {symbol}: '
-                f'{pos + qty} > {self.max_position_per_symbol}'
+                f"position limit exceeded for {symbol}: "
+                f"{pos + qty} > {self.max_position_per_symbol}"
             )
 
         # check ARA/ARB using previous_close when provided, else use price
         pc = float(previous_close) if previous_close is not None else float(price)
         limits = calculate_idx_limits(pc)
-        ara = limits['ara']
-        arb = limits['arb']
+        ara = limits["ara"]
+        arb = limits["arb"]
 
-        if side.lower() == 'buy' and price > ara:
-            return False, f'price {price} above ARA {ara}'
-        if side.lower() == 'sell' and price < arb:
-            return False, f'price {price} below ARB {arb}'
+        if side.lower() == "buy" and price > ara:
+            return False, f"price {price} above ARA {ara}"
+        if side.lower() == "sell" and price < arb:
+            return False, f"price {price} below ARB {arb}"
 
         # check total notional
         total_notional = sum(v * price for k, v in pos_map.items()) + qty * price
         if total_notional > self.max_total_notional:
             return False, (
-                f'total notional limit exceeded: {total_notional} > '
-                f'{self.max_total_notional}'
+                f"total notional limit exceeded: {total_notional} > "
+                f"{self.max_total_notional}"
             )
 
         # daily loss check
         ok = self._check_daily_loss({symbol: price})
         if not ok:
-            return False, f'execution frozen by daily loss check: {self._frozen_reason}'
+            return False, f"execution frozen by daily loss check: {self._frozen_reason}"
 
-        return True, 'ok'
+        return True, "ok"
 
-    def place_order(self, symbol: str, side: str, qty: int, price: float, previous_close: Optional[float] = None):
-        ok, reason = self.pre_trade_check(symbol, side, qty, price, previous_close=previous_close)
+    def place_order(
+        self,
+        symbol: str,
+        side: str,
+        qty: int,
+        price: float,
+        previous_close: Optional[float] = None,
+    ):
+        ok, reason = self.pre_trade_check(
+            symbol, side, qty, price, previous_close=previous_close
+        )
         if not ok:
             ev = {
-                'type': 'order_rejected',
-                'symbol': symbol,
-                'side': side,
-                'qty': qty,
-                'price': price,
-                'reason': reason,
+                "type": "order_rejected",
+                "symbol": symbol,
+                "side": side,
+                "qty": qty,
+                "price": price,
+                "reason": reason,
             }
-            self.logger.info('order rejected: %s', ev)
+            self.logger.info("order rejected: %s", ev)
             self._alert(ev)
-            return {'status': 'rejected', 'reason': reason}
+            return {"status": "rejected", "reason": reason}
 
         trade = self._place(symbol, side, qty, price)
 
         # update expected state and daily-loss after trade
         try:
-            if trade.get('status') == 'filled':
+            if trade.get("status") == "filled":
                 self._apply_trade_to_expected(trade)
         except Exception:
-            self.logger.exception('failed to update expected state after trade')
+            self.logger.exception("failed to update expected state after trade")
 
         self._check_daily_loss({symbol: price})
 
         # notify on fills
         try:
-            if trade.get('status') == 'filled':
-                ev = {'type': 'order_filled', 'trade': trade}
-                self.logger.info('order filled: %s', trade)
+            if trade.get("status") == "filled":
+                ev = {"type": "order_filled", "trade": trade}
+                self.logger.info("order filled: %s", trade)
                 self._alert(ev)
                 try:
                     if ORDERS_FILLED:
@@ -279,7 +305,7 @@ class ExecutionManager:
                 except Exception:
                     pass
         except Exception:
-            self.logger.exception('error processing trade notification')
+            self.logger.exception("error processing trade notification")
 
         return trade
 
@@ -302,15 +328,17 @@ class ExecutionManager:
         to a number of shares/lots by dividing by current price.
         """
         try:
-            import math
-
             # Full Kelly: f* = W - [(1 - W) / R]
-            kelly_fraction = float(win_rate) - ((1.0 - float(win_rate)) / max(float(reward_to_risk_ratio), 1e-6))
+            kelly_fraction = float(win_rate) - (
+                (1.0 - float(win_rate)) / max(float(reward_to_risk_ratio), 1e-6)
+            )
             # Use half-Kelly for safety
             safe_kelly = max(0.0, kelly_fraction / 2.0)
 
             # Volatility targeting scalar (reduce size for high ATR)
-            volatility_scalar = float(target_portfolio_volatility) / max(float(stock_volatility_atr), 1e-4)
+            volatility_scalar = float(target_portfolio_volatility) / max(
+                float(stock_volatility_atr), 1e-4
+            )
 
             allocated_capital = float(account_balance) * safe_kelly * volatility_scalar
 
@@ -321,7 +349,9 @@ class ExecutionManager:
         except Exception:
             return 0
 
-    def detect_false_breakout(self, current_volume: float, ma20_volume: float, threshold: float = 0.6) -> bool:
+    def detect_false_breakout(
+        self, current_volume: float, ma20_volume: float, threshold: float = 0.6
+    ) -> bool:
         """
         Simple VPA-based false-breakout detector.
 
@@ -338,46 +368,62 @@ class ExecutionManager:
 
     # --- limit / pending order helpers ---
     def _generate_order_id(self) -> str:
-        oid = f'lim-{self._next_order_id}'
+        oid = f"lim-{self._next_order_id}"
         self._next_order_id += 1
         return oid
 
-    def place_limit_order(self, symbol: str, side: str, qty: int, limit_price: float, previous_close: Optional[float] = None) -> dict:
+    def place_limit_order(
+        self,
+        symbol: str,
+        side: str,
+        qty: int,
+        limit_price: float,
+        previous_close: Optional[float] = None,
+    ) -> dict:
         """Register a pending limit order. Performs light validation (qty, pos limit,
         and ARA/ARB bounds) and returns a pending order id on success.
         """
         side_l = side.lower()
         qty = int(qty)
         if qty <= 0:
-            return {'status': 'rejected', 'reason': 'qty must be > 0'}
+            return {"status": "rejected", "reason": "qty must be > 0"}
 
         pos_map = self._get_positions()
         pos = int(pos_map.get(symbol, 0))
-        if side_l == 'buy' and (pos + qty) > self.max_position_per_symbol:
-            return {'status': 'rejected', 'reason': f'position limit exceeded for {symbol}'}
+        if side_l == "buy" and (pos + qty) > self.max_position_per_symbol:
+            return {
+                "status": "rejected",
+                "reason": f"position limit exceeded for {symbol}",
+            }
 
         # validate against ARA/ARB using previous_close when provided
         pc = float(previous_close) if previous_close is not None else float(limit_price)
         limits = calculate_idx_limits(pc)
-        ara = limits['ara']
-        arb = limits['arb']
-        if side_l == 'buy' and float(limit_price) > ara:
-            return {'status': 'rejected', 'reason': f'limit price {limit_price} above ARA {ara}'}
-        if side_l == 'sell' and float(limit_price) < arb:
-            return {'status': 'rejected', 'reason': f'limit price {limit_price} below ARB {arb}'}
+        ara = limits["ara"]
+        arb = limits["arb"]
+        if side_l == "buy" and float(limit_price) > ara:
+            return {
+                "status": "rejected",
+                "reason": f"limit price {limit_price} above ARA {ara}",
+            }
+        if side_l == "sell" and float(limit_price) < arb:
+            return {
+                "status": "rejected",
+                "reason": f"limit price {limit_price} below ARB {arb}",
+            }
 
         oid = self._generate_order_id()
         order = {
-            'order_id': oid,
-            'symbol': symbol,
-            'side': side_l,
-            'qty': qty,
-            'limit_price': float(limit_price),
-            'previous_close': previous_close,
+            "order_id": oid,
+            "symbol": symbol,
+            "side": side_l,
+            "qty": qty,
+            "limit_price": float(limit_price),
+            "previous_close": previous_close,
         }
         self.pending_orders[oid] = order
-        ev = {'type': 'order_queued', 'order': order}
-        self.logger.info('limit order queued: %s', order)
+        ev = {"type": "order_queued", "order": order}
+        self.logger.info("limit order queued: %s", order)
         self._alert(ev)
         try:
             if PENDING_CREATED:
@@ -386,13 +432,13 @@ class ExecutionManager:
                 PENDING_ORDERS.set(len(self.pending_orders))
         except Exception:
             pass
-        return {'status': 'pending', 'order_id': oid}
+        return {"status": "pending", "order_id": oid}
 
     def cancel_limit_order(self, order_id: str) -> bool:
         if order_id in self.pending_orders:
             order = self.pending_orders.pop(order_id)
-            ev = {'type': 'order_cancelled', 'order': order}
-            self.logger.info('limit order cancelled: %s', order)
+            ev = {"type": "order_cancelled", "order": order}
+            self.logger.info("limit order cancelled: %s", order)
             self._alert(ev)
             try:
                 if PENDING_REMOVED:
@@ -407,10 +453,10 @@ class ExecutionManager:
     def cancel_all_pending_for_symbol(self, symbol: str) -> int:
         removed = []
         for oid, o in list(self.pending_orders.items()):
-            if o.get('symbol') == symbol:
+            if o.get("symbol") == symbol:
                 removed.append(oid)
                 self.pending_orders.pop(oid, None)
-                self._alert({'type': 'order_cancelled', 'order': o})
+                self._alert({"type": "order_cancelled", "order": o})
         try:
             if PENDING_REMOVED:
                 # increment by number removed
@@ -426,7 +472,8 @@ class ExecutionManager:
         return list(self.pending_orders.values())
 
     def process_market_tick(self, price_map: dict) -> dict:
-        """Check pending limit orders against current market prices and execute if triggered.
+        """Check pending limit orders against current market prices
+        and execute if triggered.
 
         Returns a dict with executed and rejected lists.
         """
@@ -434,51 +481,53 @@ class ExecutionManager:
         rejected = []
         to_remove = []
         for oid, order in list(self.pending_orders.items()):
-            sym = order.get('symbol')
-            side = order.get('side')
-            qty = int(order.get('qty', 0))
-            limit_price = float(order.get('limit_price', 0.0))
-            prev_close = order.get('previous_close')
+            sym = order.get("symbol")
+            side = order.get("side")
+            qty = int(order.get("qty", 0))
+            limit_price = float(order.get("limit_price", 0.0))
+            prev_close = order.get("previous_close")
             cur_price = price_map.get(sym)
             if cur_price is None:
                 continue
             trigger = False
-            if side == 'sell' and cur_price >= limit_price:
+            if side == "sell" and cur_price >= limit_price:
                 trigger = True
-            if side == 'buy' and cur_price <= limit_price:
+            if side == "buy" and cur_price <= limit_price:
                 trigger = True
             if not trigger:
                 continue
 
             # light pre-check at execution time
-            ok, reason = True, 'ok'
+            ok, reason = True, "ok"
             try:
-                ok, reason = self.pre_trade_check(sym, side, qty, cur_price, previous_close=prev_close)
+                ok, reason = self.pre_trade_check(
+                    sym, side, qty, cur_price, previous_close=prev_close
+                )
             except Exception:
-                ok, reason = False, 'pre_trade_check_error'
+                ok, reason = False, "pre_trade_check_error"
 
             if not ok:
                 ev = {
-                    'type': 'order_rejected',
-                    'order': order,
-                    'reason': reason,
+                    "type": "order_rejected",
+                    "order": order,
+                    "reason": reason,
                 }
-                self.logger.info('pending limit rejected: %s', ev)
+                self.logger.info("pending limit rejected: %s", ev)
                 self._alert(ev)
-                rejected.append({'order': order, 'reason': reason})
+                rejected.append({"order": order, "reason": reason})
                 to_remove.append(oid)
                 continue
 
             trade = self._place(sym, side, qty, cur_price)
-            if trade.get('status') == 'filled':
+            if trade.get("status") == "filled":
                 ev = {
-                    'type': 'order_filled',
-                    'trade': trade,
-                    'origin_order': order,
+                    "type": "order_filled",
+                    "trade": trade,
+                    "origin_order": order,
                 }
-                self.logger.info('pending limit filled: %s', ev)
+                self.logger.info("pending limit filled: %s", ev)
                 self._alert(ev)
-                executed.append({'order': order, 'trade': trade})
+                executed.append({"order": order, "trade": trade})
                 to_remove.append(oid)
                 try:
                     if ORDERS_FILLED:
@@ -489,16 +538,18 @@ class ExecutionManager:
                 try:
                     self._apply_trade_to_expected(trade)
                 except Exception:
-                    self.logger.exception('failed to update expected state after pending fill')
+                    self.logger.exception(
+                        "failed to update expected state after pending fill"
+                    )
             else:
                 ev = {
-                    'type': 'order_rejected',
-                    'order': order,
-                    'trade': trade,
+                    "type": "order_rejected",
+                    "order": order,
+                    "trade": trade,
                 }
-                self.logger.info('pending limit broker rejected: %s', ev)
+                self.logger.info("pending limit broker rejected: %s", ev)
                 self._alert(ev)
-                rejected.append({'order': order, 'trade': trade})
+                rejected.append({"order": order, "trade": trade})
                 to_remove.append(oid)
 
         # remove processed orders
@@ -524,37 +575,42 @@ class ExecutionManager:
         except Exception:
             pass
 
-        return {'executed': executed, 'rejected': rejected}
+        return {"executed": executed, "rejected": rejected}
 
     # --- reconciliation helpers ---
     def _apply_trade_to_expected(self, trade: dict) -> None:
         try:
-            sym = trade.get('symbol')
-            side = str(trade.get('side', '')).lower()
-            qty = int(trade.get('qty', 0))
-            price = float(trade.get('price', 0.0))
-            fee = float(trade.get('fee', 0.0)) if trade.get('fee') is not None else 0.0
+            sym = trade.get("symbol")
+            side = str(trade.get("side", "")).lower()
+            qty = int(trade.get("qty", 0))
+            price = float(trade.get("price", 0.0))
+            fee = float(trade.get("fee", 0.0)) if trade.get("fee") is not None else 0.0
             if not sym:
                 return
-            if side == 'buy':
-                self._expected_positions[sym] = self._expected_positions.get(sym, 0) + qty
+            if side == "buy":
+                self._expected_positions[sym] = (
+                    self._expected_positions.get(sym, 0) + qty
+                )
                 if self._expected_cash is not None:
-                    self._expected_cash -= (qty * price + fee)
-            elif side == 'sell':
-                self._expected_positions[sym] = self._expected_positions.get(sym, 0) - qty
+                    self._expected_cash -= qty * price + fee
+            elif side == "sell":
+                self._expected_positions[sym] = (
+                    self._expected_positions.get(sym, 0) - qty
+                )
                 if self._expected_cash is not None:
-                    net = float(trade.get('net', price * qty - fee))
+                    net = float(trade.get("net", price * qty - fee))
                     self._expected_cash += net
         except Exception:
-            self.logger.exception('error applying trade to expected state')
+            self.logger.exception("error applying trade to expected state")
 
     def reconcile_once(self, alert_on_drift: bool = True) -> dict:
-        """Perform a single reconciliation check between expected state and broker snapshot.
+        """Perform a single reconciliation check between expected state
+        and broker snapshot.
 
         Returns the reconciliation report from the adapter (or a generated report).
         """
         if self.broker is None:
-            return {'ok': True, 'reason': 'no_broker'}
+            return {"ok": True, "reason": "no_broker"}
 
         expected_positions = dict(self._expected_positions or {})
         expected_cash = self._expected_cash
@@ -563,39 +619,46 @@ class ExecutionManager:
             expected_positions = dict(self._get_positions())
 
         try:
-            if hasattr(self.broker, 'reconcile_with_expected'):
-                report = self.broker.reconcile_with_expected(expected_positions, expected_cash)
-            elif hasattr(self.broker, 'reconcile'):
+            if hasattr(self.broker, "reconcile_with_expected"):
+                report = self.broker.reconcile_with_expected(
+                    expected_positions, expected_cash
+                )
+            elif hasattr(self.broker, "reconcile"):
                 snap = self.broker.reconcile() or {}
                 diffs = {}
-                actual_pos = snap.get('positions', {})
+                actual_pos = snap.get("positions", {})
                 for sym, exp_qty in (expected_positions or {}).items():
                     act_qty = actual_pos.get(sym, 0)
                     if act_qty != exp_qty:
-                        diffs.setdefault('positions', {})[sym] = {
-                            'expected': int(exp_qty),
-                            'actual': int(act_qty),
+                        diffs.setdefault("positions", {})[sym] = {
+                            "expected": int(exp_qty),
+                            "actual": int(act_qty),
                         }
                 if expected_cash is not None:
-                    act_cash = float(snap.get('cash', 0.0))
+                    act_cash = float(snap.get("cash", 0.0))
                     if abs(act_cash - float(expected_cash)) > 1e-6:
-                        diffs['cash'] = {'expected': float(expected_cash), 'actual': act_cash}
-                report = {'ok': len(diffs) == 0, 'diffs': diffs, 'snapshot': snap}
+                        diffs["cash"] = {
+                            "expected": float(expected_cash),
+                            "actual": act_cash,
+                        }
+                report = {"ok": len(diffs) == 0, "diffs": diffs, "snapshot": snap}
             else:
-                report = {'ok': True, 'reason': 'no_reconcile_api'}
+                report = {"ok": True, "reason": "no_reconcile_api"}
         except Exception as e:
-            self.logger.exception('reconciliation failed')
-            return {'ok': False, 'error': str(e)}
+            self.logger.exception("reconciliation failed")
+            return {"ok": False, "error": str(e)}
 
-        if not report.get('ok', False):
-            ev = {'type': 'reconcile_drift', 'report': report}
-            self.logger.warning('reconciliation drift detected: %s', report)
+        if not report.get("ok", False):
+            ev = {"type": "reconcile_drift", "report": report}
+            self.logger.warning("reconciliation drift detected: %s", report)
             if alert_on_drift:
                 self._alert(ev)
 
         return report
 
-    def start_reconciliation_loop(self, interval_seconds: int = 60, alert_on_drift: bool = True) -> bool:
+    def start_reconciliation_loop(
+        self, interval_seconds: int = 60, alert_on_drift: bool = True
+    ) -> bool:
         """Start a background thread that periodically calls `reconcile_once`.
 
         Returns True if a new loop was started, False if one is already running.
@@ -610,9 +673,11 @@ class ExecutionManager:
                 try:
                     self.reconcile_once(alert_on_drift=alert_on_drift)
                 except Exception:
-                    self.logger.exception('reconciliation loop error')
+                    self.logger.exception("reconciliation loop error")
 
-        self._recon_thread = threading.Thread(target=_run, name='ExecutionManagerReconcile', daemon=True)
+        self._recon_thread = threading.Thread(
+            target=_run, name="ExecutionManagerReconcile", daemon=True
+        )
         self._recon_thread.start()
         return True
 
@@ -625,4 +690,4 @@ class ExecutionManager:
             self._recon_thread.join(timeout)
             self._recon_thread = None
         except Exception:
-            self.logger.exception('error stopping reconciliation loop')
+            self.logger.exception("error stopping reconciliation loop")

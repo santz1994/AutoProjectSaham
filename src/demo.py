@@ -19,26 +19,26 @@ def generate_price_series(n=200, start_price=100.0, volatility_pct=1.0):
 
 
 def run_demo():
-    print('Starting AutoSaham demo — generating simulated prices...')
+    print("Starting AutoSaham demo — generating simulated prices...")
     prices = generate_price_series(n=200, start_price=100.0, volatility_pct=1.5)
     signals = simple_sma_strategy(prices, short=5, long=20)
 
     broker = PaperBroker(cash=10000.0)
-    symbol = 'DEMO'
+    symbol = "DEMO"
 
     for t, price in enumerate(prices):
         action = signals[t]
         if action == 1:
             # buy one unit
-            broker.place_order(symbol, 'buy', 1, price)
+            broker.place_order(symbol, "buy", 1, price)
         elif action == -1:
             # sell all holdings
             qty = broker.positions.get(symbol, 0)
             if qty > 0:
-                broker.place_order(symbol, 'sell', qty, price)
+                broker.place_order(symbol, "sell", qty, price)
 
     final_bal = broker.get_balance({symbol: prices[-1]})
-    print('Demo complete — final balance (cash + market value):', round(final_bal, 2))
-    print('Trades executed:', len(broker.trades))
+    print("Demo complete — final balance (cash + market value):", round(final_bal, 2))
+    print("Trades executed:", len(broker.trades))
     for t in broker.trades[:10]:
         print(t)

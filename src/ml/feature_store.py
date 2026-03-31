@@ -12,8 +12,8 @@ import json
 import os
 from typing import Dict, List, Optional
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 
 def _safe_rolling(series: pd.Series, window: int):
@@ -116,63 +116,65 @@ def compute_latest_features(
     sma_ratio = float(short_sma / long_sma) if long_sma != 0 else 1.0
 
     return {
-        'last_price': last_price,
-        'short_sma': float(short_sma),
-        'long_sma': float(long_sma),
-        'sma_ratio': sma_ratio,
-        'volatility': float(volatility),
-        'momentum': float(momentum),
-        'n_obs': int(n),
-        'avg_vol_5': float(avg_vol_5),
-        'rsi_14': float(rsi),
-        'macd': float(macd),
-        'macd_signal': float(macd_signal),
-        'bb_upper': float(bb_upper),
-        'bb_lower': float(bb_lower),
-        'bb_width': float(bb_width),
+        "last_price": last_price,
+        "short_sma": float(short_sma),
+        "long_sma": float(long_sma),
+        "sma_ratio": sma_ratio,
+        "volatility": float(volatility),
+        "momentum": float(momentum),
+        "n_obs": int(n),
+        "avg_vol_5": float(avg_vol_5),
+        "rsi_14": float(rsi),
+        "macd": float(macd),
+        "macd_signal": float(macd_signal),
+        "bb_upper": float(bb_upper),
+        "bb_lower": float(bb_lower),
+        "bb_width": float(bb_width),
     }
 
 
 def build_feature_snapshot(
-    price_dir: str = 'data/prices',
-    out_csv: str = 'data/features/features.csv',
+    price_dir: str = "data/prices",
+    out_csv: str = "data/features/features.csv",
     short: int = 5,
     long: int = 20,
 ) -> str:
     os.makedirs(os.path.dirname(out_csv), exist_ok=True)
     rows = []
-    pattern = os.path.join(price_dir, '*.json')
+    pattern = os.path.join(price_dir, "*.json")
     files = glob.glob(pattern)
     for fpath in files:
         try:
-            with open(fpath, 'r', encoding='utf-8') as fh:
+            with open(fpath, "r", encoding="utf-8") as fh:
                 payload = json.load(fh)
-            sym = payload.get('symbol') or os.path.splitext(os.path.basename(fpath))[0]
+            sym = payload.get("symbol") or os.path.splitext(os.path.basename(fpath))[0]
             prices = (
-                payload.get('prices')
-                or payload.get('price')
-                or payload.get('prices_list')
+                payload.get("prices")
+                or payload.get("price")
+                or payload.get("prices_list")
                 or []
             )
             volumes = (
-                payload.get('volumes')
-                or payload.get('volume')
-                or payload.get('volumes_list')
+                payload.get("volumes")
+                or payload.get("volume")
+                or payload.get("volumes_list")
                 or None
             )
             if not prices:
                 continue
-            feats = compute_latest_features(prices, volumes=volumes, short=short, long=long)
+            feats = compute_latest_features(
+                prices, volumes=volumes, short=short, long=long
+            )
             if not feats:
                 continue
-            row = {'symbol': sym}
+            row = {"symbol": sym}
             row.update(feats)
             rows.append(row)
         except Exception:
             continue
 
     if not rows:
-        raise RuntimeError('No feature rows produced (no price files?)')
+        raise RuntimeError("No feature rows produced (no price files?)")
 
     df = pd.DataFrame(rows)
     df.to_csv(out_csv, index=False)
@@ -190,43 +192,47 @@ def calculate_idx_microstructure_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
     # 1. Net Foreign Flow Momentum
-    if 'foreign_buy' in df.columns and 'foreign_sell' in df.columns:
-        df['net_foreign'] = df['foreign_buy'] - df['foreign_sell']
-        df['foreign_flow_ma5'] = df['net_foreign'].rolling(window=5).mean()
+    if "foreign_buy" in df.columns and "foreign_sell" in df.columns:
+        df["net_foreign"] = df["foreign_buy"] - df["foreign_sell"]
+        df["foreign_flow_ma5"] = df["net_foreign"].rolling(window=5).mean()
         # Normalisasi terhadap total volume (hindari pembagian nol)
-        if 'volume' in df.columns:
-            denom = (df['volume'] * 2).replace(0, np.nan)
-            df['foreign_participation'] = (
-                (df['foreign_buy'].fillna(0) + df['foreign_sell'].fillna(0)) / denom
+        if "volume" in df.columns:
+            denom = (df["volume"] * 2).replace(0, np.nan)
+            df["foreign_participation"] = (
+                (df["foreign_buy"].fillna(0) + df["foreign_sell"].fillna(0)) / denom
             ).fillna(0.0)
 
     # 2. VWAP dan rasio harga terhadap VWAP
-    if 'typical_price' not in df.columns:
-        if set(['high', 'low', 'close']).issubset(df.columns):
-            df['typical_price'] = (df['high'] + df['low'] + df['close']) / 3.0
+    if "typical_price" not in df.columns:
+        if set(["high", "low", "close"]).issubset(df.columns):
+            df["typical_price"] = (df["high"] + df["low"] + df["close"]) / 3.0
         else:
-            df['typical_price'] = df.get('close', pd.Series(dtype=float))
+            df["typical_price"] = df.get("close", pd.Series(dtype=float))
 
-    if 'volume' in df.columns:
-        df['cum_vol_price'] = (df['typical_price'] * df['volume']).cumsum()
-        df['cum_vol'] = df['volume'].cumsum()
-        df['vwap'] = df['cum_vol_price'] / df['cum_vol'].replace({0: np.nan})
-        df['vwap'] = df['vwap'].fillna(method='ffill').fillna(df.get('close', df['typical_price']))
+    if "volume" in df.columns:
+        df["cum_vol_price"] = (df["typical_price"] * df["volume"]).cumsum()
+        df["cum_vol"] = df["volume"].cumsum()
+        df["vwap"] = df["cum_vol_price"] / df["cum_vol"].replace({0: np.nan})
+        df["vwap"] = (
+            df["vwap"]
+            .fillna(method="ffill")
+            .fillna(df.get("close", df["typical_price"]))
+        )
         # price to vwap ratio
-        if 'close' in df.columns:
-            df['price_to_vwap_ratio'] = df['close'] / df['vwap'].replace({0: np.nan})
+        if "close" in df.columns:
+            df["price_to_vwap_ratio"] = df["close"] / df["vwap"].replace({0: np.nan})
         else:
-            df['price_to_vwap_ratio'] = np.nan
+            df["price_to_vwap_ratio"] = np.nan
 
     # 3. Order Book Imbalance
-    if 'bid_vol' in df.columns and 'offer_vol' in df.columns:
-        denom = (df['bid_vol'] + df['offer_vol']).replace(0, np.nan)
-        df['order_book_imbalance'] = (df['bid_vol'] / denom).fillna(0.5)
+    if "bid_vol" in df.columns and "offer_vol" in df.columns:
+        denom = (df["bid_vol"] + df["offer_vol"]).replace(0, np.nan)
+        df["order_book_imbalance"] = (df["bid_vol"] / denom).fillna(0.5)
 
     return df
 
 
-if __name__ == '__main__':
-    print('Building feature snapshot...')
+if __name__ == "__main__":
+    print("Building feature snapshot...")
     out = build_feature_snapshot()
-    print('Wrote features to', out)
+    print("Wrote features to", out)

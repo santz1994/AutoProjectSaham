@@ -16,11 +16,11 @@ from typing import Iterator, List, Tuple
 class PurgedTimeSeriesSplit:
     def __init__(self, n_splits: int = 5, purge: int = 0, embargo: float = 0.0):
         if n_splits < 1:
-            raise ValueError('n_splits must be >= 1')
+            raise ValueError("n_splits must be >= 1")
         if purge < 0:
-            raise ValueError('purge must be >= 0')
+            raise ValueError("purge must be >= 0")
         if not (0.0 <= embargo < 1.0):
-            raise ValueError('embargo must be in [0.0, 1.0)')
+            raise ValueError("embargo must be in [0.0, 1.0)")
 
         self.n_splits = int(n_splits)
         self.purge = int(purge)
@@ -37,7 +37,7 @@ class PurgedTimeSeriesSplit:
         """
         n = int(n_samples)
         if n <= 0:
-            raise ValueError('n_samples must be > 0')
+            raise ValueError("n_samples must be > 0")
 
         # compute test size (floor division, last fold may be slightly larger)
         base_test_size = max(1, n // self.n_splits)
@@ -56,7 +56,8 @@ class PurgedTimeSeriesSplit:
             embargo_size = int(n * self.embargo)
             right_embargo = min(n, end + embargo_size)
 
-            # combine purge and embargo exclusions: exclude indices in [left_purge, max(right_purge, right_embargo))
+            # combine purge and embargo exclusions
+            # exclude indices in [left_purge, max(right_purge, right_embargo))
             exclude_start = left_purge
             exclude_end = max(right_purge, right_embargo)
 

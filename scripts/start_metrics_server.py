@@ -11,15 +11,16 @@ from src.monitoring.metrics import start_metrics_server
 def main():
     port = 8000
     start_metrics_server(port)
-    print('Metrics server started on port', port)
+    print("Metrics server started on port", port)
     # block forever
     try:
         import time
+
         while True:
             time.sleep(3600)
     except KeyboardInterrupt:
-        print('Metrics server stopped')
+        print("Metrics server stopped")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

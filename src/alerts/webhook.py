@@ -13,6 +13,7 @@ from typing import Any, Dict
 
 try:
     import requests  # type: ignore
+
     REQUESTS_AVAILABLE = True
 except Exception:
     REQUESTS_AVAILABLE = False
@@ -60,9 +61,7 @@ def send_alert_webhook(
             )
         except Exception as e:  # pragma: no cover - network error branch
             last_exc = e
-            log.exception(
-                "webhook send failed (attempt %d) for %s", attempt, url
-            )
+            log.exception("webhook send failed (attempt %d) for %s", attempt, url)
 
         # backoff before next attempt
         if attempt < retries:

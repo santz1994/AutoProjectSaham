@@ -14,27 +14,28 @@ from __future__ import annotations
 try:
     from fastapi import FastAPI, HTTPException
     from pydantic import BaseModel
+
     FASTAPI_AVAILABLE = True
 except Exception:
     FASTAPI_AVAILABLE = False
 
 
 if FASTAPI_AVAILABLE:
-    from typing import List, Optional
+    import asyncio
     from time import time
+    from typing import List, Optional
 
+    from fastapi import WebSocket, WebSocketDisconnect
     from fastapi.responses import Response
 
-    from src.pipeline.runner import AutonomousPipeline
-    from src.pipeline.scheduler import PipelineScheduler
+    from src.alerts.webhook import send_alert_webhook
+    from src.api.event_queue import pop_events
     from src.monitoring import metrics as monitoring
     from src.pipeline.persistence import read_etl_runs
-    from src.alerts.webhook import send_alert_webhook
-    import asyncio
-    from fastapi import WebSocket, WebSocketDisconnect
-    from src.api.event_queue import pop_events
+    from src.pipeline.runner import AutonomousPipeline
+    from src.pipeline.scheduler import PipelineScheduler
 
-    app = FastAPI(title='AutoSaham API', version='0.1')
+    app = FastAPI(title="AutoSaham API", version="0.1")
 
     # single shared pipeline instance for the server
     pipeline = AutonomousPipeline()
@@ -45,11 +46,11 @@ if FASTAPI_AVAILABLE:
         fetch_prices: Optional[bool] = True
         persist_db: Optional[str] = None
 
-    @app.get('/health')
+    @app.get("/health")
     async def health():
-        return {'status': 'ok'}
+        return {"status": "ok"}
 
-    @app.post('/run_etl')
+    @app.post("/run_etl")
     async def run_etl(payload: RunPayload):
         start = time()
         try:
@@ -72,81 +73,74 @@ if FASTAPI_AVAILABLE:
                 pass
             raise HTTPException(status_code=500, detail=str(e))
 
-    @app.get('/metrics')
+    @app.get("/metrics")
     async def metrics_endpoint():
         try:
             payload, content_type = monitoring.metrics_text()
         except Exception:
             raise HTTPException(
-                status_code=501, detail='prometheus_client not installed'
+                status_code=501, detail="prometheus_client not installed"
             )
         return Response(content=payload, media_type=content_type)
 
-    @app.get('/etl_runs')
+    @app.get("/etl_runs")
     async def etl_runs(limit: int = 50):
         try:
             runs = read_etl_runs(limit=limit)
             return {
-                'runs': runs,
+                "runs": runs,
             }
         except Exception as e:
-            raise HTTPException(
-                status_code=500, detail=str(e)
-            )
+            raise HTTPException(status_code=500, detail=str(e))
 
     class AlertPayload(BaseModel):
         url: str
         message: str
-        level: Optional[str] = 'info'
+        level: Optional[str] = "info"
 
-    @app.post('/alert')
+    @app.post("/alert")
     async def alert_endpoint(payload: AlertPayload):
         try:
             payload_body = {
-                'message': payload.message,
-                'level': payload.level,
+                "message": payload.message,
+                "level": payload.level,
             }
             sent = send_alert_webhook(payload.url, payload_body)
             if not sent:
-                raise HTTPException(
-                    status_code=502, detail='alert delivery failed'
-                )
-            return {'status': 'sent'}
+                raise HTTPException(status_code=502, detail="alert delivery failed")
+            return {"status": "sent"}
         except HTTPException:
             raise
         except Exception as e:
-            raise HTTPException(
-                status_code=500, detail=str(e)
-            )
+            raise HTTPException(status_code=500, detail=str(e))
 
-    @app.post('/scheduler/start')
+    @app.post("/scheduler/start")
     async def start_scheduler(symbols: List[str], interval_seconds: float = 3600.0):
         global _scheduler
         if (
             _scheduler
-            and getattr(_scheduler, '_thread', None)
-            and getattr(_scheduler, '_thread').is_alive()
+            and getattr(_scheduler, "_thread", None)
+            and getattr(_scheduler, "_thread").is_alive()
         ):
-            raise HTTPException(status_code=400, detail='Scheduler already running')
+            raise HTTPException(status_code=400, detail="Scheduler already running")
         _scheduler = PipelineScheduler(
             pipeline,
             symbols=symbols,
             interval_seconds=interval_seconds,
         )
         _scheduler.start()
-        return {'status': 'started'}
+        return {"status": "started"}
 
-    @app.post('/scheduler/stop')
+    @app.post("/scheduler/stop")
     async def stop_scheduler():
         global _scheduler
         if not _scheduler:
-            raise HTTPException(status_code=400, detail='Scheduler not running')
+            raise HTTPException(status_code=400, detail="Scheduler not running")
         _scheduler.stop()
         _scheduler = None
-        return {'status': 'stopped'}
+        return {"status": "stopped"}
 
-
-    @app.websocket('/ws/events')
+    @app.websocket("/ws/events")
     async def websocket_events(ws: WebSocket):
         await ws.accept()
         try:
@@ -166,15 +160,14 @@ if FASTAPI_AVAILABLE:
         except WebSocketDisconnect:
             return
 
-
 else:
     # Friendly placeholders when FastAPI is not installed.
     app = None
 
     def _missing_fastapi(*args, **kwargs):
         raise RuntimeError(
-            'FastAPI is not installed. Install with '
-            'pip install fastapi[all] to enable the API server.'
+            "FastAPI is not installed. Install with "
+            "pip install fastapi[all] to enable the API server."
         )
 
     def health():

@@ -15,9 +15,11 @@ from typing import Optional
 try:
     from dotenv import load_dotenv
 except Exception:
+
     def load_dotenv(path: Optional[str] = None):
         # noop fallback when python-dotenv missing
         return False
+
 
 _env_loaded = False
 

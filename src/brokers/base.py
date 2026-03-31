@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 
 class BrokerAdapter(ABC):
@@ -11,7 +11,9 @@ class BrokerAdapter(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def place_order(self, symbol: str, side: str, qty: int, price: float) -> Dict[str, Any]:
+    def place_order(
+        self, symbol: str, side: str, qty: int, price: float
+    ) -> Dict[str, Any]:
         raise NotImplementedError()
 
     @abstractmethod

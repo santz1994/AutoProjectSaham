@@ -11,8 +11,8 @@ from typing import Dict
 
 def train_model(
     dataset_csv: str,
-    target_col: str = 'label',
-    model_out: str = 'models/model.joblib',
+    target_col: str = "label",
+    model_out: str = "models/model.joblib",
     test_size: float = 0.2,
     random_state: int = 42,
     use_optuna: bool = True,
@@ -40,13 +40,16 @@ def train_model(
 
     df = pd.read_csv(dataset_csv)
     if target_col not in df.columns:
-        raise RuntimeError(f'{target_col} not in dataset')
+        raise RuntimeError(f"{target_col} not in dataset")
 
     # optional: inject microstructure-derived features (best-effort)
-    # This will attempt to add features like 'vwap', 'net_foreign', 'order_book_imbalance'
-    # if the source dataframe contains the required columns. Failure is non-fatal.
+    # This will attempt to add features like 'vwap', 'net_foreign',
+    # 'order_book_imbalance' if the source dataframe contains the required
+    # columns. Failure is non-fatal.
     try:
-        from src.ml.feature_store import calculate_idx_microstructure_features  # type: ignore
+        from src.ml.feature_store import (
+            calculate_idx_microstructure_features,  # type: ignore
+        )
 
         try:
             df = calculate_idx_microstructure_features(df)
@@ -58,7 +61,7 @@ def train_model(
         pass
 
     # drop identifier columns and keep features
-    drop_cols = ['symbol', 't_index', 'future_return']
+    drop_cols = ["symbol", "t_index", "future_return"]
     X = df.drop(columns=[c for c in drop_cols if c in df.columns] + [target_col])
     y = df[target_col]
 
@@ -69,7 +72,9 @@ def train_model(
     # Chronological split for final holdout
     split_idx = int(len(X) * (1.0 - float(test_size)))
     if split_idx <= 0 or split_idx >= len(X):
-        raise RuntimeError('Invalid split index computed; check dataset size and test_size')
+        raise RuntimeError(
+            "Invalid split index computed; check dataset size and test_size"
+        )
 
     # Apply a purge gap between train and final holdout to avoid leakage
     holdout_start = split_idx + int(purge_gap)
@@ -111,24 +116,29 @@ def train_model(
     if use_optuna:
         try:
             import optuna
+
             if lgb is None:
                 # LightGBM required for Optuna tuning in this flow
-                raise Exception('lightgbm not available')
+                raise Exception("lightgbm not available")
             from sklearn.metrics import roc_auc_score as _roc
 
             def objective(trial):
                 params = {
-                    'objective': 'binary',
-                    'metric': 'auc',
-                    'boosting_type': 'gbdt',
-                    'num_leaves': trial.suggest_int('num_leaves', 20, 150),
-                    'learning_rate': trial.suggest_float('learning_rate', 1e-3, 0.1, log=True),
-                    'feature_fraction': trial.suggest_float('feature_fraction', 0.5, 1.0),
-                    'max_depth': trial.suggest_int('max_depth', 3, 12),
-                    'n_estimators': 200,
-                    'random_state': int(random_state),
-                    'n_jobs': -1,
-                    'verbose': -1,
+                    "objective": "binary",
+                    "metric": "auc",
+                    "boosting_type": "gbdt",
+                    "num_leaves": trial.suggest_int("num_leaves", 20, 150),
+                    "learning_rate": trial.suggest_float(
+                        "learning_rate", 1e-3, 0.1, log=True
+                    ),
+                    "feature_fraction": trial.suggest_float(
+                        "feature_fraction", 0.5, 1.0
+                    ),
+                    "max_depth": trial.suggest_int("max_depth", 3, 12),
+                    "n_estimators": 200,
+                    "random_state": int(random_state),
+                    "n_jobs": -1,
+                    "verbose": -1,
                 }
 
                 cv = PurgedTimeSeriesSplit(n_splits=n_splits, purge_gap=purge_gap)
@@ -159,7 +169,7 @@ def train_model(
 
                 return float(sum(scores) / len(scores)) if scores else 0.0
 
-            study = optuna.create_study(direction='maximize')
+            study = optuna.create_study(direction="maximize")
             study.optimize(objective, n_trials=max(1, int(n_trials)))
             best_params = study.best_params
             tuned = True
@@ -173,8 +183,8 @@ def train_model(
     if tuned and best_params is not None and lgb is not None:
         try:
             # ensure deterministic seed preserved
-            best_params.setdefault('random_state', int(random_state))
-            best_params.setdefault('n_jobs', -1)
+            best_params.setdefault("random_state", int(random_state))
+            best_params.setdefault("n_jobs", -1)
             model = lgb.LGBMClassifier(**best_params)
             try:
                 model.fit(
@@ -196,14 +206,16 @@ def train_model(
             if lgb is None:
                 import importlib
 
-                lgb = importlib.import_module('lightgbm')
+                lgb = importlib.import_module("lightgbm")
 
             model = lgb.LGBMClassifier(n_jobs=-1, random_state=random_state)
             model.fit(X_train, y_train)
         except Exception:
             from sklearn.ensemble import RandomForestClassifier
 
-            model = RandomForestClassifier(n_estimators=100, n_jobs=-1, random_state=random_state)
+            model = RandomForestClassifier(
+                n_estimators=100, n_jobs=-1, random_state=random_state
+            )
             model.fit(X_train, y_train)
 
     preds = model.predict(X_test)
@@ -217,33 +229,33 @@ def train_model(
     auc = roc_auc_score(y_test, probs) if probs is not None else None
 
     # persist model and metadata
-    os.makedirs(os.path.dirname(model_out) or '.', exist_ok=True)
+    os.makedirs(os.path.dirname(model_out) or ".", exist_ok=True)
     try:
         import joblib
 
         joblib.dump(
-            {'model': model, 'features': list(X.columns), 'tuned': tuned},
+            {"model": model, "features": list(X.columns), "tuned": tuned},
             model_out,
         )
     except Exception:
         import pickle
 
-        with open(model_out, 'wb') as fh:
+        with open(model_out, "wb") as fh:
             pickle.dump(
-                {'model': model, 'features': list(X.columns), 'tuned': tuned},
+                {"model": model, "features": list(X.columns), "tuned": tuned},
                 fh,
             )
 
     return {
-        'model_path': model_out,
-        'report': report,
-        'roc_auc': auc,
-        'tuned': tuned,
+        "model_path": model_out,
+        "report": report,
+        "roc_auc": auc,
+        "tuned": tuned,
     }
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print(
-        'This module provides `train_model()`; '
-        'run scripts/train_model.py to train a model.'
+        "This module provides `train_model()`; "
+        "run scripts/train_model.py to train a model."
     )

@@ -8,7 +8,7 @@ absent.
 from __future__ import annotations
 
 
-def start_metrics_server(port: int = 8000, host: str = '0.0.0.0') -> bool:
+def start_metrics_server(port: int = 8000, host: str = "0.0.0.0") -> bool:
     try:
         from prometheus_client import start_http_server
 
@@ -18,9 +18,9 @@ def start_metrics_server(port: int = 8000, host: str = '0.0.0.0') -> bool:
         return False
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     ok = start_metrics_server(8000)
     if ok:
-        print('Prometheus metrics server started on :8000')
+        print("Prometheus metrics server started on :8000")
     else:
-        print('prometheus_client not installed; metrics server not started')
+        print("prometheus_client not installed; metrics server not started")
