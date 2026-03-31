@@ -54,4 +54,12 @@ def fetch_daily_adjusted(symbol: str, api_key: str, outputsize: str = 'compact',
     if not prices:
         raise RuntimeError('AlphaVantage returned no numeric prices')
 
+    # validate series before returning
+    try:
+        from .schemas import validate_price_series
+        validate_price_series(prices)
+    except Exception:
+        # re-raise as runtime error to give connectors a clear failure
+        raise
+
     return prices

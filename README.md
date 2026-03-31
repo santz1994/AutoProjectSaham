@@ -1,3 +1,50 @@
+# AutoSaham
+
+AutoSaham is a prototype autonomous trading toolkit focused on the Indonesia Stock Exchange (IDX).
+
+This repository contains modular components for data ingestion, feature engineering, model training (supervised + RL), backtesting, and safe execution.
+
+Quick overview
+- `src/pipeline` — ETL connectors, batch fetcher, runner, scheduler, and persistence helpers.
+- `src/ml` — feature store helpers, `PurgedTimeSeriesSplit` (purged CV), and a lightweight Optuna wrapper.
+- `src/execution` — `ExecutionManager` enforcing IDX rules, pending-limit bookkeeping, and reconciliation loop.
+- `src/brokers` — adapter interfaces, `PaperBrokerAdapter`, and a retry wrapper for adapters.
+- `tests` — unit tests that verify core behaviors across modules.
+
+Getting started
+
+1. Install dependencies (recommended in a venv):
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+2. Run the test suite:
+
+```bash
+python -m unittest discover -v
+```
+
+3. Run the autonomous ETL once (example):
+
+```python
+from src.pipeline.runner import AutonomousPipeline
+runner = AutonomousPipeline()
+res = runner.run(['BBCA.JK', 'TLKM.JK'], fetch_prices=False, news_api_key=None)
+print(res)
+```
+
+Docs & next steps
+- `Docs & suggestions review` is in-progress. Recommended immediate items:
+  - Harden connectors (official IDX APIs) and credential handling.
+  - Add CI secrets/config for external APIs used by live tests.
+  - Implement a FastAPI backend to expose metrics, run jobs, and provide a safe operator UI.
+
+Contributing
+- Run tests before committing and keep changes focused (see `tests/`).
+
+License
+- MIT
 # AutoSaham — Prototype trading stack
 
 Quickstart commands and recommended runner usage.

@@ -15,8 +15,7 @@ momentum, distance_to_ara, distance_to_arb, position_notional_fraction]
 """
 from __future__ import annotations
 
-import math
-import os
+
 from typing import List, Optional
 
 import numpy as np
@@ -37,7 +36,15 @@ GYM = _try_import_gym()
 class TradingEnv:
     """Lightweight trading environment compatible with gymnasium when available."""
 
-    def __init__(self, prices: List[float], symbol: str = 'ENV', starting_cash: float = 10000.0, position_size: int = 1, commission_pct: float = 0.0005, slippage_pct: float = 0.0005):
+    def __init__(
+        self,
+        prices: List[float],
+        symbol: str = 'ENV',
+        starting_cash: float = 10000.0,
+        position_size: int = 1,
+        commission_pct: float = 0.0005,
+        slippage_pct: float = 0.0005,
+    ):
         self.prices = list(prices)
         if not self.prices:
             raise ValueError('prices must be non-empty')
@@ -57,9 +64,6 @@ class TradingEnv:
         from src.execution.manager import ExecutionManager
         from src.execution.executor import PaperBroker
         from src.ml.feature_store import compute_latest_features
-            # record today's price and current portfolio value (before action)
-            old_price = float(self.prices[self.t])
-            prev_balance = self.manager.get_balance({self.symbol: old_price})
 
         self.ExecutionManager = ExecutionManager
         self.compute_latest_features = compute_latest_features
@@ -75,10 +79,11 @@ class TradingEnv:
         # TP Bracket: 0=No TP, 1=+2%, 2=+5%, 3=+10%, 4=+ARA Limit
         if GYM is not None:
             self.action_space = GYM.spaces.MultiDiscrete([4, 5])
-            self.observation_space = GYM.spaces.Box(low=-1e9, high=1e9, shape=self.observation_shape, dtype=np.float32)
+            self.observation_space = GYM.spaces.Box(
+                low=-1e9, high=1e9, shape=self.observation_shape, dtype=np.float32
+            )
 
-        # active target price set by agent when it buys with a TP bracket
-        self.active_limit_sell_price: Optional[float] = None
+        # TradingEnv no longer tracks pending limit orders itself; use ExecutionManager
 
     def reset(self, start_index: Optional[int] = None):
         self.t = start_index if start_index is not None else 0
@@ -123,19 +128,26 @@ class TradingEnv:
         except Exception:
             live_pos = int(self.pos)
 
-        total_value = (live_cash + (live_pos * last)) if (live_cash is not None) else (self.cash + self.pos * last)
+        if live_cash is not None:
+            total_value = live_cash + (live_pos * last)
+        else:
+            total_value = self.cash + self.pos * last
+
         pos_fraction = (live_pos * last) / total_value if total_value > 0 else 0.0
 
-        obs = np.array([
-            feats.get('last_price', last),
-            feats.get('short_sma', last),
-            feats.get('long_sma', last),
-            feats.get('volatility', 0.0),
-            feats.get('momentum', 0.0),
-            dist_ara,
-            dist_arb,
-            pos_fraction,
-        ], dtype=np.float32)
+        obs = np.array(
+            [
+                feats.get('last_price', last),
+                feats.get('short_sma', last),
+                feats.get('long_sma', last),
+                feats.get('volatility', 0.0),
+                feats.get('momentum', 0.0),
+                dist_ara,
+                dist_arb,
+                pos_fraction,
+            ],
+            dtype=np.float32,
+        )
         return obs
 
     def step(self, action):
@@ -171,60 +183,71 @@ class TradingEnv:
         # compute previous close for IDX rules and order placement
         prev_close = float(self.prices[self.t - 1]) if self.t > 0 else price
 
-        # 1) Check for pending active limit sell order before processing new action
-        if self.active_limit_sell_price is not None:
-            if price >= self.active_limit_sell_price:
-                qty = self.manager.broker.positions.get(self.symbol, 0)
-                if qty > 0:
-                    trade = self.manager.place_order(self.symbol, 'sell', qty, price, previous_close=prev_close)
-                    if trade.get('status') != 'rejected':
-                        info['limit_executed'] = True
-                        # clear after execution
-                        self.active_limit_sell_price = None
-                        # shaped bonus reward for successful prediction
-                        reward += 2.0
+        # 1) Let manager process any pending limit orders for this tick
+        try:
+            tick_res = self.manager.process_market_tick({self.symbol: price})
+                if tick_res.get('executed'):
+                    for e in tick_res['executed']:
+                        if e.get('order', {}).get('symbol') == self.symbol:
+                            info['limit_executed'] = True
+                            reward += 2.0
+                            break
+        except Exception:
+            # non-fatal: continue processing action
+            pass
 
         # 2) Process incoming decision
         if decision == 1:
             # BUY market
-            trade = self.manager.place_order(self.symbol, 'buy', self.position_size, price, previous_close=prev_close)
+            trade = self.manager.place_order(
+                self.symbol, 'buy', self.position_size, price, previous_close=prev_close
+            )
             if trade.get('status') == 'rejected':
                 reward -= 1.0
                 info['rejected'] = trade.get('reason')
             else:
                 # set take-profit target based on bracket
+                limit_price = None
                 if tp_bracket == 1:
-                    self.active_limit_sell_price = price * 1.02
+                    limit_price = price * 1.02
                 elif tp_bracket == 2:
-                    self.active_limit_sell_price = price * 1.05
+                    limit_price = price * 1.05
                 elif tp_bracket == 3:
-                    self.active_limit_sell_price = price * 1.10
+                    limit_price = price * 1.10
                 elif tp_bracket == 4:
                     from src.execution.idx_rules import calculate_idx_limits
 
                     limits = calculate_idx_limits(prev_close)
-                    self.active_limit_sell_price = limits['ara']
-                else:
-                    # 0 -> no TP
-                    self.active_limit_sell_price = None
-                if self.active_limit_sell_price is not None:
-                    info['limit_set'] = float(self.active_limit_sell_price)
+                    limit_price = limits['ara']
+
+                if limit_price is not None:
+                    # register pending limit with manager
+                    res = self.manager.place_limit_order(self.symbol, 'sell', self.position_size, limit_price, previous_close=prev_close)
+                    if res.get('status') == 'pending':
+                        info['limit_order_id'] = res.get('order_id')
+                        info['limit_set'] = float(limit_price)
+                    else:
+                        info['limit_rejected'] = res.get('reason')
 
         elif decision == 2:
             # SELL market (manual override)
             qty = self.manager.broker.positions.get(self.symbol, 0)
             if qty > 0:
-                trade = self.manager.place_order(self.symbol, 'sell', qty, price, previous_close=prev_close)
+                trade = self.manager.place_order(
+                    self.symbol, 'sell', qty, price, previous_close=prev_close
+                )
                 if trade.get('status') == 'rejected':
                     reward -= 1.0
                     info['rejected'] = trade.get('reason')
                 else:
-                    # clear any pending TP
-                    self.active_limit_sell_price = None
+                    # clear any pending TP / limit orders for this symbol
+                    cancelled = self.manager.cancel_all_pending_for_symbol(self.symbol)
+                    info['cancelled_pending'] = int(cancelled)
 
         elif decision == 3:
-            # cancel pending limits
-            self.active_limit_sell_price = None
+            # cancel pending limits for this symbol
+            cancelled = self.manager.cancel_all_pending_for_symbol(self.symbol)
+            info['cancelled_pending'] = int(cancelled)
 
         # advance time
         done = False
@@ -232,14 +255,20 @@ class TradingEnv:
         if self.t >= len(self.prices):
             done = True
 
-        new_balance = self.manager.get_balance({self.symbol: self.prices[self.t - 1] if self.t - 1 < len(self.prices) else price})
+        new_balance = self.manager.get_balance(
+            {
+                self.symbol: self.prices[self.t - 1]
+                if self.t - 1 < len(self.prices)
+                else price
+            }
+        )
         reward += float(new_balance - prev_balance)
 
         # Always return a valid observation (SB3 requires an observation even at terminal)
         obs = self._get_obs()
 
         # include info about active TP for debugging
-        if self.active_limit_sell_price is not None:
+        if getattr(self, 'active_limit_sell_price', None) is not None:
             info['active_limit'] = float(self.active_limit_sell_price)
 
         # gymnasium expects: obs, reward, terminated, truncated, info
@@ -248,5 +277,11 @@ class TradingEnv:
         return obs, float(reward), bool(done), info
 
     def render(self):
-        bal = self.manager.get_balance({self.symbol: self.prices[self.t - 1] if self.t > 0 else self.prices[0]})
-        print(f't={self.t} price={self.prices[self.t-1] if self.t>0 else self.prices[0]} cash={self.manager.broker.cash} pos={self.manager.broker.positions.get(self.symbol,0)} balance={bal}')
+        bal = self.manager.get_balance(
+            {self.symbol: self.prices[self.t - 1] if self.t > 0 else self.prices[0]}
+        )
+        price_str = self.prices[self.t - 1] if self.t > 0 else self.prices[0]
+        pos = self.manager.broker.positions.get(self.symbol, 0)
+        cash = self.manager.broker.cash
+        print(f't={self.t} price={price_str} cash={cash}')
+        print(f'pos={pos} balance={bal}')

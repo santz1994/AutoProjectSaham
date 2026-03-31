@@ -1,11 +1,13 @@
-"""Symbol selection utilities: score symbols for a strategy and pick high-confidence names.
+"""Symbol selection utilities.
+
+Score symbols for a strategy and pick high-confidence names.
 
 Functions use lazy imports for market-data libraries and fall back to raising
 helpful errors if those libraries are not installed. The scoring function is
 intentionally simple and designed as a starting point for more advanced models.
 """
 import math
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List
 
 
 def _pair_trades(trades):
@@ -88,7 +90,8 @@ def evaluate_strategy_on_series(prices: List[float], strategy_fn: Callable, star
     signals = strategy_fn(prices)
     # ensure signals length matches
     if len(signals) < len(prices):
-        signals = ([0] * (len(prices) - len(signals))) + signals
+        padding = [0] * (len(prices) - len(signals))
+        signals = padding + signals
 
     res = simple_backtest(prices, signals, starting_cash=starting_cash)
     trades = res.get('trades', [])
@@ -97,7 +100,6 @@ def evaluate_strategy_on_series(prices: List[float], strategy_fn: Callable, star
     pairs = _pair_trades(trades)
     num_trades = len(pairs)
     wins = sum(1 for p in pairs if p['pnl'] > 0)
-    losses = sum(1 for p in pairs if p['pnl'] <= 0)
     total_pnl = sum(p['pnl'] for p in pairs)
     avg_pnl = (total_pnl / num_trades) if num_trades else 0.0
     win_rate = (wins / num_trades) if num_trades else 0.0
@@ -133,7 +135,13 @@ def score_from_metrics(metrics: Dict, starting_cash: float = 10000.0) -> float:
     return max(0.0, min(1.0, score))
 
 
-def score_symbols_for_strategy(symbols: List[str], strategy_fn: Callable, period: str = '1y', starting_cash: float = 10000.0, allow_demo: bool = True) -> Dict[str, Dict]:
+def score_symbols_for_strategy(
+    symbols: List[str],
+    strategy_fn: Callable,
+    period: str = '1y',
+    starting_cash: float = 10000.0,
+    allow_demo: bool = True,
+) -> Dict[str, Dict]:
     """Score symbols by running the given strategy on historical prices.
 
     Returns a dict mapping symbol -> {metrics..., score}
@@ -147,9 +155,13 @@ def score_symbols_for_strategy(symbols: List[str], strategy_fn: Callable, period
             try:
                 from src.demo import generate_price_series
 
-                prices = generate_price_series(n=252, start_price=100.0, volatility_pct=1.0)
+                prices = generate_price_series(
+                    n=252, start_price=100.0, volatility_pct=1.0
+                )
             except Exception as e:
-                out[sym] = {'error': f'demo generation failed: {repr(e)}'}
+                out[sym] = {
+                    'error': f'demo generation failed: {repr(e)}',
+                }
                 continue
 
             metrics = evaluate_strategy_on_series(prices, strategy_fn, starting_cash=starting_cash)
@@ -164,9 +176,14 @@ def score_symbols_for_strategy(symbols: List[str], strategy_fn: Callable, period
                 # fallback: generate a small synthetic series
                 try:
                     from src.demo import generate_price_series
-                    prices = generate_price_series(n=252, start_price=100.0, volatility_pct=1.0)
+
+                    prices = generate_price_series(
+                        n=252, start_price=100.0, volatility_pct=1.0
+                    )
                 except Exception:
-                    out[sym] = {'error': f'no market data available and demo fallback failed: {repr(e)}'}
+                    out[sym] = {
+                        'error': f'no market data available and demo fallback failed: {repr(e)}',
+                    }
                     continue
             else:
                 out[sym] = {'error': f'no market data available: {repr(e)}'}
@@ -180,9 +197,15 @@ def score_symbols_for_strategy(symbols: List[str], strategy_fn: Callable, period
     return out
 
 
-def select_high_confidence_symbols(symbols: List[str], strategy_fn: Callable, threshold: float = 0.9, **kwargs) -> List[str]:
+def select_high_confidence_symbols(
+    symbols: List[str], strategy_fn: Callable, threshold: float = 0.9, **kwargs
+) -> List[str]:
     scored = score_symbols_for_strategy(symbols, strategy_fn, **kwargs)
-    selected = [s for s, m in scored.items() if isinstance(m, dict) and m.get('score', 0) >= threshold]
+    selected = [
+        s
+        for s, m in scored.items()
+        if isinstance(m, dict) and m.get('score', 0) >= threshold
+    ]
     return selected
 
 

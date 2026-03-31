@@ -1,80 +1,64 @@
-"""Prometheus metrics helpers for AutoSaham.
+"""Lightweight Prometheus metrics helpers for AutoSaham.
 
-Provides lightweight helpers to expose metrics via an HTTP endpoint and
-record key events (orders filled/rejected, balance). The module keeps
-usage simple so it can be used without pushgateway configuration.
+If `prometheus_client` is installed this module exposes helpers to record
+ETL metrics and to render the `/metrics` output. When the dependency is
+missing the functions are safe no-ops (or raise when rendering metrics).
 """
 from __future__ import annotations
 
-import logging
-import os
-from prometheus_client import Counter, Gauge, start_http_server
-
-log = logging.getLogger('autosaham.metrics')
-
-# Counters and gauges
-orders_filled = Counter('autosaham_orders_filled_total', 'Number of filled orders', ['symbol'])
-orders_rejected = Counter('autosaham_orders_rejected_total', 'Number of rejected orders', ['symbol'])
-orders_total = Counter('autosaham_orders_total', 'Total orders', ['symbol'])
-account_balance = Gauge('autosaham_account_balance', 'Account cash + market value')
+try:
+    from prometheus_client import CollectorRegistry, Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+    PROM_AVAILABLE = True
+except Exception:
+    PROM_AVAILABLE = False
 
 
-def start_metrics_server(port: int = 8000) -> int:
-    """Start a background HTTP server exposing /metrics on `port`.
+if PROM_AVAILABLE:
+    registry = CollectorRegistry()
 
-    Returns the port that the server was started on.
-    """
-    try:
-        start_http_server(port)
-        log.info('metrics HTTP server started on port %d', port)
-    except Exception:
-        log.exception('failed to start metrics server')
-    return int(port)
+    etl_runs_total = Counter(
+        "autosaham_etl_runs_total",
+        "Total ETL runs",
+        registry=registry,
+    )
+
+    etl_runs_success = Counter(
+        "autosaham_etl_runs_success_total",
+        "Successful ETL runs",
+        registry=registry,
+    )
+
+    etl_runs_failure = Counter(
+        "autosaham_etl_runs_failure_total",
+        "Failed ETL runs",
+        registry=registry,
+    )
+
+    etl_duration_seconds = Histogram(
+        "autosaham_etl_duration_seconds",
+        "ETL run duration in seconds",
+        registry=registry,
+    )
+
+    def record_etl_run(duration_seconds: float | None = None, success: bool = True) -> None:
+        etl_runs_total.inc()
+        if success:
+            etl_runs_success.inc()
+        else:
+            etl_runs_failure.inc()
+            if duration_seconds is not None:
+                etl_duration_seconds.observe(float(duration_seconds))
+    def metrics_text() -> tuple[bytes, str]:
+        """Return the latest metrics payload and content type."""
+        return generate_latest(registry), CONTENT_TYPE_LATEST
+
+else:
+    def record_etl_run(duration_seconds: float | None = None, success: bool = True) -> None:
+        # no-op when prometheus_client is unavailable
+        return
+
+    def metrics_text() -> tuple[bytes, str]:
+        raise RuntimeError("prometheus_client is not installed")
 
 
-def record_order_filled(symbol: str) -> None:
-    try:
-        orders_filled.labels(symbol=symbol).inc()
-        orders_total.labels(symbol=symbol).inc()
-    except Exception:
-        log.exception('failed to record order_filled')
-
-
-def record_order_rejected(symbol: str) -> None:
-    try:
-        orders_rejected.labels(symbol=symbol).inc()
-        orders_total.labels(symbol=symbol).inc()
-    except Exception:
-        log.exception('failed to record order_rejected')
-
-
-def set_account_balance(value: float) -> None:
-    try:
-        account_balance.set(float(value))
-    except Exception:
-        log.exception('failed to set account_balance')
-
-
-def push_to_gateway_if_configured(job: str = 'autosaham') -> bool:
-    """Attempt to push metrics to a configured Pushgateway (optional).
-
-    Reads `PROMETHEUS_PUSHGATEWAY` from environment or .env via `python-dotenv`.
-    Returns True on success, False otherwise.
-    """
-    try:
-        from src.utils.secrets import get_secret
-        gateway = get_secret('PROMETHEUS_PUSHGATEWAY')
-        if not gateway:
-            return False
-        # push_to_gateway may require a registry in some versions; attempt best-effort
-        try:
-            from prometheus_client import push_to_gateway
-            push_to_gateway(gateway, job=job)
-            log.info('pushed metrics to %s', gateway)
-            return True
-        except Exception:
-            log.exception('failed to push metrics to gateway')
-            return False
-    except Exception:
-        log.exception('push_to_gateway_if_configured failed')
-        return False
+__all__ = ["PROM_AVAILABLE", "record_etl_run", "metrics_text"]

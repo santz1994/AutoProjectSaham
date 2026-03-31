@@ -19,7 +19,12 @@ class ExecutionManagerTests(unittest.TestCase):
             events.append(ev)
 
         adapter = PaperBrokerAdapter(starting_cash=10000.0)
-        em = ExecutionManager(broker=adapter, max_position_per_symbol=10, daily_loss_limit=0.5, alert_callback=cb)
+        em = ExecutionManager(
+            broker=adapter,
+            max_position_per_symbol=10,
+            daily_loss_limit=0.5,
+            alert_callback=cb,
+        )
         em.start_day({'TEST': 100.0})
 
         r1 = em.place_order('TEST', 'buy', 5, 100.0, previous_close=100.0)
@@ -30,6 +35,41 @@ class ExecutionManagerTests(unittest.TestCase):
 
         # ensure callback recorded events (at least rejects)
         self.assertTrue(any(ev.get('type') == 'order_rejected' for ev in events))
+
+    def test_pending_limit_exec(self):
+        events = []
+
+        def cb(ev):
+            events.append(ev)
+
+        adapter = PaperBrokerAdapter(starting_cash=10000.0)
+        em = ExecutionManager(
+            broker=adapter,
+            max_position_per_symbol=10,
+            daily_loss_limit=0.5,
+            alert_callback=cb,
+        )
+        em.start_day({'TEST': 100.0})
+
+        # buy 5 shares at 100
+        r1 = em.place_order('TEST', 'buy', 5, 100.0, previous_close=100.0)
+        self.assertEqual(r1.get('status'), 'filled')
+
+        # place a pending limit sell at 105
+        r_pending = em.place_limit_order('TEST', 'sell', 5, 105.0, previous_close=100.0)
+        self.assertEqual(r_pending.get('status'), 'pending')
+        oid = r_pending.get('order_id')
+
+        # price ticks up to 106 -> process market tick
+        res = em.process_market_tick({'TEST': 106.0})
+        self.assertTrue(len(res.get('executed', [])) >= 1)
+
+        # ensure positions cleared
+        pos = adapter.get_positions().get('TEST', 0)
+        self.assertEqual(pos, 0)
+
+        # ensure callback recorded an order_filled event
+        self.assertTrue(any(ev.get('type') == 'order_filled' for ev in events))
 
 
 if __name__ == '__main__':

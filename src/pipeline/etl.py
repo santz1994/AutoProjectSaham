@@ -3,6 +3,7 @@
 This file orchestrates connectors and returns collected data structures.
 """
 
+
 def run_etl(symbols, start_date=None, end_date=None, news_api_key=None):
     data = {}
 

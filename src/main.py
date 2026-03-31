@@ -21,7 +21,11 @@ def main():
     if args.run_etl:
         from .pipeline.orchestrator import AutonomousPipeline
         news_api_key = os.getenv('NEWSAPI_KEY')
-        p = AutonomousPipeline(symbols=args.symbols, news_api_key=news_api_key, interval_minutes=args.interval)
+        p = AutonomousPipeline(
+            symbols=args.symbols,
+            news_api_key=news_api_key,
+            interval_minutes=args.interval,
+        )
         if args.once:
             p.run_once()
         else:

@@ -21,7 +21,14 @@ class BatchFetcher:
 
         self.fetcher = YahooFetcher(cache_db=cache_db, min_delay=min_delay)
 
-    def fetch_symbols(self, symbols: List[str], period: str = '1y', out_dir: str = 'data/prices', limit: int | None = None, force_refresh: bool = False) -> List[Dict]:
+    def fetch_symbols(
+        self,
+        symbols: List[str],
+        period: str = '1y',
+        out_dir: str = 'data/prices',
+        limit: int | None = None,
+        force_refresh: bool = False,
+    ) -> List[Dict]:
         _ensure_dir(out_dir)
         results: List[Dict] = []
         i = 0
@@ -30,12 +37,35 @@ class BatchFetcher:
                 break
             i += 1
             try:
-                prices = self.fetcher.fetch(sym, period=period, use_cache=not force_refresh, force_refresh=force_refresh)
+                prices = self.fetcher.fetch(
+                    sym,
+                    period=period,
+                    use_cache=not force_refresh,
+                    force_refresh=force_refresh,
+                )
                 fname = os.path.join(out_dir, f'{sym}.json')
                 with open(fname, 'w', encoding='utf-8') as fh:
-                    json.dump({'symbol': sym, 'prices_count': len(prices), 'prices': prices, 'fetched_at': int(time.time())}, fh, ensure_ascii=False)
-                results.append({'symbol': sym, 'status': 'ok', 'count': len(prices), 'file': fname})
+                    json.dump(
+                        {
+                            'symbol': sym,
+                            'prices_count': len(prices),
+                            'prices': prices,
+                            'fetched_at': int(time.time()),
+                        },
+                        fh,
+                        ensure_ascii=False,
+                    )
+                results.append({
+                    'symbol': sym,
+                    'status': 'ok',
+                    'count': len(prices),
+                    'file': fname,
+                })
             except Exception as e:
-                results.append({'symbol': sym, 'status': 'error', 'error': str(e)})
+                results.append({
+                    'symbol': sym,
+                    'status': 'error',
+                    'error': str(e),
+                })
 
         return results

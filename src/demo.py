@@ -3,7 +3,6 @@
 This demo avoids external packages so it can run out-of-the-box.
 """
 import random
-from datetime import datetime
 
 from .execution.executor import PaperBroker
 from .strategies.scalping import simple_sma_strategy

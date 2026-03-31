@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class BrokerInterface:
@@ -28,7 +28,7 @@ class PaperBroker(BrokerInterface):
         self.trades = []
 
     def place_order(self, symbol: str, side: str, qty: int, price: float):
-        now = datetime.utcnow().isoformat() + 'Z'
+        now = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
         qty = int(qty)
         # realistic broker fees (approx): buy fee ~0.15%, sell fee ~0.25% (incl. taxes)
         buy_fee_pct = 0.0015
@@ -41,11 +41,28 @@ class PaperBroker(BrokerInterface):
             if total_cost <= self.cash:
                 self.cash -= total_cost
                 self.positions[symbol] = self.positions.get(symbol, 0) + qty
-                trade = {'time': now, 'symbol': symbol, 'side': 'buy', 'qty': qty, 'price': price, 'status': 'filled', 'fee': float(fee)}
+                trade = {
+                    'time': now,
+                    'symbol': symbol,
+                    'side': 'buy',
+                    'qty': qty,
+                    'price': price,
+                    'status': 'filled',
+                    'fee': float(fee),
+                }
                 self.trades.append(trade)
                 return trade
             else:
-                trade = {'time': now, 'symbol': symbol, 'side': 'buy', 'qty': qty, 'price': price, 'status': 'rejected', 'reason': 'insufficient_cash', 'required': float(total_cost)}
+                trade = {
+                    'time': now,
+                    'symbol': symbol,
+                    'side': 'buy',
+                    'qty': qty,
+                    'price': price,
+                    'status': 'rejected',
+                    'reason': 'insufficient_cash',
+                    'required': float(total_cost),
+                }
                 self.trades.append(trade)
                 return trade
 
@@ -57,15 +74,40 @@ class PaperBroker(BrokerInterface):
                 fee = proceeds * sell_fee_pct
                 net = proceeds - fee
                 self.cash += net
-                trade = {'time': now, 'symbol': symbol, 'side': 'sell', 'qty': qty, 'price': price, 'status': 'filled', 'fee': float(fee), 'net': float(net)}
+                trade = {
+                    'time': now,
+                    'symbol': symbol,
+                    'side': 'sell',
+                    'qty': qty,
+                    'price': price,
+                    'status': 'filled',
+                    'fee': float(fee),
+                    'net': float(net),
+                }
                 self.trades.append(trade)
                 return trade
             else:
-                trade = {'time': now, 'symbol': symbol, 'side': 'sell', 'qty': qty, 'price': price, 'status': 'rejected', 'reason': 'insufficient_position'}
+                trade = {
+                    'time': now,
+                    'symbol': symbol,
+                    'side': 'sell',
+                    'qty': qty,
+                    'price': price,
+                    'status': 'rejected',
+                    'reason': 'insufficient_position',
+                }
                 self.trades.append(trade)
                 return trade
 
-        trade = {'time': now, 'symbol': symbol, 'side': side, 'qty': qty, 'price': price, 'status': 'rejected', 'reason': 'unknown_side'}
+        trade = {
+            'time': now,
+            'symbol': symbol,
+            'side': side,
+            'qty': qty,
+            'price': price,
+            'status': 'rejected',
+            'reason': 'unknown_side',
+        }
         self.trades.append(trade)
         return trade
 

@@ -38,3 +38,38 @@ class PaperBrokerAdapter(BrokerAdapter):
 
     def disconnect(self) -> None:
         self._connected = False
+
+    def reconcile(self) -> Dict[str, Any]:
+        """Return a reconciliation snapshot: positions, cash, balance."""
+        try:
+            return {
+                'positions': self.get_positions(),
+                'cash': float(self.get_cash()),
+                'balance': float(self.get_balance()),
+            }
+        except Exception:
+            return {}
+
+    def reconcile_with_expected(self, expected_positions: Dict[str, int], expected_cash: Optional[float] = None) -> Dict[str, Any]:
+        """Compare actual state against expected; return a report with diffs."""
+        snap = self.reconcile()
+        diffs = {}
+        actual_pos = snap.get('positions', {})
+        for sym, exp_qty in (expected_positions or {}).items():
+            act_qty = actual_pos.get(sym, 0)
+            if act_qty != exp_qty:
+                diffs.setdefault('positions', {})[sym] = {
+                    'expected': int(exp_qty),
+                    'actual': int(act_qty),
+                }
+
+        if expected_cash is not None:
+            act_cash = float(snap.get('cash', 0.0))
+            if abs(act_cash - float(expected_cash)) > 1e-6:
+                diffs['cash'] = {'expected': float(expected_cash), 'actual': act_cash}
+
+        return {
+            'ok': len(diffs) == 0,
+            'diffs': diffs,
+            'snapshot': snap,
+        }

@@ -3,7 +3,7 @@
 Provides a simple `AutonomousPipeline` class with `run_once()` and `start()`.
 Runs `src.pipeline.etl.run_etl` and persists each run to `data/etl_<timestamp>.json`.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import os
 
@@ -11,7 +11,13 @@ from .etl import run_etl
 
 
 class AutonomousPipeline:
-    def __init__(self, symbols=None, news_api_key=None, data_dir='data', interval_minutes=5):
+    def __init__(
+        self,
+        symbols=None,
+        news_api_key=None,
+        data_dir='data',
+        interval_minutes=5,
+    ):
         self.symbols = symbols or ['BBCA']
         self.news_api_key = news_api_key
         self.data_dir = data_dir
@@ -22,9 +28,13 @@ class AutonomousPipeline:
         os.makedirs(self.data_dir, exist_ok=True)
 
     def _job(self):
-        ts = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        ts = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
         try:
-            payload = {'timestamp': ts, 'symbols': self.symbols, 'data': run_etl(self.symbols, news_api_key=self.news_api_key)}
+            payload = {
+                'timestamp': ts,
+                'symbols': self.symbols,
+                'data': run_etl(self.symbols, news_api_key=self.news_api_key),
+            }
             fname = os.path.join(self.data_dir, f'etl_{ts}.json')
             with open(fname, 'w', encoding='utf-8') as fh:
                 json.dump(payload, fh, ensure_ascii=False, indent=2)
@@ -67,7 +77,7 @@ class AutonomousPipeline:
                 tz = None
 
         self._scheduler = BackgroundScheduler()
-        if tz is not None:
+            if tz is not None:
             # Run only on business days during market hours (09:00-16:00 WIB)
             self._scheduler.add_job(
                 self._job,
@@ -78,7 +88,10 @@ class AutonomousPipeline:
                 max_instances=1,
                 timezone=tz,
             )
-            print(f'AutonomousPipeline scheduled (Asia/Jakarta) — fetching {self.symbols} every {self.interval} minutes during 09:00-16:00 WIB')
+            print(
+                f'AutonomousPipeline scheduled (Asia/Jakarta) — fetching {self.symbols} '
+                f'every {self.interval} minutes during 09:00-16:00 WIB'
+            )
         else:
             # Fallback: approximate UTC hours (WIB = UTC+7 => 02:00-09:00 UTC)
             self._scheduler.add_job(
@@ -89,7 +102,10 @@ class AutonomousPipeline:
                 minute=f'*/{self.interval}',
                 max_instances=1,
             )
-            print(f'AutonomousPipeline scheduled (UTC fallback) — fetching {self.symbols} every {self.interval} minutes during approx market hours (02:00-09:00 UTC)')
+            print(
+                f'AutonomousPipeline scheduled (UTC fallback) — fetching {self.symbols} '
+                f'every {self.interval} minutes during approx market hours (02:00-09:00 UTC)'
+            )
 
         self._scheduler.start()
 

@@ -20,16 +20,27 @@ log = logging.getLogger('autosaham.brokers.alpaca')
 
 
 class AlpacaAdapter(BrokerAdapter):
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, base_url: Optional[str] = None):
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
+        base_url: Optional[str] = None,
+    ):
         sm = SecretsManager()
         self.api_key = api_key or sm.get('ALPACA_API_KEY')
         self.api_secret = api_secret or sm.get('ALPACA_API_SECRET')
-        self.base_url = base_url or sm.get('ALPACA_BASE_URL') or 'https://paper-api.alpaca.markets'
+        self.base_url = (
+            base_url
+            or sm.get('ALPACA_BASE_URL')
+            or 'https://paper-api.alpaca.markets'
+        )
         self.client = None
         self.max_retries = 3
         self.retry_backoff = 0.5
         # simulator fallback for local testing when Alpaca SDK is not present
-        self.simulator = PaperBrokerAdapter(starting_cash=float(sm.get('SIM_STARTING_CASH') or 10000.0))
+        self.simulator = PaperBrokerAdapter(
+            starting_cash=float(sm.get('SIM_STARTING_CASH') or 10000.0)
+        )
         # local order registry for simulator and mapping to remote ids
         self._sim_orders: dict[str, dict] = {}
         self._remote_map: dict[str, str] = {}
@@ -38,7 +49,11 @@ class AlpacaAdapter(BrokerAdapter):
         try:
             import alpaca_trade_api as tradeapi
 
-            self.client = tradeapi.REST(self.api_key, self.api_secret, base_url=self.base_url)
+            self.client = tradeapi.REST(
+                self.api_key,
+                self.api_secret,
+                base_url=self.base_url,
+            )
             # quick sanity check
             try:
                 _ = self.client.get_account()
@@ -59,7 +74,13 @@ class AlpacaAdapter(BrokerAdapter):
             except Exception as e:
                 last_exc = e
                 wait = self.retry_backoff * (2 ** (attempt - 1))
-                log.warning('alpaca call failed (attempt %d/%d): %s; retrying in %.2fs', attempt, self.max_retries, e, wait)
+                log.warning(
+                    'alpaca call failed (attempt %d/%d): %s; retrying in %.2fs',
+                    attempt,
+                    self.max_retries,
+                    e,
+                    wait,
+                )
                 try:
                     import time
 
@@ -75,14 +96,22 @@ class AlpacaAdapter(BrokerAdapter):
             trade = self.simulator.place_order(symbol, side, qty, price)
             oid = f"sim-{uuid.uuid4().hex}"
             self._sim_orders[oid] = trade
-            return {'status': trade.get('status'), 'order_id': oid, 'raw': trade}
+            return {
+                'status': trade.get('status'),
+                'order_id': oid,
+                'raw': trade,
+            }
 
         try:
             def _submit():
                 if side.lower() == 'buy':
-                    return self.client.submit_order(symbol, qty, side='buy', type='market', time_in_force='day')
+                    return self.client.submit_order(
+                        symbol, qty, side='buy', type='market', time_in_force='day'
+                    )
                 else:
-                    return self.client.submit_order(symbol, qty, side='sell', type='market', time_in_force='day')
+                    return self.client.submit_order(
+                        symbol, qty, side='sell', type='market', time_in_force='day'
+                    )
 
             order = self._with_retries(_submit)
             # map known status strings (best-effort)
@@ -103,7 +132,12 @@ class AlpacaAdapter(BrokerAdapter):
             elif isinstance(status, str) and status.lower() in ('canceled', 'cancelled', 'rejected'):
                 mapped_status = 'rejected'
 
-            return {'status': mapped_status, 'order_id': local_id, 'remote_id': remote_id, 'raw': raw}
+            return {
+                'status': mapped_status,
+                'order_id': local_id,
+                'remote_id': remote_id,
+                'raw': raw,
+            }
         except Exception:
             log.exception('failed to place order via Alpaca')
             return {'status': 'rejected', 'reason': 'alpaca_place_failed'}
@@ -115,7 +149,10 @@ class AlpacaAdapter(BrokerAdapter):
         """
         # simulator
         if order_id in self._sim_orders:
-            return {'status': self._sim_orders[order_id].get('status'), 'raw': self._sim_orders[order_id]}
+            return {
+                'status': self._sim_orders[order_id].get('status'),
+                'raw': self._sim_orders[order_id],
+            }
 
         # remote
         remote_id = self._remote_map.get(order_id)

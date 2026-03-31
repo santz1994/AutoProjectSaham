@@ -8,7 +8,7 @@ from __future__ import annotations
 import glob
 import json
 import os
-from typing import List
+
 
 import numpy as np
 import pandas as pd
@@ -22,12 +22,12 @@ def _compute_features_for_index(arr: np.ndarray, t: int, short: int, long: int):
 
     # short SMA
     s_start = max(0, t + 1 - short)
-    short_sma = float(arr[s_start : t + 1].mean())
+    short_sma = float(arr[s_start:t + 1].mean())
     l_start = max(0, t + 1 - long)
-    long_sma = float(arr[l_start : t + 1].mean())
+    long_sma = float(arr[l_start:t + 1].mean())
 
     # returns
-    rets = arr[1 : t + 1] / arr[:t] - 1.0 if t >= 1 else np.array([])
+    rets = arr[1:t + 1] / arr[:t] - 1.0 if t >= 1 else np.array([])
     vol = float(rets[-long:].std()) if len(rets) >= 1 else 0.0
 
     momentum = float(arr[t] / arr[s_start] - 1.0) if (t - s_start) >= 1 else 0.0
@@ -42,7 +42,15 @@ def _compute_features_for_index(arr: np.ndarray, t: int, short: int, long: int):
     }
 
 
-def build_dataset(price_dir: str = 'data/prices', out_csv: str = 'data/dataset/dataset.csv', short: int = 5, long: int = 20, horizon: int = 5, threshold: float = 0.02, max_symbols: int | None = None) -> str:
+def build_dataset(
+    price_dir: str = 'data/prices',
+    out_csv: str = 'data/dataset/dataset.csv',
+    short: int = 5,
+    long: int = 20,
+    horizon: int = 5,
+    threshold: float = 0.02,
+    max_symbols: int | None = None,
+) -> str:
     os.makedirs(os.path.dirname(out_csv), exist_ok=True)
     files = glob.glob(os.path.join(price_dir, '*.json'))
     rows = []
@@ -64,7 +72,12 @@ def build_dataset(price_dir: str = 'data/prices', out_csv: str = 'data/dataset/d
                 feats = _compute_features_for_index(arr, t, short, long)
                 future_return = float(arr[t + horizon] / arr[t] - 1.0)
                 label = 1 if future_return > threshold else 0
-                row = {'symbol': sym, 't_index': int(t), 'future_return': future_return, 'label': int(label)}
+                row = {
+                    'symbol': sym,
+                    't_index': int(t),
+                    'future_return': future_return,
+                    'label': int(label),
+                }
                 row.update(feats)
                 rows.append(row)
 

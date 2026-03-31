@@ -1,12 +1,17 @@
-pandas
-numpy
-requests
+requests>=2.28.2
+pandas>=1.5.3
+numpy>=1.24.0
+pydantic<2.0,>=1.10.8
+yfinance>=0.2.22
+prometheus-client>=0.16.0
+urllib3>=1.26.16
 scikit-learn
-yfinance
 newsapi-python
 apscheduler
 lightgbm
 joblib
 gymnasium
-prometheus-client
 python-dotenv
+# API and test requirements
+fastapi>=0.95.0
+uvicorn[standard]>=0.22.0

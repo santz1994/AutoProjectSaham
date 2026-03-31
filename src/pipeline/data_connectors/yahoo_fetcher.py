@@ -17,6 +17,7 @@ import os
 import sqlite3
 import time
 from typing import List
+from .schemas import validate_price_series
 
 try:
     import requests
@@ -27,9 +28,18 @@ except Exception:  # pragma: no cover - runtime error messaging handled below
 
 
 class YahooFetcher:
-    def __init__(self, cache_db: str | None = None, min_delay: float = 1.0, timeout: int = 30, retries: int = 3, backoff_factor: float = 0.5):
+    def __init__(
+        self,
+        cache_db: str | None = None,
+        min_delay: float = 1.0,
+        timeout: int = 30,
+        retries: int = 3,
+        backoff_factor: float = 0.5,
+    ):
         if requests is None:
-            raise RuntimeError('requests and urllib3 are required for YahooFetcher; install with `pip install requests`')
+            raise RuntimeError(
+                'requests and urllib3 are required for YahooFetcher; install with `pip install requests`'
+            )
 
         self.cache_db = cache_db or os.path.join(os.getcwd(), 'data', 'yahoo_cache.db')
         os.makedirs(os.path.dirname(self.cache_db), exist_ok=True)
@@ -39,10 +49,15 @@ class YahooFetcher:
 
         # HTTP session with retry/backoff
         self.session = requests.Session()
-        retry = Retry(total=retries, backoff_factor=backoff_factor, status_forcelist=(429, 500, 502, 503, 504), allowed_methods=frozenset(['GET']))
+        retry = Retry(
+            total=retries,
+            backoff_factor=backoff_factor,
+            status_forcelist=(429, 500, 502, 503, 504),
+            allowed_methods=frozenset(['GET']),
+        )
         adapter = HTTPAdapter(max_retries=retry)
         self.session.mount('https://', adapter)
-        self.session.headers.update({'User-Agent': 'AutoSaham/1.0 (+https://github.com)'} )
+        self.session.headers.update({'User-Agent': 'AutoSaham/1.0 (+https://github.com)'})
 
         # DB connection
         self._conn = sqlite3.connect(self.cache_db, check_same_thread=False)
@@ -96,8 +111,8 @@ class YahooFetcher:
                 return self._parse_csv_to_prices(cached)
 
         # compute unix timestamps for period
-        from datetime import datetime, timedelta
-        end_dt = datetime.utcnow()
+        from datetime import datetime, timedelta, timezone
+        end_dt = datetime.now(timezone.utc)
         days = 365
         if isinstance(period, str):
             if period.endswith('y'):
@@ -114,9 +129,9 @@ class YahooFetcher:
                     days = 183
 
         start_dt = end_dt - timedelta(days=days)
-        import time as _time
-        period1 = int(_time.mktime(start_dt.timetuple()))
-        period2 = int(_time.mktime(end_dt.timetuple()))
+        import calendar as _calendar
+        period1 = int(_calendar.timegm(start_dt.utctimetuple()))
+        period2 = int(_calendar.timegm(end_dt.utctimetuple()))
 
         url = (
             f'https://query1.finance.yahoo.com/v7/finance/download/{symbol}'
@@ -157,7 +172,10 @@ class YahooFetcher:
                             # pick first column
                             series = series.iloc[:, 0]
 
-                        return [float(x) for x in series.tolist()]
+                        vals = [float(x) for x in series.tolist()]
+                        # validate the series before returning
+                        validate_price_series(vals)
+                        return vals
                     except Exception:
                         # if selection/parsing fails, allow outer handler to raise
                         pass
@@ -169,6 +187,8 @@ class YahooFetcher:
 
         csv_text = resp.text
         prices = self._parse_csv_to_prices(csv_text)
+        # validate parsed series before returning
+        validate_price_series(prices)
 
         # cache best-effort
         try:
@@ -212,3 +232,19 @@ class YahooFetcher:
         cur = self._conn.cursor()
         cur.execute('DELETE FROM price_cache')
         self._conn.commit()
+
+    def close(self):
+        try:
+            if getattr(self, '_conn', None):
+                try:
+                    self._conn.close()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass

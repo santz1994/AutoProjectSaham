@@ -132,7 +132,7 @@ def notify_with_throttle(ev: Dict, cooldown_seconds: int = 60, require_ack: bool
 
         # try email
         try:
-            subject = f"AutoSaham alert: {ev.get('type','alert')}"
+            subject = f"AutoSaham alert: {ev.get('type', 'alert')}"
             body = msg
             if email_to:
                 sent = send_email_alert(subject, body, to=email_to) or sent

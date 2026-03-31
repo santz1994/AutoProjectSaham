@@ -12,7 +12,6 @@ from typing import Callable, Dict
 from src.monitoring.metrics import (
     record_order_filled,
     record_order_rejected,
-    set_account_balance,
     start_metrics_server,
     push_to_gateway_if_configured,
 )
@@ -22,7 +21,12 @@ from src.monitoring.alert_channels import notify_with_throttle
 log = logging.getLogger('autosaham.alerts')
 
 
-def make_alert_callback(start_metrics: bool = False, metrics_port: int = 8000, throttle_seconds: int = 60, require_ack: bool = False) -> Callable[[Dict], None]:
+def make_alert_callback(
+    start_metrics: bool = False,
+    metrics_port: int = 8000,
+    throttle_seconds: int = 60,
+    require_ack: bool = False,
+) -> Callable[[Dict], None]:
     """Return a callback function to handle execution events.
 
     Usage:

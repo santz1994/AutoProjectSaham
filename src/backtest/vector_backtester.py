@@ -8,11 +8,17 @@ from __future__ import annotations
 import math
 from typing import List, Dict, Any
 
-import numpy as np
 import pandas as pd
 
 
-def backtest_signals(prices: List[float], signals: List[int], initial_cash: float = 10000.0, commission_pct: float = 0.0005, slippage_pct: float = 0.0005, position_size: int = 1) -> Dict[str, Any]:
+def backtest_signals(
+    prices: List[float],
+    signals: List[int],
+    initial_cash: float = 10000.0,
+    commission_pct: float = 0.0005,
+    slippage_pct: float = 0.0005,
+    position_size: int = 1,
+) -> Dict[str, Any]:
     """Run a simple backtest.
 
     prices: chronological list of prices
@@ -42,7 +48,15 @@ def backtest_signals(prices: List[float], signals: List[int], initial_cash: floa
             if cost <= cash:
                 cash -= cost
                 pos += qty
-                trades.append({'t': t, 'side': 'buy', 'qty': qty, 'price': exec_price, 'commission': commission})
+                trades.append(
+                    {
+                        't': t,
+                        'side': 'buy',
+                        'qty': qty,
+                        'price': exec_price,
+                        'commission': commission,
+                    }
+                )
         elif action == -1:
             if pos > 0:
                 qty = pos
@@ -50,7 +64,15 @@ def backtest_signals(prices: List[float], signals: List[int], initial_cash: floa
                 commission = exec_price * qty * commission_pct
                 proceeds = exec_price * qty - commission
                 cash += proceeds
-                trades.append({'t': t, 'side': 'sell', 'qty': qty, 'price': exec_price, 'commission': commission})
+                trades.append(
+                    {
+                        't': t,
+                        'side': 'sell',
+                        'qty': qty,
+                        'price': exec_price,
+                        'commission': commission,
+                    }
+                )
                 pos = 0
 
         equity.append(cash + pos * price)
@@ -59,7 +81,10 @@ def backtest_signals(prices: List[float], signals: List[int], initial_cash: floa
     returns = eq.pct_change().fillna(0)
 
     cum_return = float(eq.iloc[-1] / initial_cash - 1.0)
-    sharpe = (returns.mean() / returns.std() * math.sqrt(252)) if returns.std() > 0 else None
+    returns_std = returns.std()
+    sharpe = (
+        returns.mean() / returns_std * math.sqrt(252)
+    ) if returns_std > 0 else None
 
     cummax = eq.cummax()
     drawdown = (eq - cummax) / cummax

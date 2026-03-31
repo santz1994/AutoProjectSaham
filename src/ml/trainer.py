@@ -9,23 +9,48 @@ import os
 from typing import Dict
 
 
-def train_model(dataset_csv: str, target_col: str = 'label', model_out: str = 'models/model.joblib', test_size: float = 0.2, random_state: int = 42) -> Dict:
+def train_model(
+    dataset_csv: str,
+    target_col: str = 'label',
+    model_out: str = 'models/model.joblib',
+    test_size: float = 0.2,
+    random_state: int = 42,
+    use_optuna: bool = True,
+    n_trials: int = 20,
+    purge_gap: int = 5,
+    n_splits: int = 3,
+) -> Dict:
+    """Train a binary classifier with optional Purged Time-Series CV + Optuna tuning.
+
+    Behaviour:
+    - Reads `dataset_csv`, constructs X/y by dropping identifier columns.
+    - Performs a chronological holdout for final evaluation (size `test_size`).
+    - Optionally runs a PurgedTimeSeriesSplit on the training portion to tune
+      LightGBM hyperparameters via Optuna. If Optuna or LightGBM are unavailable
+      the function falls back to a sensible default (RandomForest).
+    """
     import pandas as pd
     from sklearn.metrics import classification_report, roc_auc_score
+
+    # attempt a single LightGBM import to avoid repeated redefinitions
+    try:
+        import lightgbm as lgb  # type: ignore
+    except Exception:
+        lgb = None
 
     df = pd.read_csv(dataset_csv)
     if target_col not in df.columns:
         raise RuntimeError(f'{target_col} not in dataset')
 
-    # simple feature columns: drop identifier columns
+    # drop identifier columns and keep features
     drop_cols = ['symbol', 't_index', 'future_return']
     X = df.drop(columns=[c for c in drop_cols if c in df.columns] + [target_col])
     y = df[target_col]
 
-    # fill na
-    X = X.fillna(0.0)
+    # prefer forward-fill for price-like features, fall back to zero for remaining gaps
+    X = X.ffill().fillna(0.0)
 
-    # Chronological split for time-series data to avoid data leakage.
+    # Chronological split for final holdout
     split_idx = int(len(X) * (1.0 - float(test_size)))
     if split_idx <= 0 or split_idx >= len(X):
         raise RuntimeError('Invalid split index computed; check dataset size and test_size')
@@ -35,16 +60,116 @@ def train_model(dataset_csv: str, target_col: str = 'label', model_out: str = 'm
     y_train = y.iloc[:split_idx].reset_index(drop=True)
     y_test = y.iloc[split_idx:].reset_index(drop=True)
 
+    # Purged Time-Series split helper (expanding training window + purge)
+    class PurgedTimeSeriesSplit:
+        def __init__(self, n_splits=3, purge_gap=5):
+            self.n_splits = int(n_splits)
+            self.purge_gap = int(purge_gap)
+
+        def split(self, X_obj):
+            n = len(X_obj)
+            # allocate validation windows near the end of the training set
+            test_size = max(1, n // (self.n_splits + 1))
+            start = n - self.n_splits * test_size
+            for i in range(self.n_splits):
+                val_start = start + i * test_size
+                val_end = min(val_start + test_size, n)
+                train_end = max(0, val_start - self.purge_gap)
+                train_idx = list(range(0, train_end))
+                val_idx = list(range(val_start, val_end))
+                if len(train_idx) > 0 and len(val_idx) > 0:
+                    yield train_idx, val_idx
+
+    best_params = None
+    tuned = False
+
+    if use_optuna:
+        try:
+            import optuna
+            if lgb is None:
+                # LightGBM required for Optuna tuning in this flow
+                raise Exception('lightgbm not available')
+            from sklearn.metrics import roc_auc_score as _roc
+
+            def objective(trial):
+                params = {
+                    'objective': 'binary',
+                    'metric': 'auc',
+                    'boosting_type': 'gbdt',
+                    'num_leaves': trial.suggest_int('num_leaves', 20, 150),
+                    'learning_rate': trial.suggest_float('learning_rate', 1e-3, 0.1, log=True),
+                    'feature_fraction': trial.suggest_float('feature_fraction', 0.5, 1.0),
+                    'max_depth': trial.suggest_int('max_depth', 3, 12),
+                    'n_estimators': 200,
+                    'random_state': int(random_state),
+                    'n_jobs': -1,
+                    'verbose': -1,
+                }
+
+                cv = PurgedTimeSeriesSplit(n_splits=n_splits, purge_gap=purge_gap)
+                scores = []
+                Xn = X_train.reset_index(drop=True)
+                yn = y_train.reset_index(drop=True)
+                for tr_idx, val_idx in cv.split(Xn):
+                    Xtr, Xval = Xn.iloc[tr_idx], Xn.iloc[val_idx]
+                    ytr, yval = yn.iloc[tr_idx], yn.iloc[val_idx]
+                    clf = lgb.LGBMClassifier(**params)
+                    try:
+                        clf.fit(
+                            Xtr,
+                            ytr,
+                            eval_set=[(Xval, yval)],
+                            early_stopping_rounds=30,
+                            verbose=False,
+                        )
+                    except TypeError:
+                        # older LGBM API may not accept verbose/early_stopping kwargs
+                        clf.fit(Xtr, ytr)
+                    try:
+                        probs = clf.predict_proba(Xval)[:, 1]
+                        scores.append(float(_roc(yval, probs)))
+                    except Exception:
+                        preds = clf.predict(Xval)
+                        scores.append(float(_roc(yval, preds)))
+
+                return float(sum(scores) / len(scores)) if scores else 0.0
+
+            study = optuna.create_study(direction='maximize')
+            study.optimize(objective, n_trials=max(1, int(n_trials)))
+            best_params = study.best_params
+            tuned = True
+        except Exception:
+            # optuna or lightgbm not available — continue with defaults
+            best_params = None
+            tuned = False
+
     model = None
-    try:
-        import lightgbm as lgb
-        model = lgb.LGBMClassifier(n_jobs=-1, random_state=random_state)
-        model.fit(X_train, y_train)
-    except Exception:
-        # fallback to sklearn
-        from sklearn.ensemble import RandomForestClassifier
-        model = RandomForestClassifier(n_estimators=100, n_jobs=-1, random_state=random_state)
-        model.fit(X_train, y_train)
+    # Train final model — prefer LightGBM with best params if available, else fallbacks
+    if tuned and best_params is not None and lgb is not None:
+        try:
+            # ensure deterministic seed preserved
+            best_params.setdefault('random_state', int(random_state))
+            best_params.setdefault('n_jobs', -1)
+            model = lgb.LGBMClassifier(**best_params)
+            model.fit(X_train, y_train)
+        except Exception:
+            model = None
+
+    if model is None:
+        try:
+            # try to lazily import LightGBM if not already available
+            if lgb is None:
+                import importlib
+
+                lgb = importlib.import_module('lightgbm')
+
+            model = lgb.LGBMClassifier(n_jobs=-1, random_state=random_state)
+            model.fit(X_train, y_train)
+        except Exception:
+            from sklearn.ensemble import RandomForestClassifier
+
+            model = RandomForestClassifier(n_estimators=100, n_jobs=-1, random_state=random_state)
+            model.fit(X_train, y_train)
 
     preds = model.predict(X_test)
     probs = None
@@ -60,15 +185,30 @@ def train_model(dataset_csv: str, target_col: str = 'label', model_out: str = 'm
     os.makedirs(os.path.dirname(model_out) or '.', exist_ok=True)
     try:
         import joblib
-        joblib.dump({'model': model, 'features': list(X.columns)}, model_out)
-    except Exception:
-        # fallback: pickle
-        import pickle
-        with open(model_out, 'wb') as fh:
-            pickle.dump({'model': model, 'features': list(X.columns)}, fh)
 
-    return {'model_path': model_out, 'report': report, 'roc_auc': auc}
+        joblib.dump(
+            {'model': model, 'features': list(X.columns), 'tuned': tuned},
+            model_out,
+        )
+    except Exception:
+        import pickle
+
+        with open(model_out, 'wb') as fh:
+            pickle.dump(
+                {'model': model, 'features': list(X.columns), 'tuned': tuned},
+                fh,
+            )
+
+    return {
+        'model_path': model_out,
+        'report': report,
+        'roc_auc': auc,
+        'tuned': tuned,
+    }
 
 
 if __name__ == '__main__':
-    print('This module provides `train_model()`; run scripts/train_model.py to train a model.')
+    print(
+        'This module provides `train_model()`; '
+        'run scripts/train_model.py to train a model.'
+    )

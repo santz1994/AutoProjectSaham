@@ -33,3 +33,10 @@ class BrokerAdapter(ABC):
     @abstractmethod
     def disconnect(self) -> None:
         raise NotImplementedError()
+
+    # Optional reconciliation helper: adapters may implement a more detailed
+    # `reconcile()` that returns a snapshot of adapter state for reconciliation
+    # (positions, cash, balance, trades). This default implementation is a
+    # no-op returning an empty dict so callers can call it safely.
+    def reconcile(self) -> Dict[str, Any]:
+        return {}
