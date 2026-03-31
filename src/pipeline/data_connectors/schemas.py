@@ -300,3 +300,25 @@ def validate_ohlcv_rows(rows: List[Dict[str, Any]]) -> bool:
                 raise ValueError(f'row {idx} volume must be >= 0')
 
     return True
+
+
+def validate_listings(listings: List[Dict[str, Any]]) -> bool:
+    """Validate a list of listing records (dicts with `code` and `name`).
+
+    Each record may provide `code` and `name` keys; values may be strings or
+    None. Raises ValueError on invalid structure; returns True when valid.
+    """
+    if not isinstance(listings, (list, tuple)):
+        raise ValueError('listings must be a list or tuple')
+
+    for idx, rec in enumerate(listings):
+        if not isinstance(rec, dict):
+            raise ValueError(f'listing at index {idx} must be a mapping')
+        code = rec.get('code')
+        name = rec.get('name')
+        if code is not None and not isinstance(code, str):
+            raise ValueError(f'listing.code at index {idx} must be a string or None')
+        if name is not None and not isinstance(name, str):
+            raise ValueError(f'listing.name at index {idx} must be a string or None')
+
+    return True

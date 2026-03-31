@@ -77,7 +77,7 @@ class AutonomousPipeline:
                 tz = None
 
         self._scheduler = BackgroundScheduler()
-            if tz is not None:
+        if tz is not None:
             # Run only on business days during market hours (09:00-16:00 WIB)
             self._scheduler.add_job(
                 self._job,

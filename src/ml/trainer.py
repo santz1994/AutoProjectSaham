@@ -42,23 +42,48 @@ def train_model(
     if target_col not in df.columns:
         raise RuntimeError(f'{target_col} not in dataset')
 
+    # optional: inject microstructure-derived features (best-effort)
+    # This will attempt to add features like 'vwap', 'net_foreign', 'order_book_imbalance'
+    # if the source dataframe contains the required columns. Failure is non-fatal.
+    try:
+        from src.ml.feature_store import calculate_idx_microstructure_features  # type: ignore
+
+        try:
+            df = calculate_idx_microstructure_features(df)
+        except Exception:
+            # non-fatal: continue without microstructure features
+            pass
+    except Exception:
+        # feature enrichment module not available; skip
+        pass
+
     # drop identifier columns and keep features
     drop_cols = ['symbol', 't_index', 'future_return']
     X = df.drop(columns=[c for c in drop_cols if c in df.columns] + [target_col])
     y = df[target_col]
 
-    # prefer forward-fill for price-like features, fall back to zero for remaining gaps
-    X = X.ffill().fillna(0.0)
+    # prefer forward-fill / backfill for price-like features, then fall back to zero
+    # (helps when a few leading rows have NaNs)
+    X = X.ffill().bfill().fillna(0.0)
 
     # Chronological split for final holdout
     split_idx = int(len(X) * (1.0 - float(test_size)))
     if split_idx <= 0 or split_idx >= len(X):
         raise RuntimeError('Invalid split index computed; check dataset size and test_size')
 
-    X_train = X.iloc[:split_idx].reset_index(drop=True)
-    X_test = X.iloc[split_idx:].reset_index(drop=True)
-    y_train = y.iloc[:split_idx].reset_index(drop=True)
-    y_test = y.iloc[split_idx:].reset_index(drop=True)
+    # Apply a purge gap between train and final holdout to avoid leakage
+    holdout_start = split_idx + int(purge_gap)
+    if holdout_start >= len(X):
+        # fallback: no purge possible (dataset small); use standard chronological split
+        X_train = X.iloc[:split_idx].reset_index(drop=True)
+        X_test = X.iloc[split_idx:].reset_index(drop=True)
+        y_train = y.iloc[:split_idx].reset_index(drop=True)
+        y_test = y.iloc[split_idx:].reset_index(drop=True)
+    else:
+        X_train = X.iloc[:split_idx].reset_index(drop=True)
+        X_test = X.iloc[holdout_start:].reset_index(drop=True)
+        y_train = y.iloc[:split_idx].reset_index(drop=True)
+        y_test = y.iloc[holdout_start:].reset_index(drop=True)
 
     # Purged Time-Series split helper (expanding training window + purge)
     class PurgedTimeSeriesSplit:
@@ -151,7 +176,17 @@ def train_model(
             best_params.setdefault('random_state', int(random_state))
             best_params.setdefault('n_jobs', -1)
             model = lgb.LGBMClassifier(**best_params)
-            model.fit(X_train, y_train)
+            try:
+                model.fit(
+                    X_train,
+                    y_train,
+                    eval_set=[(X_test, y_test)],
+                    early_stopping_rounds=50,
+                    verbose=False,
+                )
+            except TypeError:
+                # older LGBM API may not accept these args
+                model.fit(X_train, y_train)
         except Exception:
             model = None
 

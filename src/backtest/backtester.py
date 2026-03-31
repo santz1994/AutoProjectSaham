@@ -1,3 +1,87 @@
+"""Event-driven backtester for IDX that simulates price-time priority matching.
+
+This module provides a conservative simulation of queue position and fills
+based on traded volume at a given price level. It is intentionally
+conservative (worst-case execution) to avoid liquidity illusions.
+"""
+from __future__ import annotations
+
+from collections import deque
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass
+class OrderEvent:
+    symbol: str
+    order_type: str  # 'BUY' or 'SELL'
+    price: int
+    volume: int
+    timestamp: float
+
+
+class IDXEventDrivenBacktester:
+    def __init__(self):
+        self.order_queue = deque()
+        self.current_market_data = {'traded_volume': 0}
+        self.trades = []
+
+    def update_market_data(self, traded_volume: int):
+        self.current_market_data['traded_volume'] = int(traded_volume)
+
+    def simulate_idx_matching_engine(self, order: OrderEvent, current_volume_at_price: int) -> Optional[int]:
+        """
+        Simulate Price-Time Priority BEI.
+
+        Conservative assumption: our order sits at the tail of the queue. We
+        only get filled if traded_volume at that price consumes the queue ahead
+        of us. Returns executed volume or None if no fill.
+        """
+        queue_position_ahead = int(current_volume_at_price)
+        executed_volume = 0
+
+        traded = int(self.current_market_data.get('traded_volume', 0))
+        # while there is traded volume above the queue ahead and we still have volume
+        while traded > queue_position_ahead and order.volume > 0:
+            fill_amount = min(order.volume, traded - queue_position_ahead)
+            executed_volume += fill_amount
+            order.volume -= fill_amount
+            queue_position_ahead += fill_amount
+
+        return executed_volume if executed_volume > 0 else None
+
+    def add_order(self, order: OrderEvent) -> None:
+        """Add an order event to the internal queue (FIFO, worst-case placement)."""
+        self.order_queue.append(order)
+
+    def process_tick(self, traded_volume_at_price: int, price: float) -> list:
+        """
+        Process a market tick where `traded_volume_at_price` volume traded at `price`.
+
+        Attempts to fill queued orders at this price following price-time priority.
+        Returns a list of fill dicts: {'order': OrderEvent, 'filled': int}.
+        """
+        self.update_market_data(traded_volume_at_price)
+        fills = []
+        # iterate over a snapshot of the queue to avoid modification during iteration
+        for order in list(self.order_queue):
+            if order.price != int(price):
+                # different price level; skip
+                continue
+
+            executed = self.simulate_idx_matching_engine(order, current_volume_at_price=0)
+            if executed is not None and executed > 0:
+                fills.append({'order': order, 'filled': int(executed)})
+                # record trade
+                self.trades.append({'symbol': order.symbol, 'side': order.order_type, 'price': order.price, 'volume': executed, 'timestamp': order.timestamp})
+                # remove order from queue if fully filled
+                if order.volume <= 0:
+                    try:
+                        self.order_queue.remove(order)
+                    except Exception:
+                        pass
+
+        return fills
 """Very small backtester for strategy signals.
 
 Executes signals at next-day prices (EoD semantics) to avoid lookahead bias

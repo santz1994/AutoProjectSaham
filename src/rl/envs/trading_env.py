@@ -39,6 +39,7 @@ class TradingEnv:
     def __init__(
         self,
         prices: List[float],
+        volumes: Optional[List[float]] = None,
         symbol: str = 'ENV',
         starting_cash: float = 10000.0,
         position_size: int = 1,
@@ -53,6 +54,9 @@ class TradingEnv:
         self.position_size = int(position_size)
         self.commission_pct = float(commission_pct)
         self.slippage_pct = float(slippage_pct)
+
+        # optional per-tick volumes for liquidity/slippage modeling
+        self.volumes = list(volumes) if volumes is not None else [0] * len(self.prices)
 
         # internal state
         self.t = 0
@@ -186,12 +190,12 @@ class TradingEnv:
         # 1) Let manager process any pending limit orders for this tick
         try:
             tick_res = self.manager.process_market_tick({self.symbol: price})
-                if tick_res.get('executed'):
-                    for e in tick_res['executed']:
-                        if e.get('order', {}).get('symbol') == self.symbol:
-                            info['limit_executed'] = True
-                            reward += 2.0
-                            break
+            if tick_res.get('executed'):
+                for e in tick_res['executed']:
+                    if e.get('order', {}).get('symbol') == self.symbol:
+                        info['limit_executed'] = True
+                        reward += 2.0
+                        break
         except Exception:
             # non-fatal: continue processing action
             pass
@@ -199,8 +203,19 @@ class TradingEnv:
         # 2) Process incoming decision
         if decision == 1:
             # BUY market
+            # liquidity-aware slippage model (10% of daily volume is liquid)
+            current_volume = self.volumes[self.t] if self.t < len(self.volumes) else 0
+            trade_size = int(self.position_size)
+            max_executable_vol = max(1, int(current_volume * 0.10)) if current_volume else None
+
+            exec_price = price
+            if max_executable_vol and abs(trade_size) > max_executable_vol:
+                excess_ratio = (abs(trade_size) - max_executable_vol) / max_executable_vol
+                slippage_factor = min(0.05, 0.005 * (excess_ratio ** 1.5))
+                exec_price = price * (1.0 + slippage_factor)
+
             trade = self.manager.place_order(
-                self.symbol, 'buy', self.position_size, price, previous_close=prev_close
+                self.symbol, 'buy', self.position_size, exec_price, previous_close=prev_close
             )
             if trade.get('status') == 'rejected':
                 reward -= 1.0
@@ -233,8 +248,18 @@ class TradingEnv:
             # SELL market (manual override)
             qty = self.manager.broker.positions.get(self.symbol, 0)
             if qty > 0:
+                current_volume = self.volumes[self.t] if self.t < len(self.volumes) else 0
+                trade_size = int(qty)
+                max_executable_vol = max(1, int(current_volume * 0.10)) if current_volume else None
+
+                exec_price = price
+                if max_executable_vol and abs(trade_size) > max_executable_vol:
+                    excess_ratio = (abs(trade_size) - max_executable_vol) / max_executable_vol
+                    slippage_factor = min(0.05, 0.005 * (excess_ratio ** 1.5))
+                    exec_price = price * (1.0 - slippage_factor)
+
                 trade = self.manager.place_order(
-                    self.symbol, 'sell', qty, price, previous_close=prev_close
+                    self.symbol, 'sell', qty, exec_price, previous_close=prev_close
                 )
                 if trade.get('status') == 'rejected':
                     reward -= 1.0

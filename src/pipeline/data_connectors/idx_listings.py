@@ -55,7 +55,10 @@ def get_idx_listings(timeout: int = 10) -> List[Dict[str, str]]:
                 name = item.get('CompanyName') or item.get('Name') or item.get('companyName') or item.get('name')
                 out.append({'code': code, 'name': name})
             if out:
-                return out
+                    from .schemas import validate_listings
+
+                    validate_listings(out)
+                    return out
 
         if isinstance(payload, dict):
             # common keys that may hold lists
@@ -70,6 +73,9 @@ def get_idx_listings(timeout: int = 10) -> List[Dict[str, str]]:
                         name = item.get('CompanyName') or item.get('Name') or item.get('companyName') or item.get('name')
                         out.append({'code': code, 'name': name})
                     if out:
+                        from .schemas import validate_listings
+
+                        validate_listings(out)
                         return out
 
             # fallback: find any list value and try to parse
@@ -82,6 +88,9 @@ def get_idx_listings(timeout: int = 10) -> List[Dict[str, str]]:
                             name = item.get('CompanyName') or item.get('Name') or item.get('name')
                             out.append({'code': code, 'name': name})
                     if out:
+                        from .schemas import validate_listings
+
+                        validate_listings(out)
                         return out
 
     # Fallback: try public listing pages and extract a numeric count (best-effort)
@@ -106,7 +115,11 @@ def get_idx_listings(timeout: int = 10) -> List[Dict[str, str]]:
         if m:
             count = int(m.group(1))
             # return placeholder entries with None codes when exact tickers unavailable
-            return [{'code': None, 'name': None} for _ in range(count)]
+            res = [{'code': None, 'name': None} for _ in range(count)]
+            from .schemas import validate_listings
+
+            validate_listings(res)
+            return res
 
     raise RuntimeError('Unable to fetch IDX listings from known sources; network or parsing error')
 

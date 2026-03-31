@@ -30,6 +30,9 @@ if FASTAPI_AVAILABLE:
     from src.monitoring import metrics as monitoring
     from src.pipeline.persistence import read_etl_runs
     from src.alerts.webhook import send_alert_webhook
+    import asyncio
+    from fastapi import WebSocket, WebSocketDisconnect
+    from src.api.event_queue import pop_events
 
     app = FastAPI(title='AutoSaham API', version='0.1')
 
@@ -141,6 +144,27 @@ if FASTAPI_AVAILABLE:
         _scheduler.stop()
         _scheduler = None
         return {'status': 'stopped'}
+
+
+    @app.websocket('/ws/events')
+    async def websocket_events(ws: WebSocket):
+        await ws.accept()
+        try:
+            # poll the in-memory event queue and forward events to client
+            while True:
+                await asyncio.sleep(0.5)
+                try:
+                    evs = pop_events()
+                except Exception:
+                    evs = []
+                for ev in evs:
+                    try:
+                        await ws.send_json(ev)
+                    except Exception:
+                        # if sending fails, the client may have disconnected
+                        pass
+        except WebSocketDisconnect:
+            return
 
 
 else:

@@ -142,6 +142,16 @@ class ExecutionManager:
                         self.logger.exception('failed sending webhook alert to %s', url)
         except Exception:
             self.logger.exception('webhook alert flow failed')
+        # best-effort: push to API event queue for WebSocket clients
+        try:
+            from src.api.event_queue import push_event  # type: ignore
+
+            try:
+                push_event(ev)
+            except Exception:
+                pass
+        except Exception:
+            pass
 
     # --- public methods ---
     def start_day(self, price_map: dict | None = None):
@@ -275,6 +285,56 @@ class ExecutionManager:
 
     def get_balance(self, price_map: dict | None = None):
         return self._get_balance(price_map or {})
+
+    def calculate_dynamic_position_size(
+        self,
+        win_rate: float,
+        reward_to_risk_ratio: float,
+        account_balance: float,
+        stock_volatility_atr: float,
+        target_portfolio_volatility: float = 0.02,
+    ) -> int:
+        """
+        Calculate an allocation (currency units) using a Half-Kelly fraction
+        combined with volatility targeting.
+
+        Returns an integer capital allocation (Rupiah). Callers may convert this
+        to a number of shares/lots by dividing by current price.
+        """
+        try:
+            import math
+
+            # Full Kelly: f* = W - [(1 - W) / R]
+            kelly_fraction = float(win_rate) - ((1.0 - float(win_rate)) / max(float(reward_to_risk_ratio), 1e-6))
+            # Use half-Kelly for safety
+            safe_kelly = max(0.0, kelly_fraction / 2.0)
+
+            # Volatility targeting scalar (reduce size for high ATR)
+            volatility_scalar = float(target_portfolio_volatility) / max(float(stock_volatility_atr), 1e-4)
+
+            allocated_capital = float(account_balance) * safe_kelly * volatility_scalar
+
+            # Hard cap: do not allocate more than 20% of account to a single emitter
+            allocated_capital = min(allocated_capital, float(account_balance) * 0.20)
+
+            return int(max(0, allocated_capital))
+        except Exception:
+            return 0
+
+    def detect_false_breakout(self, current_volume: float, ma20_volume: float, threshold: float = 0.6) -> bool:
+        """
+        Simple VPA-based false-breakout detector.
+
+        Returns True when the current volume is substantially below the MA-20
+        (suggesting low participation) and a breakout should be treated as
+        suspicious. Threshold is the fraction of MA-20 below which we flag.
+        """
+        try:
+            if ma20_volume is None or ma20_volume <= 0:
+                return False
+            return float(current_volume) < float(ma20_volume) * float(threshold)
+        except Exception:
+            return False
 
     # --- limit / pending order helpers ---
     def _generate_order_id(self) -> str:

@@ -13,6 +13,7 @@ import os
 from typing import Dict, List, Optional
 
 import pandas as pd
+import numpy as np
 
 
 def _safe_rolling(series: pd.Series, window: int):
@@ -176,6 +177,53 @@ def build_feature_snapshot(
     df = pd.DataFrame(rows)
     df.to_csv(out_csv, index=False)
     return out_csv
+
+
+def calculate_idx_microstructure_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Kalkulasi fitur mikrostruktur pasar spesifik BEI.
+
+    Membutuhkan kolom tambahan bila tersedia: 'foreign_buy', 'foreign_sell',
+    'bid_vol', 'offer_vol', dan 'volume'. Fungsi ini menambah beberapa fitur
+    penting: net foreign flow, VWAP, price-to-VWAP ratio, dan order-book imbalance.
+    """
+    df = df.copy()
+
+    # 1. Net Foreign Flow Momentum
+    if 'foreign_buy' in df.columns and 'foreign_sell' in df.columns:
+        df['net_foreign'] = df['foreign_buy'] - df['foreign_sell']
+        df['foreign_flow_ma5'] = df['net_foreign'].rolling(window=5).mean()
+        # Normalisasi terhadap total volume (hindari pembagian nol)
+        if 'volume' in df.columns:
+            denom = (df['volume'] * 2).replace(0, np.nan)
+            df['foreign_participation'] = (
+                (df['foreign_buy'].fillna(0) + df['foreign_sell'].fillna(0)) / denom
+            ).fillna(0.0)
+
+    # 2. VWAP dan rasio harga terhadap VWAP
+    if 'typical_price' not in df.columns:
+        if set(['high', 'low', 'close']).issubset(df.columns):
+            df['typical_price'] = (df['high'] + df['low'] + df['close']) / 3.0
+        else:
+            df['typical_price'] = df.get('close', pd.Series(dtype=float))
+
+    if 'volume' in df.columns:
+        df['cum_vol_price'] = (df['typical_price'] * df['volume']).cumsum()
+        df['cum_vol'] = df['volume'].cumsum()
+        df['vwap'] = df['cum_vol_price'] / df['cum_vol'].replace({0: np.nan})
+        df['vwap'] = df['vwap'].fillna(method='ffill').fillna(df.get('close', df['typical_price']))
+        # price to vwap ratio
+        if 'close' in df.columns:
+            df['price_to_vwap_ratio'] = df['close'] / df['vwap'].replace({0: np.nan})
+        else:
+            df['price_to_vwap_ratio'] = np.nan
+
+    # 3. Order Book Imbalance
+    if 'bid_vol' in df.columns and 'offer_vol' in df.columns:
+        denom = (df['bid_vol'] + df['offer_vol']).replace(0, np.nan)
+        df['order_book_imbalance'] = (df['bid_vol'] / denom).fillna(0.5)
+
+    return df
 
 
 if __name__ == '__main__':
