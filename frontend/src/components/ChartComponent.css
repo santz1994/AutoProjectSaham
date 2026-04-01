@@ -219,6 +219,26 @@
   .error-message {
     height: 400px;
   }
+
+  /* Mobile timeframe buttons - horizontal scroll on very small screens */
+  .timeframe-buttons.mobile {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+
+  .timeframe-buttons.mobile::-webkit-scrollbar {
+    height: 2px;
+  }
+
+  .timeframe-buttons.mobile::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .timeframe-buttons.mobile::-webkit-scrollbar-thumb {
+    background: var(--btn-border, #454d5e);
+    border-radius: 2px;
+  }
 }
 
 /* Dark theme (default) */

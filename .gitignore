@@ -84,6 +84,14 @@ src/api/chart_cache/
 chart_updates.log
 websocket_*.log
 
+# SHAP and model explainability artifacts
+*.shap
+*.shap_values
+explainability_cache/
+shap_outputs/
+model_explanations/
+*.pkl  # Pickled models & explainers
+
 # Frontend build & node modules
 node_modules/
 .next/
@@ -91,6 +99,15 @@ dist/
 build/
 *.map
 .env.local.sample
+
+# Frontend specific
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.env.local
+frontend/.env.*.local
+frontend/src/__tests__/coverage/
+frontend/.vite/
 
 # Market data temporary files
 data/temp/
@@ -116,6 +133,22 @@ Thumbs.db
 
 # Docker
 .dockerignore
+
+# Notification System
+src/notifications/__pycache__/
+notification_logs/
+notification_cache/
+*.notification_db
+alert_rules_*.json
+notification_delivery_*.log
+websocket_events_*.log
+notification_test_results/
+
+# Task 19: Real-time Notifications & Alerts
+alert_artifacts/
+notification_*.tmp
+delivery_queue_*.json
+failed_deliveries_*.log
 
 # Misc
 .cache/

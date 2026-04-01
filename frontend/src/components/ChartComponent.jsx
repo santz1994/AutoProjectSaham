@@ -16,6 +16,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createChart, ColorType } from 'lightweight-charts';
+import useResponsive from '../hooks/useResponsive';
 import './ChartComponent.css';
 
 const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', theme = 'dark' }) => {
@@ -23,6 +24,7 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', theme = 'dark' }
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const wsRef = useRef(null);
+  const { isMobile, isTablet, viewport, getResponsive } = useResponsive();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [metadata, setMetadata] = useState(null);
@@ -76,23 +78,30 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', theme = 'dark' }
     }).format(price);
   }, []);
 
-  // Initialize chart
+  // Initialize chart with responsive sizing
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // Calculate responsive chart height
+    const calculateChartHeight = () => {
+      if (isMobile) return Math.min(viewport.height * 0.6, 400);
+      if (isTablet) return Math.min(viewport.height * 0.65, 500);
+      return 600;
+    };
+
     try {
-      // Create chart
+      // Create chart with responsive dimensions
       const chart = createChart(containerRef.current, {
         layout: {
           background: { color: chartColors.background, type: ColorType.Solid },
           textColor: chartColors.textColor,
         },
         width: containerRef.current.clientWidth,
-        height: 600,
+        height: calculateChartHeight(),
         timeScale: {
           timeVisible: true,
-          secondsVisible: true,
-          rightOffset: 40,
+          secondsVisible: !isMobile, // Hide seconds on mobile
+          rightOffset: isMobile ? 10 : 40,
         },
         localization: {
           locale: 'id-ID',
@@ -103,7 +112,7 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', theme = 'dark' }
               month: '2-digit',
               day: '2-digit',
               hour: '2-digit',
-              minute: '2-digit',
+              minute: isMobile ? undefined : '2-digit', // Hide minutes on mobile for space
             });
           },
         },
@@ -123,22 +132,30 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', theme = 'dark' }
 
       candleSeriesRef.current = candleSeries;
 
-      // Handle window resize
+      // Enhanced resize handler with debounce
+      let resizeTimer;
       const handleResize = () => {
-        if (containerRef.current && chart) {
-          chart.applyOptions({
-            width: containerRef.current.clientWidth,
-          });
-        }
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (containerRef.current && chart) {
+            chart.applyOptions({
+              width: containerRef.current.clientWidth,
+              height: calculateChartHeight(),
+            });
+          }
+        }, 150); // Debounce to 150ms
       };
 
       window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        clearTimeout(resizeTimer);
+      };
     } catch (err) {
       setError(`Failed to initialize chart: ${err.message}`);
       console.error('Chart initialization error:', err);
     }
-  }, [chartColors]);
+  }, [chartColors, isMobile, isTablet, viewport.height]);
 
   // Fetch initial chart data
   useEffect(() => {
@@ -286,12 +303,13 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', theme = 'dark' }
         </div>
 
         <div className="chart-controls">
-          <div className="timeframe-buttons">
+          <div className={`timeframe-buttons ${isMobile ? 'mobile' : ''}`}>
             {['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w', '1mo'].map((tf) => (
               <button
                 key={tf}
                 className={`timeframe-btn ${timeframe === tf ? 'active' : ''}`}
                 onClick={() => handleTimeframeChange(tf)}
+                title={`${tf} timeframe`}
               >
                 {tf}
               </button>
