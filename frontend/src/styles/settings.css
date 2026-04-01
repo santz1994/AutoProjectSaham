@@ -1,0 +1,328 @@
+.settings-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.settings-page h1 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+/* Settings Section */
+.settings-section {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(10px);
+}
+
+.settings-section h2 {
+  font-size: 1.3rem;
+  margin-bottom: 1.5rem;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--card-border);
+  padding-bottom: 1rem;
+}
+
+/* Setting Items */
+.setting-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2rem;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.setting-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.setting-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.setting-label span {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.setting-label small {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+/* Input Fields */
+.setting-input {
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  min-width: 200px;
+}
+
+.setting-input:hover,
+.setting-input:focus {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--accent-blue);
+  outline: none;
+}
+
+/* Toggle Button */
+.setting-item.toggle {
+  grid-template-columns: 1fr 60px;
+}
+
+.toggle-btn {
+  width: 60px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid var(--card-border);
+  border-radius: 20px;
+  padding: 2px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+}
+
+.toggle-btn.active {
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+}
+
+.toggle-indicator {
+  width: 24px;
+  height: 24px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  display: block;
+}
+
+.toggle-btn.active .toggle-indicator {
+  transform: translateX(28px);
+}
+
+/* Slider */
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 250px;
+}
+
+.slider {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent-red), var(--accent-yellow), var(--accent-green));
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.slider-value {
+  min-width: 50px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+/* Broker Info */
+.broker-info {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.broker-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+/* API Container */
+.api-container {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.api-key {
+  flex: 1;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+}
+
+.btn-icon {
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1rem;
+}
+
+.btn-icon:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Buttons */
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  color: white;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border: 1px solid var(--card-border);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-red);
+  border: 1px solid var(--accent-red);
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+/* Settings Actions */
+.settings-actions {
+  display: flex;
+  gap: 1rem;
+  padding-top: 2rem;
+  border-top: 2px solid var(--card-border);
+  flex-wrap: wrap;
+}
+
+.settings-actions .btn-primary,
+.settings-actions .btn-secondary,
+.settings-actions .btn-danger {
+  flex: 1;
+  min-width: 150px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .settings-page {
+    padding: 1rem;
+  }
+
+  .settings-section {
+    padding: 1.5rem;
+  }
+
+  .setting-item {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .setting-item.toggle {
+    grid-template-columns: 1fr;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .setting-item.toggle .setting-label {
+    flex: 1;
+  }
+
+  .setting-input {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .slider-container {
+    flex-direction: column;
+    min-width: unset;
+  }
+
+  .slider-value {
+    width: 100%;
+  }
+
+  .api-container {
+    flex-direction: column;
+  }
+
+  .api-container .setting-input {
+    width: 100%;
+  }
+
+  .settings-actions {
+    flex-direction: column;
+  }
+
+  .settings-actions .btn-primary,
+  .settings-actions .btn-secondary,
+  .settings-actions .btn-danger {
+    width: 100%;
+  }
+}

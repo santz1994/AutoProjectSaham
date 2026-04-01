@@ -1,14 +1,30 @@
 import React, { useState, useEffect } from 'react'
-import Dashboard from './components/Dashboard'
+import Navbar from './components/Navbar'
+import Sidebar from './components/Sidebar'
+import DashboardPage from './components/DashboardPage'
+import MarketIntelligencePage from './components/MarketIntelligencePage'
+import StrategiesPage from './components/StrategiesPage'
+import TradeLogsPage from './components/TradeLogsPage'
+import SettingsPage from './components/SettingsPage'
 import Login from './components/Login'
 import PWAInstallButton from './components/PWAInstallButton'
 import useMarketFeed from './hooks/useMarketFeed'
 import useResponsive from './hooks/useResponsive'
+import useTradingStore from './store/tradingStore'
 import './styles.css'
+import './styles/navbar.css'
+import './styles/sidebar.css'
+import './styles/dashboard.css'
+import './styles/market.css'
+import './styles/strategies.css'
+import './styles/tradelogs.css'
+import './styles/settings.css'
 
 export default function App() {
   const [user, setUser] = useState(null)
+  const [currentPage, setCurrentPage] = useState('dashboard')
   const { cssVariables, darkMode, viewport } = useResponsive()
+  const killSwitchTriggered = useTradingStore((s) => s.killSwitchTriggered)
 
   // Register Service Worker on mount
   useEffect(() => {
@@ -16,7 +32,10 @@ export default function App() {
       if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
       try {
         console.log('[App] Registering Service Worker...')
-        const registration = await navigator.serviceWorker.register('/src/service-worker.js', { scope: '/' })
+        // Use Service-Worker-Allowed header to allow scope at root
+        const registration = await navigator.serviceWorker.register('/src/service-worker.js', {
+          scope: './',
+        })
         console.log('[App] Service Worker registered successfully')
       } catch (error) {
         console.error('[App] Service Worker registration failed:', error)
@@ -45,7 +64,7 @@ export default function App() {
       themeColorMeta.name = 'theme-color'
       document.head.appendChild(themeColorMeta)
     }
-    themeColorMeta.content = darkMode ? '#131722' : '#ffffff'
+    themeColorMeta.content = darkMode ? '#0a0e27' : '#f1f5f9'
 
     // Set viewport meta for mobile
     let viewportMeta = document.querySelector('meta[name="viewport"]')
@@ -84,22 +103,38 @@ export default function App() {
     me()
   }, [])
 
-  // start market feed to populate live candles/orderbook
+  // Start market feed to populate live candles/orderbook
   useMarketFeed()
 
+  if (!user) {
+    return (
+      <div className="auth-container">
+        <Login onLogin={(u) => setUser(u)} />
+      </div>
+    )
+  }
+
   return (
-    <div className="app" style={cssVariables} data-theme={darkMode ? 'dark' : 'light'}>
+    <div className="app-container" style={cssVariables} data-theme={darkMode ? 'dark' : 'light'}>
+      {/* Navigation Bar */}
+      <Navbar />
+
+      <div className="app-layout">
+        {/* Sidebar */}
+        <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
+
+        {/* Main Content */}
+        <main className="app-main">
+          {currentPage === 'dashboard' && <DashboardPage />}
+          {currentPage === 'market' && <MarketIntelligencePage />}
+          {currentPage === 'strategies' && <StrategiesPage />}
+          {currentPage === 'trades' && <TradeLogsPage />}
+          {currentPage === 'settings' && <SettingsPage />}
+        </main>
+      </div>
+
       {/* PWA Install Button */}
       <PWAInstallButton variant="floating" position="bottom-right" />
-
-      <header className="app-header">
-        <h1>AutoSaham Dashboard</h1>
-        <p style={{ margin: '4px 0', fontSize: '12px', opacity: 0.7 }}>Jakarta (WIB: UTC+7) | IDX Trading</p>
-      </header>
-      <main>
-        {user ? <div style={{ marginBottom: 12 }}>Signed in as {user}</div> : <Login onLogin={(u) => setUser(u)} />}
-        <Dashboard />
-      </main>
     </div>
   )
 }

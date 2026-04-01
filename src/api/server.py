@@ -406,3 +406,11 @@ else:
 
     def stop_scheduler(*args, **kwargs):
         return _missing_fastapi()
+
+
+if __name__ == "__main__":
+    if FASTAPI_AVAILABLE:
+        import uvicorn
+        uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    else:
+        raise RuntimeError("FastAPI is not installed. Install with: pip install fastapi[all]")
