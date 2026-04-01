@@ -2,8 +2,9 @@
 
 This module computes a snapshot of numeric features per-symbol suitable for
 baseline models and more advanced pipelines (SMA, volatility, momentum,
-RSI, MACD, Bollinger Bands). It expects per-symbol JSON files saved by
-`BatchFetcher` in `data/prices/*.json` containing a `prices` list.
+RSI, MACD, Bollinger Bands).
+
+Enhanced with market microstructure features (VWAP, order flow, price impact).
 """
 from __future__ import annotations
 
@@ -14,6 +15,18 @@ from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+
+# Import microstructure features
+try:
+    from src.ml.microstructure import (
+        compute_microstructure_features,
+        MicrostructureAnalyzer
+    )
+    MICROSTRUCTURE_AVAILABLE = True
+except ImportError:
+    MICROSTRUCTURE_AVAILABLE = False
+    compute_microstructure_features = None
+    MicrostructureAnalyzer = None
 
 
 def _safe_rolling(series: pd.Series, window: int):
@@ -27,6 +40,7 @@ def compute_latest_features(
     volumes: Optional[List[float]] = None,
     short: int = 5,
     long: int = 20,
+    include_microstructure: bool = True,
 ) -> Dict:
     """Compute a set of technical indicators from a price series.
 
@@ -115,7 +129,7 @@ def compute_latest_features(
 
     sma_ratio = float(short_sma / long_sma) if long_sma != 0 else 1.0
 
-    return {
+    features = {
         "last_price": last_price,
         "short_sma": float(short_sma),
         "long_sma": float(long_sma),
@@ -131,6 +145,38 @@ def compute_latest_features(
         "bb_lower": float(bb_lower),
         "bb_width": float(bb_width),
     }
+    
+    # Add microstructure features if available
+    if include_microstructure and MICROSTRUCTURE_AVAILABLE and volumes is not None:
+        try:
+            # Create temporary DataFrame for microstructure calculation
+            # Estimate high/low from close (simplified)
+            close_arr = np.array(prices)
+            high_arr = close_arr * 1.005  # +0.5% estimate
+            low_arr = close_arr * 0.995   # -0.5% estimate
+            vol_arr = np.array(volumes)
+            
+            df_temp = pd.DataFrame({
+                'high': high_arr,
+                'low': low_arr,
+                'close': close_arr,
+                'volume': vol_arr
+            })
+            
+            # Compute microstructure features
+            df_micro = compute_microstructure_features(df_temp)
+            
+            # Extract latest values
+            features['vwap'] = float(df_micro['vwap'].iloc[-1])
+            features['vwap_deviation'] = float(df_micro['vwap_deviation'].iloc[-1])
+            features['order_flow_imbalance'] = float(df_micro['order_flow_imbalance'].iloc[-1])
+            features['price_impact'] = float(df_micro['price_impact'].iloc[-1])
+            features['amihud_illiquidity'] = float(df_micro['amihud_illiquidity'].iloc[-1])
+        except Exception as e:
+            # Silently skip microstructure if fails
+            pass
+    
+    return features
 
 
 def build_feature_snapshot(
