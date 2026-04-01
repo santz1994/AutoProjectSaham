@@ -68,8 +68,8 @@ class MicrostructureAnalyzer:
             where=cum_vol != 0
         )
         
-        # Forward fill NaN values
-        vwap = pd.Series(vwap).fillna(method='ffill').fillna(method='bfill').values
+        # Handle any NaN values (forward fill then backward fill)
+        vwap = pd.Series(vwap).ffill().bfill().values
         
         return vwap
     

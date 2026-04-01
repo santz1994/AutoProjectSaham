@@ -149,19 +149,27 @@ class Phase1IntegrationTest:
         
         try:
             labeler = TripleBarrierLabeler(
-                profit_target=0.02,
+                take_profit=0.02,
                 stop_loss=0.01,
-                time_limit=5
+                max_horizon=5
             )
             
             prices = df['close'].values
             
-            # Generate labels
-            labels, bars_to_exit, returns = labeler.label_series(prices)
+            # Generate labels - returns DataFrame!
+            result_df = labeler.label_series(prices)
+            
+            # Extract from DataFrame
+            labels = result_df['label'].values
+            bars_to_exit = result_df['bars_to_exit'].values
+            returns = result_df['actual_return'].values  # Correct column name!
             
             # Validate results
             assert len(labels) > 0, "No labels generated"
-            assert len(labels) == len(prices), "Label count mismatch"
+            # Note: label_series returns fewer labels than prices 
+            # (excludes first min_observations and last max_horizon)
+            expected_labels = len(prices) - 20 - labeler.max_horizon  # min_observations=20 by default
+            assert abs(len(labels) - expected_labels) <= 1, f"Unexpected label count: got {len(labels)}, expected ~{expected_labels}"
             
             # Check label distribution
             unique_labels = np.unique(labels)
@@ -175,11 +183,11 @@ class Phase1IntegrationTest:
             message = f"Labels: {profit_pct:.1f}% profit, {loss_pct:.1f}% loss, {neutral_pct:.1f}% neutral"
             self.log_test("Triple-Barrier Labeling", True, message)
             
-            return labels, bars_to_exit, returns
+            return result_df  # Return DataFrame instead of tuple
             
         except Exception as e:
             self.log_test("Triple-Barrier Labeling", False, str(e))
-            return None, None, None
+            return None
     
     def test_sentiment_features(self, news_articles: list):
         """Test 2: Sentiment Feature Extraction."""
@@ -188,24 +196,40 @@ class Phase1IntegrationTest:
         print("="*60)
         
         try:
+            # Check if dependencies are installed
+            try:
+                import vaderSentiment
+            except ImportError:
+                self.results['warnings'].append("vaderSentiment not installed - skipping sentiment test")
+                print("⚠️  SKIPPED: vaderSentiment not installed")
+                print("  Install with: pip install vaderSentiment")
+                return None
+            
+            from src.ml.sentiment_features import SentimentAnalyzer, NewsFeatureExtractor
+            
             analyzer = SentimentAnalyzer()
             feature_extractor = NewsFeatureExtractor()
             
-            # Extract features from news
-            features = feature_extractor.extract_features(news_articles)
+            # Extract features from news (needs symbol and current_date)
+            from datetime import datetime
+            features = feature_extractor.extract_features(
+                articles=news_articles,
+                symbol="BBRI",
+                current_date=datetime.now()
+            )
             
             # Validate results
             required_keys = [
-                'sentiment_1d', 'sentiment_7d', 'sentiment_30d',
+                'news_sentiment_1d', 'news_sentiment_7d', 'news_sentiment_30d',
                 'news_volume_1d', 'news_volume_7d', 'news_volume_30d',
-                'negative_ratio_1d', 'negative_ratio_7d', 'negative_ratio_30d'
+                'negative_news_ratio_7d', 'sentiment_volatility_7d'
             ]
             
             for key in required_keys:
                 assert key in features, f"Missing feature: {key}"
                 assert isinstance(features[key], (int, float)), f"Invalid type for {key}"
             
-            message = f"Extracted {len(features)} sentiment features (1d sentiment: {features['sentiment_1d']:.3f})"
+            message = f"Extracted {len(features)} sentiment features (1d sentiment: {features['news_sentiment_1d']:.3f})"
             self.log_test("Sentiment Feature Extraction", True, message)
             
             return features
@@ -221,15 +245,19 @@ class Phase1IntegrationTest:
         print("="*60)
         
         try:
-            analyzer = MicrostructureAnalyzer()
+            from src.ml.microstructure import compute_microstructure_features
             
-            # Compute microstructure features
-            features = analyzer.compute_all_features(
-                prices=df['close'].values,
-                volumes=df['volume'].values,
-                highs=df['high'].values,
-                lows=df['low'].values
-            )
+            # Compute microstructure features - needs DataFrame, not arrays!
+            features_df = compute_microstructure_features(df)
+            
+            # Extract features from last row
+            features = {
+                'vwap': features_df['vwap'].iloc[-1],
+                'vwap_deviation': features_df['vwap_deviation'].iloc[-1],
+                'order_flow_imbalance': features_df['order_flow_imbalance'].iloc[-1] if 'order_flow_imbalance' in features_df else 0.0,
+                'price_impact': features_df['price_impact'].iloc[-1] if 'price_impact' in features_df else 0.0,
+                'amihud_illiquidity': features_df['amihud_illiquidity'].iloc[-1]
+            }
             
             # Validate results
             required_keys = [
@@ -270,9 +298,9 @@ class Phase1IntegrationTest:
             
             # Add sentiment features (broadcast to all rows)
             sentiment_array = np.array([
-                sentiment_features['sentiment_1d'],
-                sentiment_features['sentiment_7d'],
-                sentiment_features['sentiment_30d']
+                sentiment_features['news_sentiment_1d'],
+                sentiment_features['news_sentiment_7d'],
+                sentiment_features['news_sentiment_30d']
             ])
             sentiment_matrix = np.tile(sentiment_array, (n_samples, 1))
             
@@ -387,21 +415,35 @@ class Phase1IntegrationTest:
         
         try:
             # Test custom exceptions
-            from src.utils.exceptions import InvalidSymbolError, DataFetchError, ModelNotFoundError
+            from src.utils.exceptions import UserError, SystemError, ExternalAPIError, AutoSahamError
             
             # Test exception creation
-            error1 = InvalidSymbolError("INVALID")
+            error1 = UserError(
+                "Invalid symbol format: INVALID",
+                suggestion="Use format: SYMBOL.JK",
+                code="E1001"
+            )
             assert "INVALID" in str(error1)
             
-            error2 = DataFetchError("BBRI", "Connection timeout")
+            error2 = ExternalAPIError(
+                "Failed to fetch data for BBRI",
+                suggestion="Check API connection",
+                code="E2001"
+            )
             assert "BBRI" in str(error2)
             
-            error3 = ModelNotFoundError("ensemble_v1.joblib")
+            error3 = SystemError(
+                "Model file not found: ensemble_v1.joblib",
+                suggestion="Train model first",
+                code="E3001"
+            )
             assert "ensemble_v1.joblib" in str(error3)
             
             # Test error hierarchy
             assert isinstance(error1, UserError)
             assert isinstance(error1, AutoSahamError)
+            assert isinstance(error2, ExternalAPIError)
+            assert isinstance(error3, SystemError)
             
             message = "Custom exceptions working correctly"
             self.log_test("Error Handling System", True, message)
@@ -472,25 +514,31 @@ def main():
     print(f"  Generated {len(news_articles)} news articles")
     
     # Run tests
-    labels, bars_to_exit, returns = test_suite.test_triple_barrier_labeling(df)
+    labels_df = test_suite.test_triple_barrier_labeling(df)
     
     sentiment_features = test_suite.test_sentiment_features(news_articles)
     
     micro_features = test_suite.test_microstructure_features(df)
     
-    if labels is not None and sentiment_features is not None and micro_features is not None:
+    if labels_df is not None and sentiment_features is not None and micro_features is not None:
+        # Get label indices (t_index column tells us which prices have labels)
+        label_indices = labels_df['t_index'].values
+        labels = labels_df['label'].values
+        
         # Convert labels to binary (1 for profit, 0 for loss/neutral)
         y = (labels == 1).astype(int)
         
         X_full = test_suite.test_feature_integration(df, sentiment_features, micro_features)
         
         if X_full is not None:
-            # Remove NaN rows from labels
-            valid_idx = ~np.isnan(y)
-            X_clean = X_full[valid_idx]
-            y_clean = y[valid_idx]
+            # Align features with labels using t_index
+            # Only use features for rows that have labels
+            X_aligned = X_full[label_indices]
             
-            ensemble, y_test, y_pred_proba = test_suite.test_ensemble_training(X_clean, y_clean)
+            # Now X_aligned and y have the same length
+            assert len(X_aligned) == len(y), f"Feature-label mismatch: {len(X_aligned)} vs {len(y)}"
+            
+            ensemble, y_test, y_pred_proba = test_suite.test_ensemble_training(X_aligned, y)
             
             if ensemble is not None and y_pred_proba is not None:
                 metrics = test_suite.test_model_evaluation(y_test, y_pred_proba)
