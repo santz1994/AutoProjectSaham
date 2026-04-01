@@ -31,7 +31,197 @@ try:
 except ImportError:
     SKLEARN_AVAILABLE = False
 
+try:
+    import torch
+    import torch.nn as nn
+    import torch.optim as optim
+    from torch.utils.data import DataLoader, TensorDataset
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
+
+
+class AutoencoderAnomaly(nn.Module):
+    """
+    Autoencoder for pattern-based anomaly detection.
+    
+    Learns compressed representation of normal trading patterns.
+    High reconstruction error indicates anomalous patterns.
+    """
+    
+    def __init__(self, input_dim: int, hidden_dim: int = 16):
+        """
+        Initialize autoencoder.
+        
+        Args:
+            input_dim: Input feature dimension
+            hidden_dim: Hidden layer dimension
+        """
+        super().__init__()
+        
+        # Encoder
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim * 2),
+            nn.ReLU(),
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.ReLU()
+        )
+        
+        # Decoder
+        self.decoder = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim * 2),
+            nn.ReLU(),
+            nn.Linear(hidden_dim * 2, input_dim)
+        )
+    
+    def forward(self, x):
+        """Forward pass through autoencoder."""
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+        return decoded
+    
+    def get_reconstruction_error(self, x):
+        """Get MSE reconstruction error."""
+        decoded = self.forward(x)
+        return torch.mean((x - decoded) ** 2, dim=1)
+
+
+class AutoencoderDetector:
+    """
+    Autoencoder-based anomaly detection for pattern anomalies.
+    
+    Detects unusual feature combinations that don't fit normal patterns.
+    Trained on normal data, high reconstruction error = anomaly.
+    """
+    
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dim: int = 16,
+        threshold_percentile: float = 95.0,
+        contamination: float = 0.05
+    ):
+        """
+        Initialize autoencoder detector.
+        
+        Args:
+            input_dim: Input feature dimension
+            hidden_dim: Bottleneck dimension
+            threshold_percentile: Percentile for anomaly threshold
+            contamination: Expected contamination rate
+        """
+        if not TORCH_AVAILABLE:
+            raise ImportError("PyTorch required for autoencoder anomaly detection")
+        
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.model = AutoencoderAnomaly(input_dim, hidden_dim).to(self.device)
+        self.scaler = StandardScaler()
+        self.threshold_percentile = threshold_percentile
+        self.contamination = contamination
+        self.reconstruction_threshold = None
+        self.is_fitted = False
+        self.training_errors: List[float] = []
+    
+    def fit(
+        self,
+        X: pd.DataFrame,
+        epochs: int = 50,
+        batch_size: int = 32,
+        learning_rate: float = 0.001,
+        verbose: bool = False
+    ) -> None:
+        """
+        Fit autoencoder on normal data.
+        
+        Args:
+            X: Training data (normal samples)
+            epochs: Number of training epochs
+            batch_size: Batch size
+            learning_rate: Learning rate
+            verbose: Print training progress
+        """
+        # Normalize data
+        X_scaled = self.scaler.fit_transform(X.values)
+        X_tensor = torch.FloatTensor(X_scaled).to(self.device)
+        
+        # Create dataloader
+        dataset = TensorDataset(X_tensor)
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        
+        # Train
+        optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
+        criterion = nn.MSELoss()
+        
+        self.model.train()
+        for epoch in range(epochs):
+            epoch_loss = 0
+            for batch_idx, (batch,) in enumerate(dataloader):
+                optimizer.zero_grad()
+                reconstructed = self.model(batch)
+                loss = criterion(reconstructed, batch)
+                loss.backward()
+                optimizer.step()
+                epoch_loss += loss.item()
+            
+            avg_loss = epoch_loss / len(dataloader)
+            if verbose and (epoch + 1) % 10 == 0:
+                logger.info(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.6f}")
+        
+        # Calculate threshold from training data
+        self.model.eval()
+        with torch.no_grad():
+            errors = self.model.get_reconstruction_error(X_tensor)
+            self.training_errors = errors.cpu().numpy().tolist()
+            self.reconstruction_threshold = np.percentile(
+                self.training_errors,
+                self.threshold_percentile
+            )
+        
+        self.is_fitted = True
+        logger.info(
+            f"Autoencoder fitted. Reconstruction threshold: "
+            f"{self.reconstruction_threshold:.6f}"
+        )
+    
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        """
+        Predict anomalies (1=normal, -1=anomaly).
+        
+        Args:
+            X: Input data
+            
+        Returns:
+            Array of 1 (normal) or -1 (anomaly)
+        """
+        if not self.is_fitted:
+            raise ValueError("Detector not fitted")
+        
+        scores = self.score_samples(X)
+        return np.where(scores > self.reconstruction_threshold, 1, -1)
+    
+    def score_samples(self, X: pd.DataFrame) -> np.ndarray:
+        """
+        Get negative reconstruction error (lower = more anomalous).
+        
+        Args:
+            X: Input data
+            
+        Returns:
+            Anomaly scores
+        """
+        if not self.is_fitted:
+            raise ValueError("Detector not fitted")
+        
+        X_scaled = self.scaler.transform(X.values)
+        X_tensor = torch.FloatTensor(X_scaled).to(self.device)
+        
+        self.model.eval()
+        with torch.no_grad():
+            errors = self.model.get_reconstruction_error(X_tensor)
+            # Invert: lower error = higher score
+            return -errors.cpu().numpy()
 
 
 class IsolationForestDetector:
@@ -231,44 +421,82 @@ class StatisticalAnomalyDetector:
 
 class AnomalyRiskManager:
     """
-    Risk management using anomaly detection.
+    Risk management using multiple anomaly detectors.
     
-    Integrates multiple detectors and adjusts position sizing.
+    Integrates Isolation Forest, Autoencoder, and statistical methods.
+    Adjusts position sizing based on anomaly severity.
     """
     
     def __init__(
         self,
         isolation_contamination: float = 0.05,
+        autoencoder_enabled: bool = True,
         z_threshold: float = 3.0,
-        risk_reduction_factor: float = 0.5
+        risk_reduction_factor: float = 0.5,
+        ensemble_method: str = 'voting'  # 'voting' or 'weighted'
     ):
         """
         Initialize risk manager.
         
         Args:
             isolation_contamination: IsolationForest contamination
+            autoencoder_enabled: Use autoencoder detector
             z_threshold: Statistical threshold
             risk_reduction_factor: Position size multiplier during anomalies
+            ensemble_method: How to combine detector results
         """
         self.isolation_detector = IsolationForestDetector(
             contamination=isolation_contamination
         ) if SKLEARN_AVAILABLE else None
+        
+        self.autoencoder_detector: Optional[AutoencoderDetector] = None
+        self.autoencoder_enabled = autoencoder_enabled and TORCH_AVAILABLE
         
         self.statistical_detector = StatisticalAnomalyDetector(
             z_threshold=z_threshold
         )
         
         self.risk_reduction_factor = risk_reduction_factor
+        self.ensemble_method = ensemble_method
         
         # Anomaly tracking
         self.anomaly_history: List[Dict] = []
         self.current_anomaly_score = 0.0
     
-    def fit(self, X: pd.DataFrame) -> None:
-        """Fit detectors on historical data."""
+    def fit(
+        self,
+        X: pd.DataFrame,
+        autoencoder_epochs: int = 50,
+        autoencoder_batch_size: int = 32
+    ) -> None:
+        """
+        Fit all detectors on historical data.
+        
+        Args:
+            X: Training features
+            autoencoder_epochs: Training epochs for autoencoder
+            autoencoder_batch_size: Batch size for autoencoder
+        """
+        # Fit isolation forest
         if self.isolation_detector:
             self.isolation_detector.fit(X)
-            logger.info("Anomaly detectors fitted")
+        
+        # Fit autoencoder
+        if self.autoencoder_enabled:
+            try:
+                self.autoencoder_detector = AutoencoderDetector(
+                    input_dim=X.shape[1]
+                )
+                self.autoencoder_detector.fit(
+                    X,
+                    epochs=autoencoder_epochs,
+                    batch_size=autoencoder_batch_size,
+                    verbose=False
+                )
+                logger.info("Autoencoder detector fitted")
+            except Exception as e:
+                logger.warning(f"Failed to fit autoencoder: {e}")
+                self.autoencoder_detector = None
     
     def detect_anomalies(
         self,
@@ -277,7 +505,7 @@ class AnomalyRiskManager:
         volumes: Optional[np.ndarray] = None
     ) -> Dict[str, Any]:
         """
-        Comprehensive anomaly detection.
+        Comprehensive anomaly detection using ensemble.
         
         Args:
             features: Feature DataFrame
@@ -292,45 +520,84 @@ class AnomalyRiskManager:
             'anomaly_types': [],
             'anomaly_score': 0.0,
             'risk_multiplier': 1.0,
+            'detector_votes': {},
             'details': {}
         }
         
+        anomaly_votes = 0
+        total_detectors = 0
+        
         # 1. Isolation Forest detection
         if self.isolation_detector and self.isolation_detector.is_fitted:
+            total_detectors += 1
             iso_pred = self.isolation_detector.predict(features)
             iso_scores = self.isolation_detector.score_samples(features)
             
             if iso_pred[-1] == -1:  # Last sample is anomaly
                 results['anomaly_types'].append('isolation_forest')
                 results['details']['isolation_score'] = float(iso_scores[-1])
+                anomaly_votes += 1
+            
+            results['detector_votes']['isolation_forest'] = iso_pred[-1]
         
-        # 2. Statistical detection
+        # 2. Autoencoder detection
+        if self.autoencoder_detector and self.autoencoder_detector.is_fitted:
+            total_detectors += 1
+            ae_pred = self.autoencoder_detector.predict(features)
+            ae_scores = self.autoencoder_detector.score_samples(features)
+            
+            if ae_pred[-1] == -1:
+                results['anomaly_types'].append('autoencoder')
+                results['details']['ae_reconstruction_error'] = float(-ae_scores[-1])
+                anomaly_votes += 1
+            
+            results['detector_votes']['autoencoder'] = ae_pred[-1]
+        
+        # 3. Statistical detection
         if prices is not None and len(prices) > 100:
+            total_detectors += 1
             price_anom, z_scores = self.statistical_detector.detect_price_anomaly(prices)
             if price_anom[-1]:
                 results['anomaly_types'].append('price_spike')
                 results['details']['z_score'] = float(z_scores[-1])
+                anomaly_votes += 1
+            
+            results['detector_votes']['price_spike'] = 1 if price_anom[-1] else -1
         
         if volumes is not None and len(volumes) > 100:
+            total_detectors += 1
             vol_anom, vol_ratios = self.statistical_detector.detect_volume_anomaly(volumes)
             if vol_anom[-1]:
                 results['anomaly_types'].append('volume_spike')
                 results['details']['volume_ratio'] = float(vol_ratios[-1])
+                anomaly_votes += 1
+            
+            results['detector_votes']['volume_spike'] = 1 if vol_anom[-1] else -1
         
-        # 3. Aggregate results
-        results['is_anomaly'] = len(results['anomaly_types']) > 0
-        results['anomaly_score'] = len(results['anomaly_types']) / 3.0  # Normalize
+        # 4. Ensemble decision
+        if self.ensemble_method == 'voting':
+            # Majority voting
+            results['is_anomaly'] = anomaly_votes >= (total_detectors // 2 + 1)
+        else:  # weighted
+            results['is_anomaly'] = len(results['anomaly_types']) > 0
         
-        # 4. Calculate risk multiplier
+        # 5. Calculate anomaly score
+        if total_detectors > 0:
+            results['anomaly_score'] = anomaly_votes / total_detectors
+        
+        # 6. Calculate risk multiplier (non-linear)
         if results['is_anomaly']:
-            results['risk_multiplier'] = self.risk_reduction_factor
+            # More detectors voting = more severe anomaly
+            severity = results['anomaly_score']
+            results['risk_multiplier'] = max(0.1, 1.0 - severity * (1 - self.risk_reduction_factor))
         
-        # 5. Log anomaly
+        # 7. Log anomaly
         if results['is_anomaly']:
             self.anomaly_history.append({
                 'timestamp': datetime.now().isoformat(),
                 'types': results['anomaly_types'],
                 'score': results['anomaly_score'],
+                'risk_multiplier': results['risk_multiplier'],
                 'details': results['details']
             })
         
@@ -359,7 +626,8 @@ class AnomalyRiskManager:
             
             logger.warning(
                 f"Anomaly detected: {anomaly_result['anomaly_types']}. "
-                f"Position reduced: {base_position:.2f} -> {adjusted:.2f}"
+                f"Position reduced: {base_position:.2f} -> {adjusted:.2f} "
+                f"(multiplier: {multiplier:.2f})"
             )
             
             return adjusted
@@ -367,25 +635,41 @@ class AnomalyRiskManager:
         return base_position
     
     def get_anomaly_report(self) -> Dict:
-        """Get anomaly detection statistics."""
+        """Get comprehensive anomaly detection statistics."""
         if not self.anomaly_history:
             return {
                 'total_anomalies': 0,
                 'recent_anomalies': [],
-                'current_score': self.current_anomaly_score
+                'current_score': self.current_anomaly_score,
+                'detectors_fitted': {
+                    'isolation_forest': bool(self.isolation_detector and self.isolation_detector.is_fitted),
+                    'autoencoder': bool(self.autoencoder_detector and self.autoencoder_detector.is_fitted),
+                    'statistical': True
+                }
             }
         
         # Count anomaly types
         type_counts = {}
+        total_risk_reduction = 0
+        
         for anom in self.anomaly_history:
             for anom_type in anom['types']:
                 type_counts[anom_type] = type_counts.get(anom_type, 0) + 1
+            total_risk_reduction += (1 - anom['risk_multiplier'])
+        
+        avg_risk_reduction = total_risk_reduction / len(self.anomaly_history)
         
         return {
             'total_anomalies': len(self.anomaly_history),
             'type_counts': type_counts,
             'recent_anomalies': self.anomaly_history[-10:],
-            'current_score': self.current_anomaly_score
+            'current_score': self.current_anomaly_score,
+            'avg_position_reduction': avg_risk_reduction,
+            'detectors_fitted': {
+                'isolation_forest': bool(self.isolation_detector and self.isolation_detector.is_fitted),
+                'autoencoder': bool(self.autoencoder_detector and self.autoencoder_detector.is_fitted),
+                'statistical': True
+            }
         }
     
     def save(self, filepath: str) -> None:
