@@ -68,6 +68,16 @@ htmlcov/
 .dmypy.json
 dmypy.json
 
+# Load testing & profiling
+tests/load_tests/results/
+tests/load_tests/*.csv
+tests/load_tests/*.html
+.benchmarks/
+benchmark_results.json
+*.prof
+performance_report.txt
+slow_operations.log
+
 # Temporary files
 *.tmp
 *.bak

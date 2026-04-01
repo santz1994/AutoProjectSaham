@@ -1,0 +1,79 @@
+# Prometheus Configuration
+# AutoSaham Trading Platform - Production Ready
+# Jakarta Timezone (WIB: UTC+7), IDX/IHSG, IDR, BEI Compliance
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'autosaham-trading'
+    timezone: 'Asia/Jakarta'
+    market: 'IDX/IHSG'
+    currency: 'IDR'
+
+# Load alerting rules
+rule_files:
+  - 'alert_rules.yml'
+
+# Global alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - localhost:9093
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter for system metrics
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node_exporter:9100']
+
+  # AutoSaham API Server
+  - job_name: 'autosaham-api'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['api:8000']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'autosaham-api'
+
+  # Broker integrations (when available)
+  - job_name: 'broker-metrics'
+    metrics_path: '/broker/metrics'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['api:8000']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: broker_system
+        replacement: 'multi-broker'
+
+  # Strategy performance
+  - job_name: 'strategy-metrics'
+    metrics_path: '/strategy/metrics'
+    scrape_interval: 60s
+    static_configs:
+      - targets: ['api:8000']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: component
+        replacement: 'trading-strategy'
+
+  # Market data quality
+  - job_name: 'marketdata-metrics'
+    metrics_path: '/marketdata/metrics'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['api:8000']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: market
+        replacement: 'IDX'

@@ -1,0 +1,291 @@
+# Prometheus Alert Rules
+# AutoSaham Trading Platform - Production Ready
+# Jakarta Timezone (WIB: UTC+7), IDX/IHSG, IDR, BEI Compliance
+
+groups:
+  # Trading Order Alerts
+  - name: trading_alerts
+    interval: 30s
+    rules:
+      # High Order Rejection Rate
+      - alert: HighOrderRejectionRate
+        expr: |
+          (increase(orders_rejected_total[5m]) / 
+           increase(orders_placed_total[5m])) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          category: orders
+        annotations:
+          summary: "High order rejection rate detected"
+          description: "Order rejection rate is {{ $value | humanizePercentage }} (threshold: 10%)"
+          action: "Review broker API status and order validation rules"
+
+      # Long Order Processing Time
+      - alert: LongOrderProcessingTime
+        expr: order_execution_time_seconds{quantile="p95"} > 60
+        for: 5m
+        labels:
+          severity: warning
+          category: orders
+        annotations:
+          summary: "Order processing time exceeds 60 seconds"
+          description: "P95 execution time is {{ $value }}s"
+          action: "Check broker API latency and network conditions"
+
+  # Broker Alerts
+  - name: broker_alerts
+    interval: 30s
+    rules:
+      # Broker Connection Lost
+      - alert: BrokerDisconnected
+        expr: broker_connection_active{broker=~"stockbit|ajaib|indopremier"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: broker
+        annotations:
+          summary: "Broker connection lost: {{ $labels.broker }}"
+          description: "{{ $labels.broker }} has been disconnected for {{ $value }}s"
+          action: "Immediately reconnect and verify broker API status. Check network connectivity."
+
+      # High Broker Error Rate
+      - alert: HighBrokerErrorRate
+        expr: |
+          (increase(broker_api_errors_total[5m]) / 
+           increase(broker_api_calls_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          category: broker
+        annotations:
+          summary: "High error rate from {{ $labels.broker }}"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+          action: "Review broker API responses and error logs"
+
+  # Position & Margin Alerts
+  - name: position_alerts
+    interval: 30s
+    rules:
+      # Margin Call Warning
+      - alert: MarginCallWarning
+        expr: account_margin_utilization > 0.85
+        for: 1m
+        labels:
+          severity: critical
+          category: risk
+        annotations:
+          summary: "Margin utilization critically high"
+          description: "Margin utilization is {{ $value | humanizePercentage }} (threshold: 85%)"
+          action: "IMMEDIATE ACTION: Reduce positions or deposit additional margin to avoid forced liquidation"
+
+      # Large Unrealized Loss
+      - alert: LargeUnrealizedLoss
+        expr: |
+          abs(position_unrealized_pnl_idr) / 
+          account_total_equity_idr > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          category: risk
+        annotations:
+          summary: "Large unrealized loss detected"
+          description: "Unrealized loss is {{ $value | humanizePercentage }} of equity"
+          action: "Review position sizing and consider risk management actions"
+
+  # Market Data Quality Alerts
+  - name: marketdata_alerts
+    interval: 15s
+    rules:
+      # Market Data Stale
+      - alert: MarketDataStale
+        expr: |
+          time() - market_data_last_update_timestamp{symbol=~".*\\.JK"} > 30
+        for: 1m
+        labels:
+          severity: critical
+          category: data
+        annotations:
+          summary: "Market data stale for {{ $labels.symbol }}"
+          description: "No updates for {{ $value }}s (threshold: 30s)"
+          action: "Check BEI API connection and data feed status"
+
+      # No Trades Executed
+      - alert: NoTradesExecuted
+        expr: |
+          increase(trades_executed_total[1h]) == 0
+        for: 1h
+        labels:
+          severity: warning
+          category: strategy
+        annotations:
+          summary: "No trades executed in last hour"
+          description: "Strategy may be idle or market conditions unfavorable"
+          action: "Review strategy logic and market conditions during Bangkok trading hours"
+
+  # Strategy Performance Alerts
+  - name: strategy_alerts
+    interval: 60s
+    rules:
+      # Losing Streak
+      - alert: StrategyLosingStreak
+        expr: |
+          (count_over_time(trade_result{result="loss"}[6h]) / 
+           count_over_time(trade_result[6h])) > 0.70
+        for: 10m
+        labels:
+          severity: warning
+          category: strategy
+        annotations:
+          summary: "Strategy experiencing losing streak"
+          description: "Win rate is {{ $value | humanizePercentage }} (threshold: 30%)"
+          action: "Consider pausing strategy and reviewing latest model performance"
+
+      # High Portfolio Concentration
+      - alert: HighConcentration
+        expr: |
+          max(position_weight{symbol=~".*\\.JK"}) > 0.50
+        for: 5m
+        labels:
+          severity: warning
+          category: risk
+        annotations:
+          summary: "Portfolio concentration exceeds 50%"
+          description: "Max position weight is {{ $value | humanizePercentage }}"
+          action: "Rebalance portfolio to meet diversification requirements"
+
+  # Risk Management Alerts
+  - name: risk_alerts
+    interval: 30s
+    rules:
+      # High Value at Risk
+      - alert: HighValueAtRisk
+        expr: portfolio_var_percent > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: risk
+        annotations:
+          summary: "Portfolio VaR exceeds 10%"
+          description: "Value at Risk is {{ $value | humanizePercentage }}"
+          action: "Review portfolio composition and reduce risk exposure"
+
+      # Low Cash Balance
+      - alert: LowCashBalance
+        expr: |
+          account_cash_idr / account_total_equity_idr < 0.05
+        for: 5m
+        labels:
+          severity: warning
+          category: risk
+        annotations:
+          summary: "Cash balance below 5% of equity"
+          description: "Cash is {{ $value | humanizePercentage }} of equity"
+          action: "Deposit additional funds or reduce position sizes"
+
+  # IDX Compliance Alerts
+  - name: idx_compliance
+    interval: 30s
+    rules:
+      # Invalid Symbol Format
+      - alert: InvalidIDXSymbolFormat
+        expr: |
+          count(increase(symbol_validation_failed{reason="invalid_format"}[5m])) > 0
+        for: 2m
+        labels:
+          severity: critical
+          category: compliance
+        annotations:
+          summary: "Invalid IDX symbol format detected"
+          description: "Symbol format must be [SYMBOL].JK (e.g., BBCA.JK)"
+          action: "Verify symbol format matches BEI requirements"
+
+      # Invalid Lot Size
+      - alert: InvalidLotSize
+        expr: |
+          count(increase(order_validation_failed{reason="invalid_lot_size"}[5m])) > 0
+        for: 2m
+        labels:
+          severity: critical
+          category: compliance
+        annotations:
+          summary: "Invalid lot size for IDX order"
+          description: "Lot size must be multiple of 100 shares"
+          action: "Adjust order quantity to meet minimum lot requirement (100 shares)"
+
+      # Trading Outside Hours
+      - alert: OutOfTradingHours
+        expr: |
+          count(increase(order_validation_failed{reason="outside_trading_hours"}[5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+          category: compliance
+        annotations:
+          summary: "Order attempted outside BEI trading hours"
+          description: "BEI trading hours: 09:30-16:00 WIB (Asia/Jakarta)"
+          action: "Ensure orders are placed during official BEI trading hours only"
+
+      # Excessive Margin Utilization (BEI Rule)
+      - alert: ExcessiveMarginUtilization
+        expr: account_margin_utilization > 0.80
+        for: 5m
+        labels:
+          severity: warning
+          category: compliance
+        annotations:
+          summary: "Margin utilization exceeds BEI safe limits"
+          description: "Margin is {{ $value | humanizePercentage }} (BEI guideline: <80%)"
+          action: "Reduce margin usage to comply with BEI regulations"
+
+      # Settlement T+2 Warning
+      - alert: DelayedSettlementWarning
+        expr: |
+          count(orders_pending_settlement > 5) > 0
+        for: 10m
+        labels:
+          severity: info
+          category: compliance
+        annotations:
+          summary: "Multiple orders pending settlement"
+          description: "{{ $value }} orders awaiting T+2 settlement"
+          action: "Monitor settlement completion. T+2 applies to IDX trades."
+
+  # Anomaly Detection Alerts
+  - name: anomaly_alerts
+    interval: 30s
+    rules:
+      # Anomaly in Order Flow
+      - alert: AnomalyDetectedInOrderFlow
+        expr: ml_anomaly_score{type="order_flow"} > 0.85
+        for: 3m
+        labels:
+          severity: warning
+          category: anomaly
+        annotations:
+          summary: "Anomaly detected in order flow"
+          description: "Anomaly score: {{ $value | humanizePercentage }}"
+          action: "Review recent order patterns and market conditions"
+
+      # High Volatility Spike
+      - alert: HighVolatilitySpike
+        expr: |
+          (volatility_current / volatility_20d_avg) > 1.5
+        for: 5m
+        labels:
+          severity: warning
+          category: anomaly
+        annotations:
+          summary: "Volatility spike detected"
+          description: "Current volatility is {{ $value | humanizePercentage }}x 20-day average"
+          action: "Review market news and adjust strategy parameters if needed"
+
+# Alert evaluation rules metadata
+# These are informational and help with alert management
+status:
+  timezone: "Asia/Jakarta (WIB: UTC+7)"
+  market: "IDX/IHSG"
+  currency: "IDR"
+  compliance_framework: "OJK, BEI, Indonesian Tax Authority"
+  trading_hours: "09:30-16:00 WIB"
+  settlement_cycle: "T+2 (2 business days)"

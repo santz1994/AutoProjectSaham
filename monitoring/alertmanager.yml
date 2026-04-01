@@ -1,0 +1,154 @@
+# AlertManager Configuration
+# AutoSaham Trading Platform - Production Ready
+# Handles alert routing and notifications
+
+global:
+  resolve_timeout: 5m
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+
+# Template files for notification formatting
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route alerts to appropriate receivers
+route:
+  # Default receiver (team notifications)
+  receiver: 'default'
+  group_by:
+    - 'alertname'
+    - 'severity'
+    - 'trade_symbol'
+    - 'broker'
+  group_wait: 30s
+  group_interval: 10m
+  repeat_interval: 4h
+
+  # Critical trading alerts - immediate notification
+  routes:
+    - match:
+        severity: 'critical'
+      receiver: 'critical-alerts'
+      group_wait: 0s
+      repeat_interval: 15m
+      continue: true
+
+    # Broker alerts - urgent
+    - match:
+        alertname: 'BrokerDisconnected'
+      receiver: 'broker-team'
+      group_wait: 30s
+      repeat_interval: 30m
+
+    # Order execution issues
+    - match:
+        alertname: 'HighOrderRejectionRate'
+      receiver: 'trading-alerts'
+      group_wait: 1m
+      repeat_interval: 2h
+
+    # Compliance and risk alerts
+    - match:
+        category: 'compliance'
+      receiver: 'compliance-team'
+      group_wait: 0s
+      repeat_interval: 6h
+
+    # Anomaly detection alerts
+    - match:
+        alertname: 'AnomalyDetected'
+      receiver: 'ml-team'
+      group_wait: 5m
+      repeat_interval: 1h
+
+# Receivers define notification destinations
+receivers:
+  # Default - Team Slack channel
+  - name: 'default'
+    slack_configs:
+      - channel: '#trading-alerts'
+        title: 'AutoSaham Alert'
+        text: '{{ .CommonAnnotations.summary }}\nServer: {{ .GroupLabels.instance }}'
+        color: '{{ if eq .GroupLabels.severity "critical" }}danger{{ else }}warning{{ end }}'
+        send_resolved: true
+
+  # Critical alerts - immediate paging
+  - name: 'critical-alerts'
+    slack_configs:
+      - channel: '#critical-alerts'
+        title: '🚨 CRITICAL ALERT'
+        text: '{{ .CommonAnnotations.summary }}\nACTION: {{ .CommonAnnotations.action }}'
+        color: 'danger'
+        send_resolved: true
+    # Email alert for critical issues
+    email_configs:
+      - to: '{{ .CommonLabels.team_email }}'
+        from: 'autosaham-alerts@trading.local'
+        headers:
+          Subject: '[CRITICAL] {{ .GroupLabels.alertname }} - {{ .GroupLabels.trade_symbol }}'
+        smarthost: 'smtp.gmail.com:587'
+        auth_username: '${SMTP_USERNAME}'
+        auth_password: '${SMTP_PASSWORD}'
+
+  # Broker team alerts
+  - name: 'broker-team'
+    slack_configs:
+      - channel: '#broker-team'
+        title: 'Broker Alert'
+        text: '⚠️ {{ .CommonAnnotations.summary }}\nBroker: {{ .GroupLabels.broker }}'
+        color: 'warning'
+        send_resolved: true
+
+  # Trading team alerts
+  - name: 'trading-alerts'
+    slack_configs:
+      - channel: '#trading-alerts'
+        title: 'Trade Execution Alert'
+        text: '{{ .CommonAnnotations.summary }}\nSymbol: {{ .GroupLabels.trade_symbol }}'
+        color: 'warning'
+        send_resolved: true
+
+  # Compliance team alerts
+  - name: 'compliance-team'
+    slack_configs:
+      - channel: '#compliance'
+        title: '⚖️ Compliance Alert'
+        text: '{{ .CommonAnnotations.summary }}\nACTION REQUIRED: {{ .CommonAnnotations.action }}'
+        color: 'warning'
+        send_resolved: true
+    email_configs:
+      - to: 'compliance@trading.local'
+        from: 'autosaham-alerts@trading.local'
+        headers:
+          Subject: '[COMPLIANCE] {{ .GroupLabels.alertname }}'
+
+  # ML/Anomaly team alerts
+  - name: 'ml-team'
+    slack_configs:
+      - channel: '#ml-alerts'
+        title: 'Anomaly Detection'
+        text: '{{ .CommonAnnotations.summary }}\nType: {{ .GroupLabels.anomaly_type }}'
+        color: 'warning'
+        send_resolved: true
+
+# Inhibition rules - suppress alerts based on conditions
+inhibit_rules:
+  # Suppress non-critical alerts if critical alert exists
+  - source_match:
+      severity: 'critical'
+    target_match_re:
+      severity: 'warning|info'
+    equal: ['alertname', 'trade_symbol']
+
+  # Suppress position alerts if broker is disconnected
+  - source_match:
+      alertname: 'BrokerDisconnected'
+    target_match_re:
+      alertname: 'LargeUnrealizedLoss|MarginCallWarning'
+    equal: ['broker']
+
+  # Suppress individual order alerts if system-wide rejection rate is high
+  - source_match:
+      alertname: 'HighOrderRejectionRate'
+    target_match:
+      alertname: 'OrderExecutionFailed'
+    equal: ['broker']

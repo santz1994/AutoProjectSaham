@@ -1,0 +1,248 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [master, develop]
+  pull_request:
+    branches: [master, develop]
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM Jakarta time (9 PM UTC)
+
+env:
+  PYTHON_VERSION: '3.13'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Test job
+  test:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      # PostgreSQL for data storage
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
+      
+      - name: Run unit tests
+        run: |
+          pytest tests/ -v --tb=short \
+            --cov=src \
+            --cov-report=xml \
+            --cov-report=html \
+            -m "not integration"
+      
+      - name: Run integration tests
+        run: |
+          pytest tests/integration/ -v --tb=short -m "integration"
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+      
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: |
+            coverage.xml
+            htmlcov/
+
+  # Code quality job
+  code-quality:
+    name: Code Quality & Linting
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pylint black flake8 mypy isort
+      
+      - name: Run Black formatter check
+        run: black --check src/ tests/ scripts/ --line-length 100
+      
+      - name: Run isort import check
+        run: isort --check-only src/ tests/ scripts/
+      
+      - name: Run Flake8 linting
+        run: flake8 src/ tests/ scripts/ --max-line-length=100 --exclude=__pycache__
+      
+      - name: Run MyPy type checking
+        run: mypy src/ --ignore-missing-imports --no-error-summary 2>&1 | head -50 || true
+      
+      - name: Run Pylint
+        run: pylint src/ --disable=all --enable=E,F 2>&1 | head -100 || true
+
+  # Security scanning job
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install bandit
+        run: pip install bandit
+      
+      - name: Run Bandit security scan
+        run: bandit -r src/ -f json -o bandit-report.json || true
+      
+      - name: Upload security report
+        uses: actions/upload-artifact@v3
+        with:
+          name: bandit-report
+          path: bandit-report.json
+
+  # Docker build job
+  docker-build:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: [test, code-quality]
+    if: github.event_name == 'push'
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha
+            type=semver,pattern={{version}}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # Performance testing job
+  performance:
+    name: Performance Tests & Benchmarks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest-benchmark locust
+      
+      - name: Run performance benchmarks
+        run: |
+          pytest tests/performance/ -v --benchmark-only \
+            --benchmark-json=benchmark.json
+      
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-benchmarks
+          path: benchmark.json
+
+  # Notification job
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [test, code-quality, security, docker-build]
+    if: always()
+    
+    steps:
+      - name: Determine status
+        id: status
+        run: |
+          if [[ "${{ needs.test.result }}" == "failure" || \
+                "${{ needs.code-quality.result }}" == "failure" ]]; then
+            echo "status=FAILED" >> $GITHUB_OUTPUT
+            echo "color=danger" >> $GITHUB_OUTPUT
+          else
+            echo "status=PASSED" >> $GITHUB_OUTPUT
+            echo "color=good" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Send Slack notification
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ steps.status.outputs.status }}
+          text: |
+            CI/CD Pipeline ${{ steps.status.outputs.status }}
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author
