@@ -1,0 +1,264 @@
+/**
+ * TradingView Chart Component Styles
+ */
+
+.chart-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--chart-bg, #131722);
+  color: var(--chart-text, #d1d5db);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px;
+  background: var(--header-bg, #1e222d);
+  border-bottom: 1px solid var(--border-color, #2c2c2c);
+  gap: 16px;
+}
+
+.chart-info {
+  flex: 1;
+}
+
+.chart-title {
+  margin: 0 0 12px 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--title-color, #d1d5db);
+}
+
+.chart-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.metadata-item {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--metadata-color, #9ca3af);
+  gap: 4px;
+}
+
+.metadata-item strong {
+  color: var(--metadata-label, #d1d5db);
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+.trading-status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--status-bg, #2c2c2c);
+  font-weight: 500;
+}
+
+.trading-status.open {
+  background: rgba(38, 166, 154, 0.1);
+  color: #26a69a;
+}
+
+.trading-status.closed {
+  background: rgba(242, 54, 69, 0.1);
+  color: #f23645;
+}
+
+.last-update {
+  margin: 0;
+  font-size: 11px;
+  color: var(--update-color, #636d83);
+}
+
+.chart-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.timeframe-buttons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.timeframe-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--btn-border, #454d5e);
+  background: var(--btn-bg, transparent);
+  color: var(--btn-text, #9ca3af);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 40px;
+  text-align: center;
+}
+
+.timeframe-btn:hover {
+  border-color: var(--btn-hover-border, #6a7a8f);
+  background: var(--btn-hover-bg, #2c3e50);
+  color: var(--btn-hover-text, #d1d5db);
+}
+
+.timeframe-btn.active {
+  border-color: #26a69a;
+  background: rgba(38, 166, 154, 0.15);
+  color: #26a69a;
+  font-weight: 600;
+}
+
+.chart-canvas {
+  flex: 1;
+  width: 100%;
+  overflow: hidden;
+  background: var(--canvas-bg, #131722);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 600px;
+  font-size: 14px;
+  color: var(--text-muted, #9ca3af);
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 600px;
+  font-size: 14px;
+  color: #f23645;
+  background: rgba(242, 54, 69, 0.05);
+  border: 1px solid rgba(242, 54, 69, 0.2);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .chart-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .chart-controls {
+    flex-direction: row;
+    justify-content: flex-start;
+  }
+
+  .timeframe-buttons {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .chart-container {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .chart-header {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .chart-title {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+
+  .chart-metadata {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .metadata-item {
+    font-size: 11px;
+  }
+
+  .timeframe-buttons {
+    gap: 2px;
+  }
+
+  .timeframe-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+    min-width: 32px;
+  }
+
+  .chart-canvas {
+    min-height: 400px;
+  }
+
+  .loading,
+  .error-message {
+    height: 400px;
+  }
+}
+
+/* Dark theme (default) */
+:root {
+  --chart-bg: #131722;
+  --chart-text: #d1d5db;
+  --header-bg: #1e222d;
+  --border-color: #2c2c2c;
+  --title-color: #d1d5db;
+  --metadata-color: #9ca3af;
+  --metadata-label: #d1d5db;
+  --status-bg: #2c2c2c;
+  --update-color: #636d83;
+  --btn-border: #454d5e;
+  --btn-bg: transparent;
+  --btn-text: #9ca3af;
+  --btn-hover-border: #6a7a8f;
+  --btn-hover-bg: #2c3e50;
+  --btn-hover-text: #d1d5db;
+  --canvas-bg: #131722;
+  --text-muted: #9ca3af;
+}
+
+/* Light theme */
+[data-theme='light'] {
+  --chart-bg: #ffffff;
+  --chart-text: #1f2937;
+  --header-bg: #f9fafb;
+  --border-color: #e5e7eb;
+  --title-color: #1f2937;
+  --metadata-color: #6b7280;
+  --metadata-label: #374151;
+  --status-bg: #f3f4f6;
+  --update-color: #9ca3af;
+  --btn-border: #d1d5db;
+  --btn-bg: #f3f4f6;
+  --btn-text: #6b7280;
+  --btn-hover-border: #9ca3af;
+  --btn-hover-bg: #e5e7eb;
+  --btn-hover-text: #1f2937;
+  --canvas-bg: #ffffff;
+  --text-muted: #6b7280;
+}

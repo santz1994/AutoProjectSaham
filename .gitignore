@@ -78,6 +78,25 @@ benchmark_results.json
 performance_report.txt
 slow_operations.log
 
+# Chart caching & WebSocket logs
+src/api/chart_cache/
+*.chart_cache
+chart_updates.log
+websocket_*.log
+
+# Frontend build & node modules
+node_modules/
+.next/
+dist/
+build/
+*.map
+.env.local.sample
+
+# Market data temporary files
+data/temp/
+data/cache/
+*.ohlcv_cache
+
 # Temporary files
 *.tmp
 *.bak

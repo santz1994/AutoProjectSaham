@@ -129,6 +129,55 @@ flake8 src/                 # Lint
 mypy src/                   # Type check
 ```
 
+TradingView Charts
+------------------
+Phase 4 Task 16: Lightweight-charts integration for real-time IDX market viewing.
+
+**Features:**
+- Professional candlestick charts with multiple timeframes (1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w, 1mo)
+- Real-time WebSocket updates with auto-reconnection
+- IDX compliance: IDR currency, BEI trading hours (09:30-16:00 WIB), symbol validation (*.JK)
+- Jakarta timezone (WIB: UTC+7) throughout
+- Dark/light theme support
+- Responsive design (desktop to mobile)
+- 5-minute data caching for performance
+
+**API Endpoints:**
+```bash
+# Get chart metadata
+curl http://localhost:8000/api/charts/metadata/BBCA.JK
+
+# Get OHLCV candles
+curl "http://localhost:8000/api/charts/candles/BBCA.JK?timeframe=1d&limit=100"
+
+# Get trading status
+curl http://localhost:8000/api/charts/trading-status
+
+# List all supported symbols
+curl http://localhost:8000/api/charts/supported-symbols
+
+# WebSocket for real-time updates
+ws://localhost:8000/ws/charts/BBCA.JK
+```
+
+**React Component Usage:**
+```jsx
+import ChartComponent from './components/ChartComponent';
+
+function Dashboard() {
+  return <ChartComponent symbol="BBCA.JK" timeframe="1d" theme="dark" />;
+}
+```
+
+**Code:**
+- Backend service: `src/api/chart_service.py` (530+ lines)
+- API routes: `src/api/chart_routes.py` (280+ lines)
+- React component: `frontend/src/components/ChartComponent.jsx` (280+ lines)
+- Styling: `frontend/src/components/ChartComponent.css` (240+ lines)
+- Custom hook: `frontend/src/hooks/useChartData.js` (180+ lines)
+- Tests: `tests/test_chart_service.py` (450+ lines, 35+ tests)
+- **Total: 1,150+ lines**
+
 Monitoring
 ----------
 The project exposes Prometheus metrics using `src.monitoring.metrics`. Start
