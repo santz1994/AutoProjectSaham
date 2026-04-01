@@ -1,0 +1,11 @@
+:root{--bg:#0f1720;--card:#0b1220;--accent:#2dd4bf;--muted:#9ca3af;color-scheme:dark}
+html,body,#root{height:100%;margin:0;font-family:Inter,Segoe UI,Roboto,Helvetica,Arial}
+body{background:linear-gradient(180deg,#071021,#0f1720);color:#e6eef6}
+.app-header{padding:16px 24px;border-bottom:1px solid rgba(255,255,255,0.03)}
+.app-header h1{margin:0;font-size:1.25rem}
+.dashboard{display:flex;gap:16px;padding:24px}
+.card{background:rgba(255,255,255,0.03);padding:16px;border-radius:8px;flex:1}
+.left{flex:1}
+.right{width:420px}
+.event-list{max-height:600px;overflow:auto}
+.event-item{background:#071123;padding:8px;border-radius:6px;margin-bottom:8px;font-size:0.85rem}
