@@ -1,92 +1,36 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import Button from './Button'
 import toast from '../store/toastStore'
+import { CardSkeleton } from './LoadingSkeletons'
+import apiService from '../utils/apiService'
 import '../styles/tradelogs.css'
 
 export default function TradeLogsPage() {
   const [filterType, setFilterType] = useState('all')
   const [sortBy, setSortBy] = useState('date')
+  const [trades, setTrades] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  const allTrades = [
-    {
-      id: 1,
-      symbol: 'INDF.JK',
-      type: 'BUY',
-      quantity: 100,
-      entryPrice: 3050,
-      exitPrice: 3128,
-      profit: 7800,
-      profitPct: 2.56,
-      date: '2026-04-01 14:32:15',
-      duration: '2h 15m',
-      status: 'CLOSED',
-    },
-    {
-      id: 2,
-      symbol: 'UNVR.JK',
-      type: 'BUY',
-      quantity: 50,
-      entryPrice: 2890,
-      exitPrice: 2945,
-      profit: 2750,
-      profitPct: 1.90,
-      date: '2026-04-01 10:45:22',
-      duration: '6h 42m',
-      status: 'CLOSED',
-    },
-    {
-      id: 3,
-      symbol: 'BBCA.JK',
-      type: 'SELL',
-      quantity: 75,
-      entryPrice: 4200,
-      exitPrice: 4165,
-      profit: 2625,
-      profitPct: 0.83,
-      date: '2026-03-31 16:20:08',
-      duration: '18h 30m',
-      status: 'CLOSED',
-    },
-    {
-      id: 4,
-      symbol: 'BMRI.JK',
-      type: 'BUY',
-      quantity: 200,
-      entryPrice: 7800,
-      exitPrice: 0,
-      profit: 0,
-      profitPct: 0,
-      date: '2026-04-01 09:15:44',
-      duration: '7h 20m',
-      status: 'OPEN',
-    },
-    {
-      id: 5,
-      symbol: 'ASII.JK',
-      type: 'BUY',
-      quantity: 150,
-      entryPrice: 5200,
-      exitPrice: 5078,
-      profit: -1830,
-      profitPct: -2.35,
-      date: '2026-03-30 13:55:33',
-      duration: '5h 45m',
-      status: 'CLOSED',
-    },
-    {
-      id: 6,
-      symbol: 'TLKM.JK',
-      type: 'BUY',
-      quantity: 300,
-      entryPrice: 3850,
-      exitPrice: 3920,
-      profit: 21000,
-      profitPct: 1.82,
-      date: '2026-03-29 11:22:10',
-      duration: '1d 8h',
-      status: 'CLOSED',
-    },
-  ]
+  const loadTradeLogs = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await apiService.getTradeLogs()
+      setTrades(data)
+      toast.success('Trade logs loaded successfully')
+    } catch (err) {
+      const errorMsg = err.message || 'Failed to load trade logs'
+      setError(errorMsg)
+      toast.error(errorMsg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadTradeLogs()
+  }, [])
 
   const filteredTrades = useMemo(() => {
     let filtered = allTrades

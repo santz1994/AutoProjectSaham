@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Button from './Button'
 import toast from '../store/toastStore'
+import { CardSkeleton } from './LoadingSkeletons'
 import ChartComponent from './ChartComponent'
-import { mockMarketSentiment, mockSectorHeatmap, mockTopSignals } from '../utils/mockData'
+import apiService from '../utils/apiService'
 import '../styles/market.css'
 
 const IDX_SYMBOLS = ['BBCA.JK', 'USIM.JK', 'KLBF.JK', 'ASII.JK', 'UNVR.JK', 'INDF.JK', 'PGAS.JK', 'GGRM.JK']
@@ -11,6 +12,79 @@ const TIMEFRAMES = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w']
 export default function MarketIntelligencePage() {
   const [selectedSymbol, setSelectedSymbol] = useState('BBCA.JK')
   const [selectedTimeframe, setSelectedTimeframe] = useState('1d')
+  const [marketSentiment, setMarketSentiment] = useState(null)
+  const [sectorHeatmap, setSectorHeatmap] = useState([])
+  const [topMovers, setTopMovers] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const loadMarketData = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [sentiment, heatmap, movers] = await Promise.all([
+        apiService.getMarketSentiment(),
+        apiService.getSectorHeatmap(),
+        apiService.getTopMovers(),
+      ])
+      setMarketSentiment(sentiment)
+      setSectorHeatmap(heatmap)
+      setTopMovers(movers)
+      toast.success('Market data loaded successfully')
+    } catch (err) {
+      const errorMsg = err.message || 'Failed to load market data'
+      setError(errorMsg)
+      toast.error(errorMsg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadMarketData()
+  }, [])
+
+  const handleRefresh = async () => {
+    await loadMarketData()
+  }
+
+  if (loading) {
+    return (
+      <div className="market-page">
+        <h1>Market Intelligence</h1>
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+        <CardSkeleton />
+        <CardSkeleton />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="market-page">
+        <h1>Market Intelligence</h1>
+        <div style={{
+          textAlign: 'center',
+          padding: '3rem',
+          background: '#1a1a1a',
+          borderRadius: '12px',
+          border: '1px solid #ff6b6b'
+        }}>
+          <p style={{ color: '#ff6b6b', marginBottom: '1rem' }}>❌ {error}</p>
+          <Button 
+            variant="primary"
+            onClick={handleRefresh}
+          >
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="market-page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -20,7 +94,7 @@ export default function MarketIntelligencePage() {
             variant="primary" 
             icon={<span>🔄</span>}
             size="md"
-            onClick={() => toast.success('Market data refreshed!')}
+            onClick={handleRefresh}
           >
             Refresh Data
           </Button>
@@ -76,108 +150,120 @@ export default function MarketIntelligencePage() {
           <ChartComponent symbol={selectedSymbol} timeframe={selectedTimeframe} theme="dark" />
         </div>
       </div>
+
+      {/* Market Sentiment */}
       <div className="market-card sentiment-card">
         <h2>📊 Market Sentiment</h2>
-        <div className="sentiment-container">
-          <div className="sentiment-score">
-            <div className="score-value">{mockMarketSentiment.score}/100</div>
-            <div className="score-label">{mockMarketSentiment.sentiment}</div>
-          </div>
-          <div className="sentiment-breakdown">
-            <div className="breakdown-item">
-              <span>News Analysis</span>
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${mockMarketSentiment.sourceBreakdown.newsAnalysis * 100}%` }}></div>
+        {marketSentiment && (
+          <>
+            <div className="sentiment-container">
+              <div className="sentiment-score">
+                <div className="score-value">{marketSentiment.score}/100</div>
+                <div className="score-label">{marketSentiment.sentiment}</div>
               </div>
-              <span>{(mockMarketSentiment.sourceBreakdown.newsAnalysis * 100).toFixed(0)}%</span>
-            </div>
-            <div className="breakdown-item">
-              <span>Technical</span>
-              <div className="progress-bar">
-                <div className="progress-fill neutral" style={{ width: `${mockMarketSentiment.sourceBreakdown.technicalAnalysis * 100}%` }}></div>
+              <div className="sentiment-breakdown">
+                <div className="breakdown-item">
+                  <span>News Analysis</span>
+                  <div className="progress-bar">
+                    <div className="progress-fill" style={{ width: `${marketSentiment.sourceBreakdown.newsAnalysis * 100}%` }}></div>
+                  </div>
+                  <span>{(marketSentiment.sourceBreakdown.newsAnalysis * 100).toFixed(0)}%</span>
+                </div>
+                <div className="breakdown-item">
+                  <span>Technical</span>
+                  <div className="progress-bar">
+                    <div className="progress-fill neutral" style={{ width: `${marketSentiment.sourceBreakdown.technicalAnalysis * 100}%` }}></div>
+                  </div>
+                  <span>{(marketSentiment.sourceBreakdown.technicalAnalysis * 100).toFixed(0)}%</span>
+                </div>
+                <div className="breakdown-item">
+                  <span>Institutional Flow</span>
+                  <div className="progress-bar">
+                    <div className="progress-fill bearish" style={{ width: `${marketSentiment.sourceBreakdown.institutionalFlow * 100}%` }}></div>
+                  </div>
+                  <span>{(marketSentiment.sourceBreakdown.institutionalFlow * 100).toFixed(0)}%</span>
+                </div>
               </div>
-              <span>{(mockMarketSentiment.sourceBreakdown.technicalAnalysis * 100).toFixed(0)}%</span>
             </div>
-            <div className="breakdown-item">
-              <span>Institutional Flow</span>
-              <div className="progress-bar">
-                <div className="progress-fill bearish" style={{ width: `${mockMarketSentiment.sourceBreakdown.institutionalFlow * 100}%` }}></div>
-              </div>
-              <span>{(mockMarketSentiment.sourceBreakdown.institutionalFlow * 100).toFixed(0)}%</span>
-            </div>
-          </div>
-        </div>
 
-        {/* News Feed */}
-        <div className="news-feed">
-          <h3>Recent Market News</h3>
-          {mockMarketSentiment.recentNews && mockMarketSentiment.recentNews.map((item, idx) => (
-            <div key={idx} className="news-item">
-              <div className="news-time">{new Date(item.timestamp).toLocaleTimeString('id-ID')}</div>
-              <div className="news-content">
-                <div className="news-source">{item.source}</div>
-                <div className="news-headline">{item.headline}</div>
-              </div>
+            {/* News Feed */}
+            <div className="news-feed">
+              <h3>Recent Market News</h3>
+              {marketSentiment.recentNews && marketSentiment.recentNews.length > 0 ? (
+                marketSentiment.recentNews.map((item, idx) => (
+                  <div key={idx} className="news-item">
+                    <div className="news-time">{new Date(item.timestamp).toLocaleTimeString('id-ID')}</div>
+                    <div className="news-content">
+                      <div className="news-source">{item.source}</div>
+                      <div className="news-headline">{item.headline}</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p style={{ color: '#999' }}>No recent news available</p>
+              )}
             </div>
-          ))}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Sector Heatmap */}
       <div className="market-card heatmap-card">
         <h2>🔥 Sector Performance Heatmap</h2>
-        <div className="heatmap-grid">
-          {mockSectorHeatmap && mockSectorHeatmap.map((sector) => {
-            const perfClass = sector.value > 5 ? 'bullish' : sector.value < -2 ? 'bearish' : 'neutral'
-            return (
-              <div
-                key={sector.name}
-                className={`heatmap-tile ${perfClass}`}
-                title={`${sector.name}: ${sector.value > 0 ? '+' : ''}${sector.value}%`}
-              >
-                <div className="tile-name">{sector.name}</div>
-                <div className="tile-perf">{sector.value > 0 ? '📈' : '📉'} {Math.abs(sector.value).toFixed(1)}%</div>
-              </div>
-            )
-          })}
-        </div>
+        {sectorHeatmap && sectorHeatmap.length > 0 ? (
+          <div className="heatmap-grid">
+            {sectorHeatmap.map((sector) => {
+              const perfClass = sector.value > 5 ? 'bullish' : sector.value < -2 ? 'bearish' : 'neutral'
+              return (
+                <div
+                  key={sector.name}
+                  className={`heatmap-tile ${perfClass}`}
+                  title={`${sector.name}: ${sector.value > 0 ? '+' : ''}${sector.value}%`}
+                >
+                  <div className="tile-name">{sector.name}</div>
+                  <div className="tile-perf">{sector.value > 0 ? '📈' : '📉'} {Math.abs(sector.value).toFixed(1)}%</div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <p style={{ color: '#999', padding: '2rem', textAlign: 'center' }}>No sector data available</p>
+        )}
       </div>
 
       {/* Top Movers */}
       <div className="market-card movers-card">
         <h2>🚀 Top Movers Today</h2>
-        <div className="movers-grid">
-          <div className="movers-column gainers">
-            <h3>Top Gainers</h3>
-            <div className="mover-item">
-              <div className="mover-symbol">INDF.JK</div>
-              <div className="mover-change">+3.2%</div>
+        {topMovers && (
+          <div className="movers-grid">
+            <div className="movers-column gainers">
+              <h3>Top Gainers</h3>
+              {topMovers.gainers && topMovers.gainers.length > 0 ? (
+                topMovers.gainers.map((mover, idx) => (
+                  <div key={idx} className="mover-item">
+                    <div className="mover-symbol">{mover.symbol}</div>
+                    <div className="mover-change">+{mover.change.toFixed(2)}%</div>
+                  </div>
+                ))
+              ) : (
+                <p style={{ color: '#999', fontSize: '0.9rem' }}>No gainers data</p>
+              )}
             </div>
-            <div className="mover-item">
-              <div className="mover-symbol">UNVR.JK</div>
-              <div className="mover-change">+2.1%</div>
-            </div>
-            <div className="mover-item">
-              <div className="mover-symbol">ANTM.JK</div>
-              <div className="mover-change">+0.8%</div>
-            </div>
-          </div>
-          <div className="movers-column losers">
-            <h3>Top Losers</h3>
-            <div className="mover-item">
-              <div className="mover-symbol">ASII.JK</div>
-              <div className="mover-change">-2.3%</div>
-            </div>
-            <div className="mover-item">
-              <div className="mover-symbol">PGAS.JK</div>
-              <div className="mover-change">-1.8%</div>
-            </div>
-            <div className="mover-item">
-              <div className="mover-symbol">GGRM.JK</div>
-              <div className="mover-change">-0.9%</div>
+            <div className="movers-column losers">
+              <h3>Top Losers</h3>
+              {topMovers.losers && topMovers.losers.length > 0 ? (
+                topMovers.losers.map((mover, idx) => (
+                  <div key={idx} className="mover-item">
+                    <div className="mover-symbol">{mover.symbol}</div>
+                    <div className="mover-change">{mover.change.toFixed(2)}%</div>
+                  </div>
+                ))
+              ) : (
+                <p style={{ color: '#999', fontSize: '0.9rem' }}>No losers data</p>
+              )}
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

@@ -1,64 +1,93 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Button from './Button'
 import toast from '../store/toastStore'
+import { CardSkeleton } from './LoadingSkeletons'
+import apiService from '../utils/apiService'
 import '../styles/strategies.css'
 
 export default function StrategiesPage() {
   const [selectedStrategy, setSelectedStrategy] = useState(null)
+  const [strategies, setStrategies] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  const strategies = [
-    {
-      id: 'conservative',
-      name: 'Conservative',
-      icon: '🛡️',
-      desc: 'Low risk, steady returns',
-      expectedReturn: '8-12% p.a.',
-      sharpeRatio: 1.2,
-      maxDrawdown: '5-8%',
-      rules: [
-        'Only enter on volume +30%',
-        'Take profit at +2%',
-        'Stop loss at -1%',
-        'Max 2 active trades',
-      ],
-    },
-    {
-      id: 'moderate',
-      name: 'Moderate',
-      icon: '⚖️',
-      desc: 'Balanced risk/reward',
-      expectedReturn: '15-25% p.a.',
-      sharpeRatio: 1.8,
-      maxDrawdown: '10-15%',
-      rules: [
-        'Enter on RSI oversold + sentiment check',
-        'Take profit at +3-5%',
-        'Stop loss at -2%',
-        'Max 4 active trades',
-      ],
-    },
-    {
-      id: 'aggressive',
-      name: 'Aggressive',
-      icon: '⚡',
-      desc: 'High risk, high reward',
-      expectedReturn: '30-50% p.a.',
-      sharpeRatio: 2.1,
-      maxDrawdown: '20-30%',
-      rules: [
-        'Momentum-based entry (volume + price action)',
-        'Take profit at +5-10%',
-        'Stop loss at -3%',
-        'Max 6 active trades',
-      ],
-    },
-  ]
+  const loadStrategies = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await apiService.getStrategies()
+      setStrategies(data)
+      toast.success('Strategies loaded successfully')
+    } catch (err) {
+      const errorMsg = err.message || 'Failed to load strategies'
+      setError(errorMsg)
+      toast.error(errorMsg)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  return (
-    <div className="strategies-page">
-      <h1>Strategy Builder</h1>
+  useEffect(() => {
+    loadStrategies()
+  }, [])
 
-      <div className="strategies-grid">
+  if (loading) {
+    return (
+      <div className="strategies-page">
+        <h1>Strategy Builder</h1>
+        <div className="strategies-grid">
+          {[1, 2, 3].map((i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="strategies-page">
+        <h1>Strategy Builder</h1>
+        <div style={{
+          textAlign: 'center',
+          padding: '3rem',
+          background: '#1a1a1a',
+          borderRadius: '12px',
+          border: '1px solid #ff6b6b'
+        }}>
+          <p style={{ color: '#ff6b6b', marginBottom: '1rem' }}>❌ {error}</p>
+          <Button 
+            variant="primary"
+            onClick={loadStrategies}
+          >
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (strategies.length === 0) {
+    return (
+      <div className="strategies-page">
+        <h1>Strategy Builder</h1>
+        <div style={{
+          textAlign: 'center',
+          padding: '3rem',
+          background: '#1a1a1a',
+          borderRadius: '12px'
+        }}>
+          <p style={{ color: '#999', marginBottom: '1rem' }}>No strategies available</p>
+          <Button 
+            variant="primary"
+            onClick={loadStrategies}
+          >
+            Refresh
+          </Button>
+        </div>
+      </div>
+    )
+  }
         {strategies.map((strategy) => (
           <div
             key={strategy.id}

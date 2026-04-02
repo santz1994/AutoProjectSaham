@@ -3,13 +3,7 @@ import Button from './Button'
 import toast from '../store/toastStore'
 import { CardSkeleton } from './LoadingSkeletons'
 import useTradingStore from '../store/tradingStore'
-import {
-  mockPortfolioData,
-  mockBotStatus,
-  mockTopSignals,
-  mockPortfolioHealthScore,
-  mockRecentActivity,
-} from '../utils/mockData'
+import apiService from '../utils/apiService'
 import '../styles/dashboard.css'
 
 function PortfolioCard() {
@@ -19,15 +13,32 @@ function PortfolioCard() {
     setPortfolio: s.setPortfolio,
   }))
 
-  useEffect(() => {
-    // Simulate loading
+  const loadPortfolio = async () => {
     setLoading(true)
-    setTimeout(() => {
-      setPortfolio(mockPortfolioData)
-      setLoading(false)
+    try {
+      const data = await apiService.getPortfolio()
+      setPortfolio(data)
       toast.success('Portfolio data loaded')
-    }, 1000)
+    } catch (error) {
+      toast.error('Failed to load portfolio: ' + error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadPortfolio()
   }, [])
+
+  const handleRefresh = async () => {
+    try {
+      await apiService.refreshPortfolio()
+      await loadPortfolio()
+      toast.success('Portfolio refreshed!')
+    } catch (error) {
+      toast.error('Failed to refresh portfolio: ' + error.message)
+    }
+  }
 
   if (loading) {
     return <CardSkeleton />
@@ -43,13 +54,7 @@ function PortfolioCard() {
           variant="ghost" 
           size="sm"
           icon={<span>🔄</span>}
-          onClick={() => {
-            setLoading(true)
-            setTimeout(() => {
-              setLoading(false)
-              toast.success('Portfolio refreshed!')
-            }, 500)
-          }}
+          onClick={handleRefresh}
         >
           Refresh
         </Button>
@@ -80,8 +85,25 @@ function PortfolioCard() {
 }
 
 function BotStatusCard() {
+  const [botData, setBotData] = useState(null)
   const botStatus = useTradingStore((s) => s.botStatus)
   const killSwitchTriggered = useTradingStore((s) => s.killSwitchTriggered)
+
+  useEffect(() => {
+    const loadBotStatus = async () => {
+      try {
+        const data = await apiService.getBotStatus()
+        setBotData(data)
+      } catch (error) {
+        console.error('Failed to load bot status:', error)
+      }
+    }
+    loadBotStatus()
+    
+    // Refresh every 10 seconds
+    const interval = setInterval(loadBotStatus, 10000)
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <div className={`card bot-status-card ${killSwitchTriggered ? 'disabled' : ''}`}>
@@ -96,11 +118,13 @@ function BotStatusCard() {
             {botStatus.toUpperCase()}
             {killSwitchTriggered && <span className="emergency-badge">EMERGENCY STOP ACTIVE</span>}
           </div>
-          <div className="status-meta">
-            <p>Uptime: {mockBotStatus.uptime}</p>
-            <p>Active Trades: {mockBotStatus.activeTrades}</p>
-            <p>Today Win Rate: {(mockBotStatus.winRate * 100).toFixed(1)}%</p>
-          </div>
+          {botData && (
+            <div className="status-meta">
+              <p>Uptime: {botData.uptime || 'N/A'}</p>
+              <p>Active Trades: {botData.activeTrades || 0}</p>
+              <p>Today Win Rate: {((botData.winRate || 0) * 100).toFixed(1)}%</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -108,8 +132,26 @@ function BotStatusCard() {
 }
 
 function HealthScoreWidget() {
-  const portfolioHealthScore = useTradingStore((s) => s.portfolioHealthScore)
-  const health = mockPortfolioHealthScore
+  const [health, setHealth] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadHealth = async () => {
+      try {
+        const data = await apiService.getPortfolioHealth()
+        setHealth(data)
+      } catch (error) {
+        console.error('Failed to load portfolio health:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadHealth()
+  }, [])
+
+  if (loading || !health) {
+    return <CardSkeleton />
+  }
 
   return (
     <div className="card health-score-card">
@@ -134,24 +176,14 @@ function HealthScoreWidget() {
           </div>
         </div>
         <div className="health-factors">
-          <div className="factor">
-            <label>Diversification</label>
-            <div className="bar">
-              <span style={{ width: `${health.factors.diversification}%` }}></span>
+          {health.factors && Object.entries(health.factors).slice(0, 3).map(([key, value]) => (
+            <div className="factor" key={key}>
+              <label>{key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')}</label>
+              <div className="bar">
+                <span style={{ width: `${value}%` }}></span>
+              </div>
             </div>
-          </div>
-          <div className="factor">
-            <label>Risk Balance</label>
-            <div className="bar">
-              <span style={{ width: `${health.factors.riskBalance}%` }}></span>
-            </div>
-          </div>
-          <div className="factor">
-            <label>Profitability</label>
-            <div className="bar">
-              <span style={{ width: `${health.factors.profitability}%` }}></span>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>
@@ -159,60 +191,110 @@ function HealthScoreWidget() {
 }
 
 function TopSignalsWidget() {
-  const signals = mockTopSignals.slice(0, 3)
+  const [signals, setSignals] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadSignals = async () => {
+      try {
+        const data = await apiService.getTopSignals(3)
+        setSignals(data)
+      } catch (error) {
+        console.error('Failed to load signals:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadSignals()
+  }, [])
+
+  if (loading) {
+    return <CardSkeleton />
+  }
 
   return (
     <div className="card signals-card">
       <h2>Top AI Signals 🎯</h2>
       <div className="signals-list">
-        {signals.map((signal) => (
-          <div key={signal.id} className={`signal-item ${signal.signal.toLowerCase().replace('_', '-')}`}>
-            <div className="signal-header">
-              <span className="symbol">{signal.symbol}</span>
-              <span className={`signal-badge ${signal.signal.toLowerCase().replace('_', '-')}`}>
-                {signal.signal.replace('_', ' ')}
-              </span>
-            </div>
-            <div className="signal-body">
-              <p className="reason">📊 {signal.reason}</p>
-              <div className="signal-meta">
-                <span>Confidence: {(signal.confidence * 100).toFixed(0)}%</span>
-                <span className="target">Target: {signal.predictedMove}</span>
+        {signals.length === 0 ? (
+          <p style={{ color: '#94a3b8', textAlign: 'center', padding: '2rem' }}>
+            No signals available at the moment
+          </p>
+        ) : (
+          signals.map((signal) => (
+            <div key={signal.id} className={`signal-item ${signal.signal.toLowerCase().replace('_', '-')}`}>
+              <div className="signal-header">
+                <span className="symbol">{signal.symbol}</span>
+                <span className={`signal-badge ${signal.signal.toLowerCase().replace('_', '-')}`}>
+                  {signal.signal.replace('_', ' ')}
+                </span>
+              </div>
+              <div className="signal-body">
+                <p className="reason">📊 {signal.reason}</p>
+                <div className="signal-meta">
+                  <span>Confidence: {(signal.confidence * 100).toFixed(0)}%</span>
+                  <span className="target">Target: {signal.predictedMove}</span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   )
 }
 
 function RecentActivityWidget() {
-  const activities = mockRecentActivity.slice(0, 5)
+  const [activities, setActivities] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadActivity = async () => {
+      try {
+        const data = await apiService.getRecentActivity(5)
+        setActivities(data)
+      } catch (error) {
+        console.error('Failed to load activity:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadActivity()
+  }, [])
+
+  if (loading) {
+    return <CardSkeleton />
+  }
 
   return (
     <div className="card activity-card">
       <h2>Recent Activity</h2>
       <div className="activity-list">
-        {activities.map((activity) => (
-          <div key={activity.id} className={`activity-item ${activity.type.toLowerCase()}`}>
-            <div className="activity-icon">
-              {activity.type === 'BUY' ? '📈' : activity.type === 'SELL' ? '📉' : '📊'}
-            </div>
-            <div className="activity-content">
-              <div className="activity-main">
-                {activity.symbol && (
-                  <span className="symbol">{activity.symbol}</span>
-                )}
-                <span className="message">{activity.message || `${activity.type} ${activity.quantity} units`}</span>
+        {activities.length === 0 ? (
+          <p style={{ color: '#94a3b8', textAlign: 'center', padding: '2rem' }}>
+            No recent activity
+          </p>
+        ) : (
+          activities.map((activity) => (
+            <div key={activity.id} className={`activity-item ${activity.type.toLowerCase()}`}>
+              <div className="activity-icon">
+                {activity.type === 'BUY' ? '📈' : activity.type === 'SELL' ? '📉' : '📊'}
               </div>
-              <div className="activity-meta">
-                <small>{new Date(activity.timestamp).toLocaleTimeString('id-ID')}</small>
+              <div className="activity-content">
+                <div className="activity-main">
+                  {activity.symbol && (
+                    <span className="symbol">{activity.symbol}</span>
+                  )}
+                  <span className="message">{activity.message || `${activity.type} ${activity.quantity} units`}</span>
+                </div>
+                <div className="activity-meta">
+                  <small>{new Date(activity.timestamp).toLocaleTimeString('id-ID')}</small>
+                </div>
               </div>
+              <div className={`status-badge ${activity.status.toLowerCase()}`}>{activity.status}</div>
             </div>
-            <div className={`status-badge ${activity.status.toLowerCase()}`}>{activity.status}</div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   )
@@ -220,6 +302,18 @@ function RecentActivityWidget() {
 
 export default function DashboardPage() {
   const killSwitchTriggered = useTradingStore((s) => s.killSwitchTriggered)
+
+  const handleGenerateReport = async () => {
+    try {
+      toast.info('Generating performance report...')
+      const report = await apiService.getPerformanceReport('today')
+      toast.success('Performance report ready!')
+      // Could open a modal or download the report here
+      console.log('Performance Report:', report)
+    } catch (error) {
+      toast.error('Failed to generate report: ' + error.message)
+    }
+  }
 
   return (
     <div className={`dashboard-page ${killSwitchTriggered ? 'kill-switch-mode' : ''}`}>
@@ -235,7 +329,7 @@ export default function DashboardPage() {
           <Button 
             variant="primary" 
             icon={<span>📊</span>}
-            onClick={() => toast.info('Performance report generated')}
+            onClick={handleGenerateReport}
           >
             Performance Report
           </Button>

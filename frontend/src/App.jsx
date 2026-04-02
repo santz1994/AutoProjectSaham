@@ -12,6 +12,8 @@ import StrategiesPage from './components/StrategiesPage'
 import TradeLogsPage from './components/TradeLogsPage'
 import SettingsPage from './components/SettingsPage'
 import Login from './components/Login'
+import Register from './components/Register'
+import ForgotPassword from './components/ForgotPassword'
 import PWAInstallButton from './components/PWAInstallButton'
 // Hooks and Utilities
 import useMarketFeed from './hooks/useMarketFeed'
@@ -32,6 +34,7 @@ import './styles/settings.css'
 export default function App() {
   const [user, setUser] = useState(null)
   const [currentPage, setCurrentPage] = useState('dashboard')
+  const [authPage, setAuthPage] = useState('login') // 'login', 'register', 'forgot-password'
   const [isInitializing, setIsInitializing] = useState(true)
   const { cssVariables, darkMode, viewport } = useResponsive()
   const killSwitchTriggered = useTradingStore((s) => s.killSwitchTriggered)
@@ -125,6 +128,7 @@ export default function App() {
   // Handle login with toast notification
   const handleLogin = (username) => {
     setUser(username)
+    setAuthPage('login') // Reset auth page
     toast.success(`Welcome, ${username}!`, { duration: 3000 })
   }
 
@@ -138,13 +142,28 @@ export default function App() {
     return <LoadingOverlay message="Initializing AutoSaham..." />
   }
 
-  // Show login if not authenticated
+  // Show authentication pages if not authenticated
   if (!user) {
     return (
       <ErrorBoundary>
-        <div className="auth-container">
-          <Login onLogin={handleLogin} />
-        </div>
+        {authPage === 'login' && (
+          <Login
+            onLogin={handleLogin}
+            onSwitchToRegister={() => setAuthPage('register')}
+            onSwitchToForgotPassword={() => setAuthPage('forgot-password')}
+          />
+        )}
+        {authPage === 'register' && (
+          <Register
+            onSuccess={handleLogin}
+            onSwitchToLogin={() => setAuthPage('login')}
+          />
+        )}
+        {authPage === 'forgot-password' && (
+          <ForgotPassword
+            onSwitchToLogin={() => setAuthPage('login')}
+          />
+        )}
         <ToastContainer />
       </ErrorBoundary>
     )
