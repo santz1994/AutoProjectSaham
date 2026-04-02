@@ -1,4 +1,6 @@
 import React, { useState } from 'react'
+import Button from './Button'
+import toast from '../store/toastStore'
 import ChartComponent from './ChartComponent'
 import { mockMarketSentiment, mockSectorHeatmap, mockTopSignals } from '../utils/mockData'
 import '../styles/market.css'
@@ -11,7 +13,26 @@ export default function MarketIntelligencePage() {
   const [selectedTimeframe, setSelectedTimeframe] = useState('1d')
   return (
     <div className="market-page">
-      <h1>Market Intelligence</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <h1>Market Intelligence</h1>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <Button 
+            variant="primary" 
+            icon={<span>🔄</span>}
+            size="md"
+            onClick={() => toast.success('Market data refreshed!')}
+          >
+            Refresh Data
+          </Button>
+          <Button 
+            variant="secondary"
+            icon={<span>📊</span>}
+            onClick={() => toast.info('Export feature coming soon')}
+          >
+            Export Report
+          </Button>
+        </div>
+      </div>
 
       {/* Real-Time Stock Chart */}
       <div className="market-card chart-card">
@@ -32,15 +53,19 @@ export default function MarketIntelligencePage() {
           
           <div className="control-group">
             <label>Timeframe</label>
-            <div className="timeframe-buttons">
+            <div className="timeframe-buttons" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               {TIMEFRAMES.map((tf) => (
-                <button
+                <Button
                   key={tf}
-                  className={`timeframe-btn ${selectedTimeframe === tf ? 'active' : ''}`}
-                  onClick={() => setSelectedTimeframe(tf)}
+                  variant={selectedTimeframe === tf ? 'primary' : 'ghost'}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedTimeframe(tf)
+                    toast.info(`Timeframe changed to ${tf}`)
+                  }}
                 >
                   {tf}
-                </button>
+                </Button>
               ))}
             </div>
           </div>

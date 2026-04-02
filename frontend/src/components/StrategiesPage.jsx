@@ -1,4 +1,6 @@
 import React, { useState } from 'react'
+import Button from './Button'
+import toast from '../store/toastStore'
 import '../styles/strategies.css'
 
 export default function StrategiesPage() {
@@ -84,14 +86,40 @@ export default function StrategiesPage() {
               </div>
             </div>
 
-            <button className="strategy-btn">Deploy Strategy</button>
+            <Button 
+              variant="primary" 
+              size="md"
+              onClick={() => {
+                setSelectedStrategy(strategy)
+                toast.success(`${strategy.name} strategy selected!`)
+              }}
+            >
+              Deploy Strategy
+            </Button>
           </div>
         ))}
       </div>
 
       {selectedStrategy && (
         <div className="strategy-details">
-          <h2>📋 {selectedStrategy.name} Strategy Rules</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <h2>📋 {selectedStrategy.name} Strategy Rules</h2>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <Button 
+                variant="success" 
+                icon={<span>🚀</span>}
+                onClick={() => toast.success('Strategy deployed successfully!')}
+              >
+                Activate Now
+              </Button>
+              <Button 
+                variant="secondary"
+                onClick={() => toast.info('Backtest started...')}
+              >
+                Run Backtest
+              </Button>
+            </div>
+          </div>
           <div className="rules-list">
             {selectedStrategy.rules.map((rule, idx) => (
               <div key={idx} className="rule-item">

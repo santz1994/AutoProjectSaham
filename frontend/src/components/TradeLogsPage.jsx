@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react'
+import Button from './Button'
+import toast from '../store/toastStore'
 import '../styles/tradelogs.css'
 
 export default function TradeLogsPage() {
@@ -108,7 +110,25 @@ export default function TradeLogsPage() {
 
   return (
     <div className="tradelogs-page">
-      <h1>Trade Logs & Analytics</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <h1>Trade Logs & Analytics</h1>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <Button 
+            variant="success" 
+            icon={<span>📥</span>}
+            onClick={() => toast.success('Trades exported to CSV!')}
+          >
+            Export CSV
+          </Button>
+          <Button 
+            variant="primary"
+            icon={<span>📊</span>}
+            onClick={() => toast.info('Analytics report generated')}
+          >
+            Generate Report
+          </Button>
+        </div>
+      </div>
 
       {/* Stats Overview */}
       <div className="stats-overview">

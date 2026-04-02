@@ -1,4 +1,7 @@
 import React, { useEffect, useState } from 'react'
+import Button from './Button'
+import toast from '../store/toastStore'
+import { CardSkeleton } from './LoadingSkeletons'
 import useTradingStore from '../store/tradingStore'
 import {
   mockPortfolioData,
@@ -10,21 +13,47 @@ import {
 import '../styles/dashboard.css'
 
 function PortfolioCard() {
+  const [loading, setLoading] = useState(true)
   const { portfolio, setPortfolio } = useTradingStore((s) => ({
     portfolio: s.portfolio,
     setPortfolio: s.setPortfolio,
   }))
 
   useEffect(() => {
-    // Load mock data
-    setPortfolio(mockPortfolioData)
+    // Simulate loading
+    setLoading(true)
+    setTimeout(() => {
+      setPortfolio(mockPortfolioData)
+      setLoading(false)
+      toast.success('Portfolio data loaded')
+    }, 1000)
   }, [])
+
+  if (loading) {
+    return <CardSkeleton />
+  }
 
   const isPositive = portfolio.totalP_L >= 0
 
   return (
     <div className="card portfolio-card">
-      <h2>Portfolio Summary</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h2>Portfolio Summary</h2>
+        <Button 
+          variant="ghost" 
+          size="sm"
+          icon={<span>🔄</span>}
+          onClick={() => {
+            setLoading(true)
+            setTimeout(() => {
+              setLoading(false)
+              toast.success('Portfolio refreshed!')
+            }, 500)
+          }}
+        >
+          Refresh
+        </Button>
+      </div>
       <div className="portfolio-grid">
         <div className="portfolio-item">
           <label>Total Value</label>
@@ -199,6 +228,26 @@ export default function DashboardPage() {
           ⏹️ EMERGENCY STOP ACTIVE - All trading halted. Resume trading in top menu.
         </div>
       )}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <h1 style={{ margin: 0, color: '#f1f5f9' }}>Dashboard</h1>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <Button 
+            variant="primary" 
+            icon={<span>📊</span>}
+            onClick={() => toast.info('Performance report generated')}
+          >
+            Performance Report
+          </Button>
+          <Button 
+            variant="secondary"
+            icon={<span>⚙️</span>}
+            onClick={() => toast.info('Opening settings...')}
+          >
+            Bot Settings
+          </Button>
+        </div>
+      </div>
 
       <div className="dashboard-grid">
         <div className="grid-item span-full">
