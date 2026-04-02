@@ -170,27 +170,27 @@ export default function StrategiesPage() {
             <div className="backtest-stats">
               <div className="stat">
                 <span>Total Return</span>
-                <span className="value positive">+45.2%</span>
+                <span className="value positive">+{selectedStrategy.backtestResults?.totalReturn || '45.2'}%</span>
               </div>
               <div className="stat">
                 <span>Win Rate</span>
-                <span className="value">62%</span>
+                <span className="value">{selectedStrategy.backtestResults?.winRate || '62'}%</span>
               </div>
               <div className="stat">
                 <span>Winning Trades</span>
-                <span className="value positive">124</span>
+                <span className="value positive">{selectedStrategy.backtestResults?.winningTrades || '124'}</span>
               </div>
               <div className="stat">
                 <span>Losing Trades</span>
-                <span className="value negative">76</span>
+                <span className="value negative">{selectedStrategy.backtestResults?.losingTrades || '76'}</span>
               </div>
               <div className="stat">
                 <span>Profit Factor</span>
-                <span className="value">1.8x</span>
+                <span className="value">{selectedStrategy.backtestResults?.profitFactor || '1.8'}x</span>
               </div>
               <div className="stat">
                 <span>Avg Trade Value</span>
-                <span className="value positive">+2.4%</span>
+                <span className="value positive">+{selectedStrategy.backtestResults?.avgTradeValue || '2.4'}%</span>
               </div>
             </div>
           </div>

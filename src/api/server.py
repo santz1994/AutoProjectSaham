@@ -40,8 +40,12 @@ if FASTAPI_AVAILABLE:
     from src.pipeline.scheduler import PipelineScheduler
     from src.brokers.paper_adapter import PaperBrokerAdapter
     from src.api.auth import register_user, authenticate_user, get_user_from_token, invalidate_token
+    from src.api.frontend_routes import router as frontend_router
 
     app = FastAPI(title="AutoSaham API", version="0.1")
+    
+    # Register frontend API routes
+    app.include_router(frontend_router)
     
     # SECURITY FIX: Configure CORS to allow frontend on localhost:5173
     app.add_middleware(
@@ -50,7 +54,7 @@ if FASTAPI_AVAILABLE:
             "http://localhost:5173",      # Vite dev server
             "http://localhost:5174",      # Vite fallback port
             "http://127.0.0.1:5173",      # Loopback variant
-            "http://127.0.0.1:5174",      # Loopback variant
+            "http:// 127.0.0.1:5174",      # Loopback variant
             "http://localhost:8000",      # API server (for UI served from backend)
             "http://localhost:3000",      # Alternative dev port
         ],

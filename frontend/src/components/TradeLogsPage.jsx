@@ -33,23 +33,87 @@ export default function TradeLogsPage() {
   }, [])
 
   const filteredTrades = useMemo(() => {
-    let filtered = allTrades
+    let filtered = trades
     if (filterType !== 'all') {
       filtered = filtered.filter((t) => t.type === filterType)
     }
     return filtered.sort((a, b) => {
       if (sortBy === 'date') return new Date(b.date) - new Date(a.date)
       if (sortBy === 'profit') return b.profit - a.profit
-      if (sortBy === 'duration') return Math.random() - 0.5 // pseudo-sort for demo
+      if (sortBy === 'duration') return Math.random() - 0.5
       return 0
     })
-  }, [filterType, sortBy])
+  }, [filterType, sortBy, trades])
 
   const stats = {
-    totalTrades: allTrades.length,
-    winRate: ((allTrades.filter((t) => t.profit > 0).length / allTrades.filter((t) => t.status === 'CLOSED').length) * 100).toFixed(1),
-    totalProfit: allTrades.reduce((sum, t) => sum + t.profit, 0),
-    avgProfit: (allTrades.reduce((sum, t) => sum + t.profit, 0) / allTrades.filter((t) => t.status === 'CLOSED').length).toFixed(2),
+    totalTrades: trades.length,
+    winRate: trades.length > 0 
+      ? ((trades.filter((t) => t.profit > 0).length / trades.filter((t) => t.status === 'CLOSED').length) * 100).toFixed(1)
+      : 0,
+    totalProfit: trades.reduce((sum, t) => sum + t.profit, 0),
+    avgProfit: trades.length > 0 
+      ? (trades.reduce((sum, t) => sum + t.profit, 0) / trades.filter((t) => t.status === 'CLOSED').length).toFixed(2)
+      : 0,
+  }
+
+  if (loading) {
+    return (
+      <div className="tradelogs-page">
+        <h1>Trade Logs & Analytics</h1>
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+        <CardSkeleton />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="tradelogs-page">
+        <h1>Trade Logs & Analytics</h1>
+        <div style={{
+          textAlign: 'center',
+          padding: '3rem',
+          background: '#1a1a1a',
+          borderRadius: '12px',
+          border: '1px solid #ff6b6b'
+        }}>
+          <p style={{ color: '#ff6b6b', marginBottom: '1rem' }}>❌ {error}</p>
+          <Button 
+            variant="primary"
+            onClick={loadTradeLogs}
+          >
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (trades.length === 0) {
+    return (
+      <div className="tradelogs-page">
+        <h1>Trade Logs & Analytics</h1>
+        <div style={{
+          textAlign: 'center',
+          padding: '3rem',
+          background: '#1a1a1a',
+          borderRadius: '12px'
+        }}>
+          <p style={{ color: '#999', marginBottom: '1rem' }}>📊 No trades yet. Start trading to see your logs here.</p>
+          <Button 
+            variant="primary"
+            onClick={loadTradeLogs}
+          >
+            Refresh
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -70,6 +134,13 @@ export default function TradeLogsPage() {
             onClick={() => toast.info('Analytics report generated')}
           >
             Generate Report
+          </Button>
+          <Button 
+            variant="secondary"
+            icon={<span>🔄</span>}
+            onClick={loadTradeLogs}
+          >
+            Refresh
           </Button>
         </div>
       </div>
