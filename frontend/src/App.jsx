@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import Navbar from './components/Navbar'
-import Sidebar from './components/Sidebar'
+// Enhanced Components
+import NavbarEnhanced from './components/NavbarEnhanced'
+import SidebarEnhanced from './components/SidebarEnhanced'
+import ToastContainer from './components/Toast'
+import ErrorBoundary from './components/ErrorBoundary'
+import { LoadingOverlay } from './components/LoadingSkeletons'
+// Page Components
 import DashboardPage from './components/DashboardPage'
 import MarketIntelligencePage from './components/MarketIntelligencePage'
 import StrategiesPage from './components/StrategiesPage'
@@ -8,13 +13,16 @@ import TradeLogsPage from './components/TradeLogsPage'
 import SettingsPage from './components/SettingsPage'
 import Login from './components/Login'
 import PWAInstallButton from './components/PWAInstallButton'
+// Hooks and Utilities
 import useMarketFeed from './hooks/useMarketFeed'
 import useResponsive from './hooks/useResponsive'
 import useTradingStore from './store/tradingStore'
 import AuthService from './utils/authService'
+import toast from './store/toastStore'
+// Styles
 import './styles.css'
-import './styles/navbar.css'
-import './styles/sidebar.css'
+import './styles/navbar-enhanced.css'
+import './styles/sidebar-enhanced.css'
 import './styles/dashboard.css'
 import './styles/market.css'
 import './styles/strategies.css'
@@ -24,6 +32,7 @@ import './styles/settings.css'
 export default function App() {
   const [user, setUser] = useState(null)
   const [currentPage, setCurrentPage] = useState('dashboard')
+  const [isInitializing, setIsInitializing] = useState(true)
   const { cssVariables, darkMode, viewport } = useResponsive()
   const killSwitchTriggered = useTradingStore((s) => s.killSwitchTriggered)
 
@@ -38,8 +47,10 @@ export default function App() {
           scope: '/',
         })
         console.log('[App] Service Worker registered successfully')
+        toast.success('App is ready to work offline', { duration: 3000 })
       } catch (error) {
         console.error('[App] Service Worker registration failed:', error)
+        toast.warning('Offline mode unavailable', { duration: 3000 })
       }
     }
     registerServiceWorker()
@@ -92,13 +103,17 @@ export default function App() {
   useEffect(() => {
     async function checkAuth() {
       try {
+        setIsInitializing(true)
         const userInfo = await AuthService.getMe()
         if (userInfo && userInfo.username) {
           setUser(userInfo.username)
+          toast.success(`Welcome back, ${userInfo.username}!`, { duration: 3000 })
         }
       } catch (error) {
         console.log('Auth check failed:', error.message)
         // User not logged in yet, redirect to login
+      } finally {
+        setIsInitializing(false)
       }
     }
     checkAuth()
@@ -107,35 +122,74 @@ export default function App() {
   // Start market feed to populate live candles/orderbook
   useMarketFeed()
 
+  // Handle login with toast notification
+  const handleLogin = (username) => {
+    setUser(username)
+    toast.success(`Welcome, ${username}!`, { duration: 3000 })
+  }
+
+  // Handle page navigation
+  const handleNavigate = (page) => {
+    setCurrentPage(page)
+  }
+
+  // Show loading overlay during initialization
+  if (isInitializing) {
+    return <LoadingOverlay message="Initializing AutoSaham..." />
+  }
+
+  // Show login if not authenticated
   if (!user) {
     return (
-      <div className="auth-container">
-        <Login onLogin={(u) => setUser(u)} />
-      </div>
+      <ErrorBoundary>
+        <div className="auth-container">
+          <Login onLogin={handleLogin} />
+        </div>
+        <ToastContainer />
+      </ErrorBoundary>
     )
   }
 
+  // Render page with error boundary
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'dashboard':
+        return <ErrorBoundary><DashboardPage /></ErrorBoundary>
+      case 'market':
+        return <ErrorBoundary><MarketIntelligencePage /></ErrorBoundary>
+      case 'strategies':
+        return <ErrorBoundary><StrategiesPage /></ErrorBoundary>
+      case 'trades':
+        return <ErrorBoundary><TradeLogsPage /></ErrorBoundary>
+      case 'settings':
+        return <ErrorBoundary><SettingsPage /></ErrorBoundary>
+      default:
+        return <ErrorBoundary><DashboardPage /></ErrorBoundary>
+    }
+  }
+
   return (
-    <div className="app-container" style={cssVariables} data-theme={darkMode ? 'dark' : 'light'}>
-      {/* Navigation Bar */}
-      <Navbar />
+    <ErrorBoundary>
+      <div className="app-container" style={cssVariables} data-theme={darkMode ? 'dark' : 'light'}>
+        {/* Enhanced Navigation Bar */}
+        <NavbarEnhanced />
 
-      <div className="app-layout">
-        {/* Sidebar */}
-        <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
+        <div className="app-layout">
+          {/* Enhanced Sidebar */}
+          <SidebarEnhanced currentPage={currentPage} onNavigate={handleNavigate} />
 
-        {/* Main Content */}
-        <main className="app-main">
-          {currentPage === 'dashboard' && <DashboardPage />}
-          {currentPage === 'market' && <MarketIntelligencePage />}
-          {currentPage === 'strategies' && <StrategiesPage />}
-          {currentPage === 'trades' && <TradeLogsPage />}
-          {currentPage === 'settings' && <SettingsPage />}
-        </main>
+          {/* Main Content with Error Boundaries */}
+          <main className="app-main" role="main">
+            {renderPage()}
+          </main>
+        </div>
+
+        {/* PWA Install Button */}
+        <PWAInstallButton variant="floating" position="bottom-right" />
+
+        {/* Toast Notification Container */}
+        <ToastContainer />
       </div>
-
-      {/* PWA Install Button */}
-      <PWAInstallButton variant="floating" position="bottom-right" />
-    </div>
+    </ErrorBoundary>
   )
 }
