@@ -11,6 +11,7 @@ import PWAInstallButton from './components/PWAInstallButton'
 import useMarketFeed from './hooks/useMarketFeed'
 import useResponsive from './hooks/useResponsive'
 import useTradingStore from './store/tradingStore'
+import AuthService from './utils/authService'
 import './styles.css'
 import './styles/navbar.css'
 import './styles/sidebar.css'
@@ -32,9 +33,9 @@ export default function App() {
       if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
       try {
         console.log('[App] Registering Service Worker...')
-        // Use Service-Worker-Allowed header to allow scope at root
-        const registration = await navigator.serviceWorker.register('/src/service-worker.js', {
-          scope: './',
+        // Service Worker in public/ can register root scope
+        const registration = await navigator.serviceWorker.register('/service-worker.js', {
+          scope: '/',
         })
         console.log('[App] Service Worker registered successfully')
       } catch (error) {
@@ -87,20 +88,20 @@ export default function App() {
     root.classList.toggle('light-theme', !darkMode)
   }, [cssVariables, darkMode])
 
+  // SECURITY FIX: Check auth status on mount using secure httpOnly cookies
   useEffect(() => {
-    async function me() {
-      const token = localStorage.getItem('token')
-      if (!token) return
+    async function checkAuth() {
       try {
-        const res = await fetch('/auth/me', { headers: { Authorization: `Bearer ${token}` } })
-        if (!res.ok) return
-        const j = await res.json()
-        setUser(j.username)
-      } catch (e) {
-        // ignore
+        const userInfo = await AuthService.getMe()
+        if (userInfo && userInfo.username) {
+          setUser(userInfo.username)
+        }
+      } catch (error) {
+        console.log('Auth check failed:', error.message)
+        // User not logged in yet, redirect to login
       }
     }
-    me()
+    checkAuth()
   }, [])
 
   // Start market feed to populate live candles/orderbook

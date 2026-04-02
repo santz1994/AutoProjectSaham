@@ -1,8 +1,8 @@
-"""CLI to score and select symbols for a given strategy.
+"""CLI to score and select symbols for a given strategy using REAL market data.
 
 Usage examples:
-  python scripts/select_stocks.py --symbols BBCA.JK TLKM.JK --threshold 0.9
-  python scripts/select_stocks.py --demo
+  python scripts/select_stocks.py --symbols BBCA TLKM --threshold 0.9
+  python scripts/select_stocks.py
 """
 import argparse
 
@@ -15,8 +15,8 @@ def main():
     parser.add_argument(
         "--symbols",
         nargs="+",
-        help="Symbols to score",
-        default=["BBCA.JK", "TLKM.JK", "BMRI.JK"],
+        help="IDX symbols to score (real market data)",
+        default=["BBCA", "TLKM", "BMRI", "ASII", "UNVR"],
     )
     parser.add_argument(
         "--threshold",
@@ -24,39 +24,36 @@ def main():
         default=0.9,
         help="Score threshold for selection",
     )
-    parser.add_argument(
-        "--demo",
-        action="store_true",
-        help="Force demo price generation (no yfinance)",
-    )
     args = parser.parse_args()
 
-    print("Scoring symbols:", args.symbols)
+    print("🚀 Scoring symbols with REAL market data:", args.symbols)
     scored = score_symbols_for_strategy(
         args.symbols,
         simple_sma_strategy,
-        allow_demo=args.demo,
+        allow_demo=False,  # Always use real data
     )
     for s, m in scored.items():
         if "error" in m:
-            print(s, "ERROR:", m["error"])
+            print(f"{s:6} ❌ ERROR: {m['error']}")
         else:
             print(
-                f"{s}: score={m['score']:.3f} "
-                f"win_rate={m['win_rate']:.2f} "
-                f"trades={m['num_trades']} "
-                f"final_bal={m['final_balance']:.2f}"
+                f"{s:6} | Score: {m['score']:.3f} | Win Rate: {m['win_rate']:.1%} | "
+                f"Trades: {m['num_trades']:2} | Balance: IDR {m['final_balance']:>12,.0f}"
             )
 
     selected = select_high_confidence_symbols(
         args.symbols,
         simple_sma_strategy,
         threshold=args.threshold,
-        allow_demo=args.demo,
+        allow_demo=False,  # Always use real data
     )
-    print("\nSelected symbols (threshold=%s):" % args.threshold)
+    print(f"\n✅ Selected symbols (threshold={args.threshold}):")
     for s in selected:
-        print("-", s)
+        print(f"  • {s}")
+    
+    if not selected:
+        print("  (No symbols met the threshold. Try lowering --threshold)")
+
 
 
 if __name__ == "__main__":

@@ -1,0 +1,57 @@
+# Kong declarative config for AutoSaham API Gateway
+# Place at: kong/kong.yml
+
+_format_version: "3.0"
+
+services:
+  - name: fastapi-backend
+    url: http://api:8001
+
+routes:
+  - name: api-routes
+    service: fastapi-backend
+    paths:
+      - /api
+    strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: cluster
+          fault_tolerant: true
+      - name: request-transformer
+        config:
+          add:
+            headers:
+              - X-Forwarded-By: Kong
+
+  - name: websocket-routes
+    service: fastapi-backend
+    paths:
+      - /ws
+    strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 1000
+          policy: cluster
+
+  - name: health-check
+    service: fastapi-backend
+    paths:
+      - /health
+    strip_path: false
+
+plugins:
+  - name: cors
+    config:
+      origins:
+        - http://localhost:3000
+        - http://localhost:5173
+      credentials: true
+      max_age: 3600
+
+  - name: request-id
+    config:
+      header_name: X-Request-ID
+      generator: uuid

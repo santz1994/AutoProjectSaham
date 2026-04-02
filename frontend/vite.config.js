@@ -6,5 +6,12 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true
+  },
+  server: {
+    headers: {
+      'Service-Worker-Allowed': '/',
+      'Cache-Control': 'no-cache'
+    },
+    middlewareMode: false
   }
 })

@@ -4,48 +4,60 @@ import time
 
 
 def main():
-    parser = argparse.ArgumentParser(description="AutoSaham runner")
-    parser.add_argument("--demo", action="store_true", help="Run built-in demo")
-    parser.add_argument("--run-etl", action="store_true", help="Run ETL pipeline")
+    parser = argparse.ArgumentParser(description="AutoSaham runner - Real Trading System")
+    parser.add_argument("--run-etl", action="store_true", help="Run ETL pipeline with real market data")
     parser.add_argument(
         "--once",
         action="store_true",
         help="Run pipeline once and exit (use with --run-etl)",
     )
     parser.add_argument(
-        "--symbols", nargs="+", default=["BBCA"], help="Symbols to fetch for ETL"
+        "--symbols", nargs="+", default=["BBCA", "USIM", "KLBF"], help="IDX symbols to fetch for ETL"
     )
     parser.add_argument(
         "--interval", type=int, default=5, help="Interval minutes between ETL runs"
     )
+    parser.add_argument(
+        "--api", action="store_true", help="Start FastAPI server with real broker connections"
+    )
 
     args = parser.parse_args()
-    if args.demo:
-        # import the demo runner lazily to avoid heavy dependencies at import time
-        from .demo import run_demo
-
-        run_demo()
+    
+    # Default: Start API server with real connections
+    if not args.run_etl and not args.once:
+        args.api = True
+    
+    if args.api:
+        # Start the API server with real broker/market data
+        from .api.server import app
+        import uvicorn
+        host = os.getenv("API_HOST", "127.0.0.1")
+        port = int(os.getenv("API_PORT", "8000"))
+        print(f"🚀 Starting AutoSaham API with REAL DATA (host={host}, port={port})")
+        uvicorn.run(app, host=host, port=port, log_level="info")
         return
 
     if args.run_etl:
-        from .pipeline.orchestrator import AutonomousPipeline
+        from .pipeline.runner import AutonomousPipeline
 
         news_api_key = os.getenv("NEWSAPI_KEY")
-        p = AutonomousPipeline(
-            symbols=args.symbols,
-            news_api_key=news_api_key,
-            interval_minutes=args.interval,
-        )
+        p = AutonomousPipeline()
         if args.once:
-            p.run_once()
+            result = p.run(
+                symbols=args.symbols,
+                fetch_prices=True,
+                persist_db="data/etl.db"
+            )
+            print("✅ ETL completed with REAL DATA:", result)
         else:
             try:
-                p.start()
-                print("Press Ctrl-C to stop the pipeline...")
-                while True:
-                    time.sleep(1)
+                print(f"🚀 Running ETL pipeline with REAL DATA (symbols={args.symbols}, interval={args.interval}m)")
+                for symbol in args.symbols:
+                    result = p.run([symbol], fetch_prices=True, persist_db="data/etl.db")
+                    print(f"✅ {symbol}: {result}")
+                    time.sleep(args.interval * 60)
             except KeyboardInterrupt:
-                p.stop()
+                print("\n✅ ETL pipeline stopped")
         return
 
     parser.print_help()

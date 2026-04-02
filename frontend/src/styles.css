@@ -88,15 +88,47 @@ html, body {
 
 .app-main {
   flex: 1;
+  margin-left: 280px;  /* Account for sidebar width (fixed positioned) */
   overflow-y: auto;
   overflow-x: hidden;
   background: linear-gradient(135deg, #0a0e27 0%, #1a2332 100%);
   scrollbar-width: thin;
   scrollbar-color: rgba(100, 116, 139, 0.5) transparent;
+  transition: margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .app-main::-webkit-scrollbar {
   width: 8px;
+}
+
+.app-main::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-main::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.5);
+  border-radius: 4px;
+}
+
+.app-main::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.7);
+}
+
+/* Responsive: Sidebar collapsed on mobile */
+@media (max-width: 768px) {
+  .app-main {
+    margin-left: 80px;  /* Collapsed sidebar width */
+  }
+}
+
+@media (max-width: 480px) {
+  .app-main {
+    margin-left: 0;  /* Hide sidebar on very small screens */
+  }
+
+  .sidebar {
+    display: none;  /* Hide sidebar on mobile unless explicitly toggled */
+  }
 }
 
 .app-main::-webkit-scrollbar-track {

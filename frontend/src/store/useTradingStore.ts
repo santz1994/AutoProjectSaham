@@ -1,4 +1,4 @@
-import create from 'zustand'
+import { create } from 'zustand'
 
 export type Candle = { time: string | number; open: number; high: number; low: number; close: number; volume?: number }
 export type OrderBookItem = { price: number; volume: number }

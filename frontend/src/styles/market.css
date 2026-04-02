@@ -26,6 +26,104 @@
   color: var(--text-primary);
 }
 
+/* Chart Card */
+.chart-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.chart-controls {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--card-border);
+  align-items: flex-end;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.control-group label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.control-select {
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 150px;
+}
+
+.control-select:hover {
+  border-color: var(--primary-color, #60a5fa);
+  background: rgba(96, 165, 250, 0.05);
+}
+
+.control-select:focus {
+  outline: none;
+  border-color: var(--primary-color, #60a5fa);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
+.timeframe-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.timeframe-btn {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.timeframe-btn:hover {
+  border-color: var(--primary-color, #60a5fa);
+  color: var(--primary-color, #60a5fa);
+  background: rgba(96, 165, 250, 0.05);
+}
+
+.timeframe-btn.active {
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  border-color: #60a5fa;
+  color: white;
+  box-shadow: 0 0 12px rgba(96, 165, 250, 0.4);
+}
+
+.chart-container {
+  width: 100%;
+  min-height: 600px;
+  height: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 1rem 0;
+  overflow-x: auto;
+}
+
 /* Sentiment Card */
 .sentiment-container {
   display: grid;

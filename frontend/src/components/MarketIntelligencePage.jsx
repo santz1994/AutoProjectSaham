@@ -1,13 +1,56 @@
-import React from 'react'
+import React, { useState } from 'react'
+import ChartComponent from './ChartComponent'
 import { mockMarketSentiment, mockSectorHeatmap, mockTopSignals } from '../utils/mockData'
 import '../styles/market.css'
 
+const IDX_SYMBOLS = ['BBCA.JK', 'USIM.JK', 'KLBF.JK', 'ASII.JK', 'UNVR.JK', 'INDF.JK', 'PGAS.JK', 'GGRM.JK']
+const TIMEFRAMES = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w']
+
 export default function MarketIntelligencePage() {
+  const [selectedSymbol, setSelectedSymbol] = useState('BBCA.JK')
+  const [selectedTimeframe, setSelectedTimeframe] = useState('1d')
   return (
     <div className="market-page">
       <h1>Market Intelligence</h1>
 
-      {/* Sentiment Panel */}
+      {/* Real-Time Stock Chart */}
+      <div className="market-card chart-card">
+        <h2>📈 Real-Time Stock Chart</h2>
+        
+        {/* Chart Controls */}
+        <div className="chart-controls">
+          <div className="control-group">
+            <label>Symbol</label>
+            <select value={selectedSymbol} onChange={(e) => setSelectedSymbol(e.target.value)} className="control-select">
+              {IDX_SYMBOLS.map((symbol) => (
+                <option key={symbol} value={symbol}>
+                  {symbol}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="control-group">
+            <label>Timeframe</label>
+            <div className="timeframe-buttons">
+              {TIMEFRAMES.map((tf) => (
+                <button
+                  key={tf}
+                  className={`timeframe-btn ${selectedTimeframe === tf ? 'active' : ''}`}
+                  onClick={() => setSelectedTimeframe(tf)}
+                >
+                  {tf}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Live Chart */}
+        <div className="chart-container">
+          <ChartComponent symbol={selectedSymbol} timeframe={selectedTimeframe} theme="dark" />
+        </div>
+      </div>
       <div className="market-card sentiment-card">
         <h2>📊 Market Sentiment</h2>
         <div className="sentiment-container">

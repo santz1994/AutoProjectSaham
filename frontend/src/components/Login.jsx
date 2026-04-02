@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import AuthService from '../utils/authService'
 import '../styles/login.css'
 
 export default function Login({ onLogin }) {
@@ -13,28 +14,17 @@ export default function Login({ onLogin }) {
     setIsLoading(true)
 
     try {
-      const res = await fetch('/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      })
-
-      if (res.ok) {
-        const j = await res.json()
-        localStorage.setItem('token', j.access_token)
+      // SECURITY FIX: Use AuthService which handles httpOnly cookies securely
+      const result = await AuthService.login(username, password)
+      
+      if (result.ok) {
         onLogin && onLogin(username)
         return
+      } else {
+        setError(result.error || 'Login failed')
       }
     } catch (err) {
-      // Backend not available - use demo mode
-    }
-
-    // Demo mode: Allow any non-empty username/password
-    if (username.trim().length > 0 && password.length > 0) {
-      localStorage.setItem('token', `demo_token_${Date.now()}`)
-      onLogin && onLogin(username)
-    } else {
-      setError('Please enter username and password')
+      setError('Network error: ' + err.message)
     }
 
     setIsLoading(false)
@@ -56,6 +46,7 @@ export default function Login({ onLogin }) {
               id="username"
               type="text"
               placeholder="Enter your username"
+              autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={isLoading}
@@ -68,6 +59,7 @@ export default function Login({ onLogin }) {
               id="password"
               type="password"
               placeholder="Enter your password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}

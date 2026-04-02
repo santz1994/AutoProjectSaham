@@ -17,6 +17,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createChart, ColorType } from 'lightweight-charts';
 import useResponsive from '../hooks/useResponsive';
+import { getAPIBase } from '../utils/authService';
 import './ChartComponent.css';
 
 const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', theme = 'dark' }) => {
@@ -89,72 +90,107 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', theme = 'dark' }
       return 600;
     };
 
-    try {
-      // Create chart with responsive dimensions
-      const chart = createChart(containerRef.current, {
-        layout: {
-          background: { color: chartColors.background, type: ColorType.Solid },
-          textColor: chartColors.textColor,
-        },
-        width: containerRef.current.clientWidth,
-        height: calculateChartHeight(),
-        timeScale: {
-          timeVisible: true,
-          secondsVisible: !isMobile, // Hide seconds on mobile
-          rightOffset: isMobile ? 10 : 40,
-        },
-        localization: {
-          locale: 'id-ID',
-          timeFormatter: (timestamp) => {
-            const date = new Date(timestamp * 1000);
-            return date.toLocaleString('id-ID', {
-              timeZone: 'Asia/Jakarta',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: isMobile ? undefined : '2-digit', // Hide minutes on mobile for space
-            });
+    let chart = null;
+    let resizeTimer;
+    let resizeObserver = null;
+
+    // Initialize chart after container is properly sized
+    const initChart = () => {
+      const width = containerRef.current?.clientWidth;
+      const height = calculateChartHeight();
+
+      // Skip if container isn't sized yet
+      if (!width || width < 100) {
+        console.debug('Container not sized yet, waiting...', { width, height });
+        return false;
+      }
+
+      try {
+        // Create chart with responsive dimensions
+        chart = createChart(containerRef.current, {
+          layout: {
+            background: { color: chartColors.background, type: ColorType.Solid },
+            textColor: chartColors.textColor,
           },
-        },
-      });
+          width: width,
+          height: height,
+          timeScale: {
+            timeVisible: true,
+            secondsVisible: !isMobile, // Hide seconds on mobile
+            rightOffset: isMobile ? 10 : 40,
+          },
+          localization: {
+            locale: 'id-ID',
+            timeFormatter: (timestamp) => {
+              const date = new Date(timestamp * 1000);
+              return date.toLocaleString('id-ID', {
+                timeZone: 'Asia/Jakarta',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: isMobile ? undefined : '2-digit', // Hide minutes on mobile for space
+              });
+            },
+          },
+        });
 
-      chartRef.current = chart;
+        chartRef.current = chart;
 
-      // Add candlestick series
-      const candleSeries = chart.addCandlestickSeries({
-        upColor: chartColors.upColor,
-        downColor: chartColors.downColor,
-        borderUpColor: chartColors.borderUpColor,
-        borderDownColor: chartColors.borderDownColor,
-        wickUpColor: chartColors.upColor,
-        wickDownColor: chartColors.downColor,
-      });
+        // Add candlestick series
+        const candleSeries = chart.addCandlestickSeries({
+          upColor: chartColors.upColor,
+          downColor: chartColors.downColor,
+          borderUpColor: chartColors.borderUpColor,
+          borderDownColor: chartColors.borderDownColor,
+          wickUpColor: chartColors.upColor,
+          wickDownColor: chartColors.downColor,
+        });
 
-      candleSeriesRef.current = candleSeries;
+        candleSeriesRef.current = candleSeries;
+        return true;
+      } catch (err) {
+        setError(`Failed to initialize chart: ${err.message}`);
+        console.error('Chart initialization error:', err);
+        return false;
+      }
+    };
 
-      // Enhanced resize handler with debounce
-      let resizeTimer;
-      const handleResize = () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => {
-          if (containerRef.current && chart) {
-            chart.applyOptions({
-              width: containerRef.current.clientWidth,
-              height: calculateChartHeight(),
-            });
-          }
-        }, 150); // Debounce to 150ms
-      };
+    // Use ResizeObserver to detect when container gets sized
+    resizeObserver = new ResizeObserver(() => {
+      if (!chartRef.current && containerRef.current?.clientWidth > 100) {
+        console.debug('Container sized, initializing chart');
+        initChart();
+      }
+    });
 
-      window.addEventListener('resize', handleResize);
-      return () => {
-        window.removeEventListener('resize', handleResize);
-        clearTimeout(resizeTimer);
-      };
-    } catch (err) {
-      setError(`Failed to initialize chart: ${err.message}`);
-      console.error('Chart initialization error:', err);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
     }
+
+    // Try immediate initialization first
+    if (!initChart()) {
+      console.debug('Initial chart init failed, waiting for resize observer...');
+    }
+
+    // Enhanced resize handler with debounce
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (containerRef.current && chartRef.current) {
+          chartRef.current.applyOptions({
+            width: containerRef.current.clientWidth,
+            height: calculateChartHeight(),
+          });
+        }
+      }, 150); // Debounce to 150ms
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimer);
+      if (resizeObserver) resizeObserver.disconnect();
+    };
   }, [chartColors, isMobile, isTablet, viewport.height]);
 
   // Fetch initial chart data
@@ -165,7 +201,7 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', theme = 'dark' }
 
       try {
         // Get metadata
-        const metadataRes = await fetch(`/api/charts/metadata/${symbol}`);
+        const metadataRes = await fetch(`${getAPIBase()}/api/charts/metadata/${symbol}`);
         if (!metadataRes.ok) {
           throw new Error(`Failed to fetch metadata: ${metadataRes.statusText}`);
         }
@@ -174,7 +210,7 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', theme = 'dark' }
 
         // Get candles
         const candlesRes = await fetch(
-          `/api/charts/candles/${symbol}?timeframe=${timeframe}&limit=100`
+          `${getAPIBase()}/api/charts/candles/${symbol}?timeframe=${timeframe}&limit=100`
         );
         if (!candlesRes.ok) {
           throw new Error(`Failed to fetch candles: ${candlesRes.statusText}`);
@@ -187,7 +223,7 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', theme = 'dark' }
         }
 
         // Get trading status
-        const statusRes = await fetch('/api/charts/trading-status');
+        const statusRes = await fetch(`${getAPIBase()}/api/charts/trading-status`);
         if (statusRes.ok) {
           const statusData = await statusRes.json();
           setIsTrading(statusData.is_trading);

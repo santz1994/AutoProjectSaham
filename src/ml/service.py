@@ -70,7 +70,7 @@ class MLTrainerService:
             # convert ts to datetime and resample per-minute bars per symbol
             df["ts_dt"] = pd.to_datetime(df["ts"], unit="s")
             df = df.set_index("ts_dt")
-            agg = df.groupby("symbol").resample("1T").agg({"price": ["first", "max", "min", "last"], "size": "sum"})
+            agg = df.groupby("symbol").resample("1min").agg({"price": ["first", "max", "min", "last"], "size": "sum"})
             # flatten columns
             agg.columns = ["open", "high", "low", "close", "volume"]
             agg = agg.reset_index()

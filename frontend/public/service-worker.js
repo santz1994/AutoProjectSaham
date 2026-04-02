@@ -98,13 +98,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // SKIP AUTH REQUESTS ENTIRELY - let them pass through without Service Worker interception
-  // Auth requests must reach the actual backend at localhost:8000, not localhost:5173
-  if (url.pathname.includes('/auth/')) {
-    console.log('[SW] Skipping auth request (letting it pass through):', url.href);
-    return; // Don't event.respondWith - let browser handle it
-  }
-  
   // Determine caching strategy based on request
   if (isMarketDataRequest(url)) {
     // Market data: Always network-first (real-time requirement)

@@ -3,6 +3,7 @@ pandas>=1.5.3
 numpy>=1.24.0
 pydantic<2.0,>=1.10.8
 yfinance>=0.2.22
+curl_cffi>=0.5.0              # For IDX API with bypass rate limiting
 prometheus-client>=0.16.0
 urllib3>=1.26.16
 scikit-learn
@@ -26,3 +27,13 @@ stable-baselines3>=2.0.0
 # API and test requirements
 fastapi>=0.95.0
 uvicorn[standard]>=0.22.0
+# Phase 4: Advanced Testing & Deployment
+celery[redis]>=5.3.0              # Background task queue for ML retraining
+sb3-contrib>=2.1.0                # MaskablePPO for action masking in RL
+onnx>=1.14.0                      # ONNX format for safe model serialization (P0 security fix)
+skl2onnx>=1.16.0                  # sklearn → ONNX conversion (P0 security fix)
+safetensors>=0.4.0                # Safe PyTorch/SB3 model serialization (P0 security fix)
+shap>=0.42.0                      # SHAP explainability for model predictions (X. Explainable AI)
+hypothesis>=6.80.0                # Property-based testing for financial logic (IX. Financial QA)
+mutmut>=2.4.0                     # Mutation testing to find bugs in reward functions
+feast>=0.36.0                     # Feature store for deduplicated feature engineering (VII. optional)

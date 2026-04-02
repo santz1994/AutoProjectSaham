@@ -246,6 +246,20 @@ def train_model(
                 fh,
             )
 
+    # SECURITY FIX V: Export to ONNX format (safe serialization, no RCE vector)
+    try:
+        from skl2onnx import convert_sklearn
+        from skl2onnx.common.data_types import FloatTensorType
+        
+        onnx_path = model_out.replace('.joblib', '.onnx').replace('.pkl', '.onnx')
+        initial_type = [('float_input', FloatTensorType([None, len(X.columns)]))]
+        onnx_model = convert_sklearn(model, initial_types=initial_type)
+        
+        with open(onnx_path, 'wb') as f:
+            f.write(onnx_model.SerializeToString())
+    except Exception:
+        pass  # ONNX export is optional; continue if unavailable
+
     return {
         "model_path": model_out,
         "report": report,

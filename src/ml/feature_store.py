@@ -261,7 +261,7 @@ def calculate_idx_microstructure_features(df: pd.DataFrame) -> pd.DataFrame:
         df["vwap"] = df["cum_vol_price"] / df["cum_vol"].replace({0: np.nan})
         df["vwap"] = (
             df["vwap"]
-            .fillna(method="ffill")
+            .ffill()
             .fillna(df.get("close", df["typical_price"]))
         )
         # price to vwap ratio

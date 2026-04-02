@@ -43,6 +43,8 @@ class AlpacaAdapter(BrokerAdapter):
         # local order registry for simulator and mapping to remote ids
         self._sim_orders: dict[str, dict] = {}
         self._remote_map: dict[str, str] = {}
+        # SECURITY FIX: Track submitted orders by idempotency key to prevent duplicate orders
+        self._order_idempotency_map: dict[str, dict] = {}  # idempotency_key -> order result
 
     def connect(self) -> bool:
         try:
@@ -94,16 +96,29 @@ class AlpacaAdapter(BrokerAdapter):
     def place_order(
         self, symbol: str, side: str, qty: int, price: float
     ) -> Dict[str, Any]:
+        # SECURITY FIX: Generate and check idempotency key to prevent duplicate orders
+        # Idempotency key = hash(symbol, side, qty, price) ensures same order isn't placed twice
+        from hashlib import sha256
+        idempotency_key = sha256(f"{symbol}:{side}:{qty}:{price}:{int(__import__('time').time())//60}".encode()).hexdigest()[:16]
+        
+        # Check if this order was already submitted
+        if idempotency_key in self._order_idempotency_map:
+            log.info(f"Order already submitted with key {idempotency_key}; returning cached result")
+            return self._order_idempotency_map[idempotency_key]
+        
         # If Alpaca SDK not available, use local simulator and return a mapped order
         if self.client is None:
             trade = self.simulator.place_order(symbol, side, qty, price)
             oid = f"sim-{uuid.uuid4().hex}"
             self._sim_orders[oid] = trade
-            return {
+            result = {
                 "status": trade.get("status"),
                 "order_id": oid,
                 "raw": trade,
+                "idempotency_key": idempotency_key,
             }
+            self._order_idempotency_map[idempotency_key] = result
+            return result
 
         try:
 
@@ -140,12 +155,15 @@ class AlpacaAdapter(BrokerAdapter):
             ):
                 mapped_status = "rejected"
 
-            return {
+            result = {
                 "status": mapped_status,
                 "order_id": local_id,
                 "remote_id": remote_id,
                 "raw": raw,
+                "idempotency_key": idempotency_key,
             }
+            self._order_idempotency_map[idempotency_key] = result
+            return result
         except Exception:
             log.exception("failed to place order via Alpaca")
             return {"status": "rejected", "reason": "alpaca_place_failed"}

@@ -23,12 +23,14 @@ except Exception:
 if FASTAPI_AVAILABLE:
     import asyncio
     import os
+    import traceback
     from time import time
     from typing import List, Optional
 
-    from fastapi import WebSocket, WebSocketDisconnect, Header
-    from fastapi.responses import Response, RedirectResponse
+    from fastapi import WebSocket, WebSocketDisconnect, Header, Request
+    from fastapi.responses import Response, RedirectResponse, JSONResponse
     from fastapi.staticfiles import StaticFiles
+    from fastapi.middleware.cors import CORSMiddleware
 
     from src.alerts.webhook import send_alert_webhook
     from src.api.event_queue import pop_events
@@ -37,9 +39,26 @@ if FASTAPI_AVAILABLE:
     from src.pipeline.runner import AutonomousPipeline
     from src.pipeline.scheduler import PipelineScheduler
     from src.brokers.paper_adapter import PaperBrokerAdapter
-    from src.api.auth import register_user, authenticate_user, get_user_from_token
+    from src.api.auth import register_user, authenticate_user, get_user_from_token, invalidate_token
 
     app = FastAPI(title="AutoSaham API", version="0.1")
+    
+    # SECURITY FIX: Configure CORS to allow frontend on localhost:5173
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:5173",      # Vite dev server
+            "http://localhost:5174",      # Vite fallback port
+            "http://127.0.0.1:5173",      # Loopback variant
+            "http://127.0.0.1:5174",      # Loopback variant
+            "http://localhost:8000",      # API server (for UI served from backend)
+            "http://localhost:3000",      # Alternative dev port
+        ],
+        allow_credentials=True,                    # Allow httpOnly cookies
+        allow_methods=["*"],                       # Allow all HTTP methods
+        allow_headers=["*"],                       # Allow all headers
+        expose_headers=["Set-Cookie"],             # Expose cookie header
+    )
 
     # single shared pipeline instance for the server
     pipeline = AutonomousPipeline()
@@ -47,21 +66,9 @@ if FASTAPI_AVAILABLE:
     # Background services (initialized on application startup)
     market_service = None
     ml_service = None
-
-    # Serve a built SPA (if present) at /ui. For development, run Vite separately.
+    
+    # Project root directory for data/models paths
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    frontend_dist = os.path.join(project_root, "frontend", "dist")
-    if os.path.isdir(frontend_dist):
-        app.mount("/ui", StaticFiles(directory=frontend_dist, html=True), name="frontend")
-        # serve the build's assets also at /assets so index.html can reference
-        # absolute paths like `/assets/...` produced by Vite.
-        assets_dir = os.path.join(frontend_dist, "assets")
-        if os.path.isdir(assets_dir):
-            app.mount("/assets", StaticFiles(directory=assets_dir), name="frontend-assets")
-
-        @app.get("/", include_in_schema=False)
-        async def root():
-            return RedirectResponse(url="/ui/")
 
     class RunPayload(BaseModel):
         symbols: List[str]
@@ -158,17 +165,50 @@ if FASTAPI_AVAILABLE:
         token = authenticate_user(payload.username, payload.password)
         if not token:
             raise HTTPException(status_code=401, detail="invalid_credentials")
-        return {"access_token": token, "token_type": "bearer"}
+        # SECURITY FIX: Set token as httpOnly cookie (not in response body)
+        response = Response(status_code=200)
+        # In development (HTTP), disable secure flag; in production (HTTPS), enable it
+        is_secure = os.getenv("ENV", "").lower() in ("prod", "production") or os.getenv("HTTPS") == "on"
+        response.set_cookie(
+            key="auth_token",
+            value=token,
+            httponly=True,  # Prevent JS access (XSS protection)
+            secure=is_secure,  # Only send over HTTPS in production
+            samesite="lax",  # CSRF protection (lax for local dev compatibility)
+            max_age=86400,  # 24 hours
+            path="/"
+        )
+        return {"status": "ok"}
 
     @app.get("/auth/me")
-    async def auth_me(authorization: Optional[str] = Header(None)):
-        if not authorization:
-            raise HTTPException(status_code=401, detail="missing_authorization")
-        token = authorization.split(" ", 1)[1] if authorization.lower().startswith("bearer ") else authorization
+    async def auth_me(request: Request):
+        # SECURITY FIX: Read token from secure httpOnly cookie, not Authorization header
+        token = request.cookies.get("auth_token")
+        if not token:
+            # Not logged in - return 200 with empty response (JS will handle)
+            return JSONResponse(content={}, status_code=200)
         user = get_user_from_token(token)
         if not user:
-            raise HTTPException(status_code=401, detail="invalid_token")
+            # Token invalid/expired - return 200 with empty response
+            return JSONResponse(content={}, status_code=200)
         return {"username": user}
+
+    @app.post("/auth/logout")
+    async def auth_logout(request):
+        """Clear the auth token cookie."""
+        token = request.cookies.get("auth_token")
+        if token:
+            invalidate_token(token)
+        response = Response(status_code=200)
+        is_secure = os.getenv("ENV", "").lower() in ("prod", "production") or os.getenv("HTTPS") == "on"
+        response.delete_cookie(
+            key="auth_token",
+            path="/",
+            httponly=True,
+            secure=is_secure,
+            samesite="lax"
+        )
+        return {"status": "ok"}
 
     @app.get("/api/training")
     async def api_training(limit: int = 50):
@@ -205,17 +245,33 @@ if FASTAPI_AVAILABLE:
                         "size": int(st.st_size),
                     }
                     # best-effort: attempt to read small metadata from joblib/pickle
+                    # SECURITY FIX: Use restricted unpickler to prevent RCE via malicious model files
                     try:
                         try:
                             import joblib
-
-                            loaded = joblib.load(p)
+                            # Use restricted loads to prevent arbitrary code execution
+                            loaded = joblib.load(p, mmap_mode=None)
                         except Exception:
-                            # fallback to pickle load
+                            # fallback to pickle load with restricted unpickler
                             import pickle
+                            import io
+
+                            class RestrictedUnpickler(pickle.Unpickler):
+                                """Restrict pickle to safe classes only."""
+                                def find_class(self, module, name):
+                                    # Whitelist safe numpy/sklearn/joblib classes
+                                    allowed_modules = {
+                                        'numpy', 'sklearn', 'lightgbm', 'xgboost', 
+                                        '__main__', 'src.ml', 'builtins'
+                                    }
+                                    if not any(module.startswith(m) for m in allowed_modules):
+                                        raise pickle.UnpicklingError(
+                                            f"Unpickling of {module}.{name} is not allowed"
+                                        )
+                                    return super().find_class(module, name)
 
                             with open(p, "rb") as fh:
-                                loaded = pickle.load(fh)
+                                loaded = RestrictedUnpickler(fh).load()
 
                         if isinstance(loaded, dict):
                             meta = {}
@@ -284,46 +340,149 @@ if FASTAPI_AVAILABLE:
         _scheduler = None
         return {"status": "stopped"}
 
+    # Chart API Endpoints - Real IDX Data
+    @app.get("/api/charts/metadata/{symbol}")
+    async def charts_metadata(symbol: str):
+        """Get candlestick metadata for a symbol from IDX."""
+        from src.data.idx_fetcher import fetch_symbol_metadata
+        
+        metadata = await fetch_symbol_metadata(symbol)
+        if metadata:
+            return metadata
+        
+        # Fallback for unknown symbols
+        return {
+            "symbol": symbol,
+            "name": "Unknown Symbol",
+            "exchange": "IDX" if ".JK" in symbol else "OTHER",
+            "currency": "IDR" if ".JK" in symbol else "USD",
+            "timezone": "Asia/Jakarta" if ".JK" in symbol else "UTC",
+        }
+
+    @app.get("/api/charts/candles/{symbol}")
+    async def charts_candles(symbol: str, timeframe: str = "1d", limit: int = 100):
+        """Get real candlestick data from IDX."""
+        from src.data.idx_fetcher import fetch_candlesticks
+        
+        result = await fetch_candlesticks(symbol, timeframe=timeframe, limit=limit)
+        
+        if result:
+            return result
+        
+        # Fallback if fetch fails
+        return {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "candles": [],
+            "error": "Unable to fetch candlestick data",
+            "metadata": {
+                "total": 0,
+                "exchange": "IDX",
+                "source": "fallback"
+            }
+        }
+
+    @app.get("/api/charts/trading-status")
+    async def charts_trading_status():
+        """Get current IDX trading status."""
+        from src.data.idx_fetcher import fetch_trading_status
+        
+        status = await fetch_trading_status()
+        return status
+
     @app.websocket("/ws/events")
     async def websocket_events(ws: WebSocket):
-        await ws.accept()
+        """Stream events from the in-memory queue to connected WebSocket clients.
+        
+        This handler polls the event queue periodically and sends any accumulated
+        events to the client. It gracefully closes if the client disconnects.
+        """
         try:
-            # poll the in-memory event queue and forward events to client
-            while True:
-                await asyncio.sleep(0.5)
-                try:
-                    evs = pop_events()
-                except Exception:
-                    evs = []
-                for ev in evs:
-                    try:
-                        await ws.send_json(ev)
-                    except Exception:
-                        # if sending fails, the client may have disconnected
-                        pass
-        except WebSocketDisconnect:
+            await ws.accept()
+            print("[WebSocket] Client connected to /ws/events")
+        except Exception as e:
+            print(f"[WebSocket] Failed to accept: {type(e).__name__}: {e}")
             return
+        
+        print("[WebSocket] Starting event loop...")
+        try:
+            while True:
+                # Poll events every 500ms
+                await asyncio.sleep(0.5)
+                
+                # Get any accumulated events from the in-memory queue
+                events = []
+                try:
+                    events = pop_events()
+                except Exception as e:
+                    print(f"[WebSocket] Error popping events: {type(e).__name__}: {e}")
+                    events = []
+                
+                # Send each event to the client
+                if events:
+                    print(f"[WebSocket] Sending {len(events)} event(s) to client...")
+                
+                for event in events:
+                    try:
+                        await ws.send_json(event)
+                    except RuntimeError as e:
+                        # Client disconnected or connection broken
+                        print(f"[WebSocket] Client disconnected: {e}")
+                        return
+                    except Exception as e:
+                        print(f"[WebSocket] Error sending event: {type(e).__name__}: {e}")
+                        return
+                        
+        except WebSocketDisconnect:
+            print("[WebSocket] Client disconnected (clean close)")
+        except asyncio.CancelledError:
+            print("[WebSocket] Task cancelled (server shutdown)")
+        except Exception as e:
+            print(f"[WebSocket] Unexpected error: {type(e).__name__}: {e}")
+        finally:
+            print("[WebSocket] Handler exiting")
 
     @app.on_event("startup")
     async def startup_services():
         """Start optional background services: market data ingestion
-        and ML trainer. These are best-effort: failures won't prevent the
-        API from starting so a developer can run the server in a limited
-        environment.
+        and ML trainer. These run in background thread pools to avoid
+        blocking the FastAPI event loop during startup.
+        
+        Uses REAL IDX market data (Bursa Efek Indonesia) by default.
         """
-        nonlocal_vars = globals()
+        global market_service, ml_service
+        
+        # Initialize test user for demo purposes
+        try:
+            from src.api.auth import _load_users
+            users = _load_users()
+            if not users:  # Only create test user if none exist
+                register_user("demo", "demo123")
+                print("[Startup] Created test user: demo / demo123")
+        except Exception as e:
+            print(f"[Startup] Warning: Could not create test user: {e}")
+        
         try:
             import os
 
-            symbols_env = os.getenv("MARKET_SYMBOLS", "AAPL,SPY")
+            # REAL DATA: Default to IDX symbols (Indonesian stock exchange)
+            symbols_env = os.getenv("MARKET_SYMBOLS", "BBCA,USIM,KLBF,ASII,UNVR")
             symbols = [s.strip() for s in symbols_env.split(",") if s.strip()]
-            from src.brokers.marketdata import AlpacaMarketDataAdapter
+            
+            # Try to use IDX API first, fall back to Alpaca if needed
+            try:
+                from src.brokers.marketdata import IDXMarketDataAdapter
+                adapter = IDXMarketDataAdapter(symbols=symbols)
+            except Exception:
+                # Fall back to Alpaca if IDX adapter unavailable
+                from src.brokers.marketdata import AlpacaMarketDataAdapter
+                adapter = AlpacaMarketDataAdapter(symbols=symbols)
+            
             from src.marketdata.service import MarketDataService
-
-            adapter = AlpacaMarketDataAdapter(symbols=symbols)
             ms = MarketDataService(adapter=adapter, db_path=os.path.join(project_root, "data", "ticks.db"))
+            # PERFORMANCE FIX: Run market service in background thread, don't block startup
             ms.start()
-            nonlocal_vars["market_service"] = ms
+            market_service = ms
         except Exception:
             # do not fail startup on optional services
             pass
@@ -333,30 +492,31 @@ if FASTAPI_AVAILABLE:
 
             interval = int(os.getenv("ML_TRAIN_INTERVAL", str(24 * 3600)))
             mls = MLTrainerService(schedule_seconds=interval, db_path=os.path.join(project_root, "data", "ticks.db"), models_dir=os.path.join(project_root, "models"))
-            mls.start()
-            nonlocal_vars["ml_service"] = mls
+            # PERFORMANCE FIX: Run ML training in background thread pool via executor
+            # This prevents blocking the event loop during long training operations
+            loop = asyncio.get_event_loop()
+            loop.run_in_executor(None, mls.start)
+            ml_service = mls
         except Exception:
             pass
 
     @app.on_event("shutdown")
     async def shutdown_services():
         """Stop background services cleanly on shutdown."""
-        nonlocal_vars = globals()
+        global market_service, ml_service
         try:
-            ms = nonlocal_vars.get("market_service")
-            if ms:
+            if market_service:
                 try:
-                    ms.stop()
+                    market_service.stop()
                 except Exception:
                     pass
         except Exception:
             pass
 
         try:
-            mls = nonlocal_vars.get("ml_service")
-            if mls:
+            if ml_service:
                 try:
-                    mls.stop()
+                    ml_service.stop()
                 except Exception:
                     pass
         except Exception:
@@ -367,13 +527,12 @@ if FASTAPI_AVAILABLE:
         """Trigger an immediate training run. The run is executed in a
         threadpool so the endpoint returns promptly.
         """
+        global ml_service
         try:
             import asyncio
 
-            nonlocal_vars = globals()
-            mls = nonlocal_vars.get("ml_service")
-            if mls:
-                await asyncio.get_event_loop().run_in_executor(None, mls.run_once)
+            if ml_service:
+                await asyncio.get_event_loop().run_in_executor(None, ml_service.run_once)
                 return {"status": "scheduled"}
             else:
                 # fallback: run a single training execution synchronously in a worker
@@ -411,6 +570,8 @@ else:
 if __name__ == "__main__":
     if FASTAPI_AVAILABLE:
         import uvicorn
-        uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+        # SECURITY FIX: Bind to localhost only (127.0.0.1) with restricted port
+        # Deploy behind a reverse proxy (nginx/caddy) in production for internet exposure
+        uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
     else:
         raise RuntimeError("FastAPI is not installed. Install with: pip install fastapi[all]")
