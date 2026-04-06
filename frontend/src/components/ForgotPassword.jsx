@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import Button from './Button';
 import toast from '../store/toastStore';
+import { getAPIBase } from '../utils/authService';
 import './Auth.css';
 
 export default function ForgotPassword({ onSwitchToLogin }) {
@@ -25,10 +26,11 @@ export default function ForgotPassword({ onSwitchToLogin }) {
       setLoading(true);
       
       // Call password reset API
-      const response = await fetch(`${window.location.origin}/auth/forgot-password`, {
+      const response = await fetch(`${getAPIBase()}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
+        credentials: 'include',
       });
 
       if (!response.ok) {

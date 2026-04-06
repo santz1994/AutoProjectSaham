@@ -10,6 +10,8 @@ export default function StrategiesPage() {
   const [strategies, setStrategies] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [deployingId, setDeployingId] = useState(null)
+  const [backtestingId, setBacktestingId] = useState(null)
 
   const loadStrategies = async () => {
     setLoading(true)
@@ -17,7 +19,6 @@ export default function StrategiesPage() {
     try {
       const data = await apiService.getStrategies()
       setStrategies(data)
-      toast.success('Strategies loaded successfully')
     } catch (err) {
       const errorMsg = err.message || 'Failed to load strategies'
       setError(errorMsg)
@@ -30,6 +31,31 @@ export default function StrategiesPage() {
   useEffect(() => {
     loadStrategies()
   }, [])
+
+  const handleDeployStrategy = async (strategy) => {
+    try {
+      setDeployingId(strategy.id)
+      await apiService.deployStrategy(strategy.id)
+      setSelectedStrategy(strategy)
+      toast.success(`${strategy.name} strategy deployed successfully!`)
+    } catch (err) {
+      toast.error(`Failed to deploy strategy: ${err.message}`)
+    } finally {
+      setDeployingId(null)
+    }
+  }
+
+  const handleBacktestStrategy = async (strategy) => {
+    try {
+      setBacktestingId(strategy.id)
+      await apiService.backtestStrategy(strategy.id)
+      toast.success(`${strategy.name} backtest started`)
+    } catch (err) {
+      toast.error(`Failed to start backtest: ${err.message}`)
+    } finally {
+      setBacktestingId(null)
+    }
+  }
 
   if (loading) {
     return (
@@ -124,12 +150,10 @@ export default function StrategiesPage() {
             <Button 
               variant="primary" 
               size="md"
-              onClick={() => {
-                setSelectedStrategy(strategy)
-                toast.success(`${strategy.name} strategy selected!`)
-              }}
+              onClick={() => handleDeployStrategy(strategy)}
+              loading={deployingId === strategy.id}
             >
-              Deploy Strategy
+              {deployingId === strategy.id ? 'Deploying...' : 'Deploy Strategy'}
             </Button>
           </div>
         ))}
@@ -143,15 +167,17 @@ export default function StrategiesPage() {
               <Button 
                 variant="success" 
                 icon={<span>🚀</span>}
-                onClick={() => toast.success('Strategy deployed successfully!')}
+                onClick={() => handleDeployStrategy(selectedStrategy)}
+                loading={deployingId === selectedStrategy.id}
               >
-                Activate Now
+                {deployingId === selectedStrategy.id ? 'Activating...' : 'Activate Now'}
               </Button>
               <Button 
                 variant="secondary"
-                onClick={() => toast.info('Backtest started...')}
+                onClick={() => handleBacktestStrategy(selectedStrategy)}
+                loading={backtestingId === selectedStrategy.id}
               >
-                Run Backtest
+                {backtestingId === selectedStrategy.id ? 'Starting...' : 'Run Backtest'}
               </Button>
             </div>
           </div>

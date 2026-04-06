@@ -7,7 +7,6 @@ import apiService from '../utils/apiService'
 import '../styles/market.css'
 
 const IDX_SYMBOLS = ['BBCA.JK', 'USIM.JK', 'KLBF.JK', 'ASII.JK', 'UNVR.JK', 'INDF.JK', 'PGAS.JK', 'GGRM.JK']
-const TIMEFRAMES = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w']
 
 export default function MarketIntelligencePage() {
   const [selectedSymbol, setSelectedSymbol] = useState('BBCA.JK')
@@ -30,7 +29,6 @@ export default function MarketIntelligencePage() {
       setMarketSentiment(sentiment)
       setSectorHeatmap(heatmap)
       setTopMovers(movers)
-      toast.success('Market data loaded successfully')
     } catch (err) {
       const errorMsg = err.message || 'Failed to load market data'
       setError(errorMsg)
@@ -127,27 +125,20 @@ export default function MarketIntelligencePage() {
           
           <div className="control-group">
             <label>Timeframe</label>
-            <div className="timeframe-buttons" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {TIMEFRAMES.map((tf) => (
-                <Button
-                  key={tf}
-                  variant={selectedTimeframe === tf ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={() => {
-                    setSelectedTimeframe(tf)
-                    toast.info(`Timeframe changed to ${tf}`)
-                  }}
-                >
-                  {tf}
-                </Button>
-              ))}
+            <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
+              Use chart toolbar to switch timeframe quickly.
             </div>
           </div>
         </div>
 
         {/* Live Chart */}
         <div className="chart-container">
-          <ChartComponent symbol={selectedSymbol} timeframe={selectedTimeframe} theme="dark" />
+          <ChartComponent
+            symbol={selectedSymbol}
+            timeframe={selectedTimeframe}
+            onTimeframeChange={setSelectedTimeframe}
+            theme="dark"
+          />
         </div>
       </div>
 

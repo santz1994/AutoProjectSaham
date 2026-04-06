@@ -17,15 +17,14 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createChart, ColorType } from 'lightweight-charts';
 import useResponsive from '../hooks/useResponsive';
-import { getAPIBase } from '../utils/authService';
+import { getAPIBase, getWebSocketBase } from '../utils/authService';
 import './ChartComponent.css';
 
-const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', theme = 'dark' }) => {
+const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChange, theme = 'dark' }) => {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
-  const wsRef = useRef(null);
-  const { isMobile, isTablet, viewport, getResponsive } = useResponsive();
+  const { isMobile, isTablet, viewport } = useResponsive();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [metadata, setMetadata] = useState(null);
@@ -67,16 +66,6 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', theme = 'dark' }
       minute: '2-digit',
       second: '2-digit',
     });
-  }, []);
-
-  // Format price with IDR currency
-  const formatPrice = useCallback((price) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(price);
   }, []);
 
   // Initialize chart with responsive sizing
@@ -244,24 +233,21 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', theme = 'dark' }
   useEffect(() => {
     if (!symbol) return;
 
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/ws/charts/${symbol}`;
+    const wsUrl = `${getWebSocketBase()}/ws/charts/${symbol}`;
+    let pingInterval = null;
 
     try {
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
         console.log(`WebSocket connected for ${symbol}`);
-        wsRef.current = ws;
 
         // Send keep-alive ping every 30 seconds
-        const pingInterval = setInterval(() => {
+        pingInterval = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send('ping');
           }
         }, 30000);
-
-        ws.pingInterval = pingInterval;
       };
 
       ws.onmessage = (event) => {
@@ -293,10 +279,15 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', theme = 'dark' }
 
       ws.onclose = () => {
         console.log(`WebSocket disconnected for ${symbol}`);
-        clearInterval(ws.pingInterval);
+        if (pingInterval) {
+          clearInterval(pingInterval);
+        }
       };
 
       return () => {
+        if (pingInterval) {
+          clearInterval(pingInterval);
+        }
         if (ws.readyState === WebSocket.OPEN) {
           ws.close();
         }
@@ -306,11 +297,15 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', theme = 'dark' }
     }
   }, [symbol]);
 
-  const handleTimeframeChange = (newTimeframe) => {
-    // This would typically trigger a parent component update
-    // For now, just fetch new data
-    window.location.hash = `#${symbol}:${newTimeframe}`;
-  };
+  const handleTimeframeChange = useCallback((newTimeframe) => {
+    if (newTimeframe === timeframe) {
+      return;
+    }
+
+    if (typeof onTimeframeChange === 'function') {
+      onTimeframeChange(newTimeframe);
+    }
+  }, [onTimeframeChange, timeframe]);
 
   return (
     <div className="chart-container">

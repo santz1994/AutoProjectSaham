@@ -18,7 +18,6 @@ import PWAInstallButton from './components/PWAInstallButton'
 // Hooks and Utilities
 import useMarketFeed from './hooks/useMarketFeed'
 import useResponsive from './hooks/useResponsive'
-import useTradingStore from './store/tradingStore'
 import AuthService from './utils/authService'
 import toast from './store/toastStore'
 // Styles
@@ -36,8 +35,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [authPage, setAuthPage] = useState('login') // 'login', 'register', 'forgot-password'
   const [isInitializing, setIsInitializing] = useState(true)
-  const { cssVariables, darkMode, viewport } = useResponsive()
-  const killSwitchTriggered = useTradingStore((s) => s.killSwitchTriggered)
+  const { cssVariables, darkMode } = useResponsive()
 
   // Register Service Worker on mount
   useEffect(() => {
@@ -152,6 +150,12 @@ export default function App() {
     setCurrentPage(page)
   }
 
+  const handleLogout = () => {
+    setUser(null)
+    setCurrentPage('dashboard')
+    setAuthPage('login')
+  }
+
   // Show loading overlay during initialization
   if (isInitializing) {
     return <LoadingOverlay message="Initializing AutoSaham..." />
@@ -196,7 +200,7 @@ export default function App() {
       case 'trades':
         return <ErrorBoundary><TradeLogsPage /></ErrorBoundary>
       case 'settings':
-        return <ErrorBoundary><SettingsPage /></ErrorBoundary>
+        return <ErrorBoundary><SettingsPage onLogout={handleLogout} /></ErrorBoundary>
       default:
         return <ErrorBoundary><DashboardPage /></ErrorBoundary>
     }
@@ -206,7 +210,7 @@ export default function App() {
     <ErrorBoundary>
       <div className="app-container" style={cssVariables} data-theme={darkMode ? 'dark' : 'light'}>
         {/* Enhanced Navigation Bar */}
-        <NavbarEnhanced />
+        <NavbarEnhanced user={user} onLogout={handleLogout} onNavigate={handleNavigate} />
 
         <div className="app-layout">
           {/* Enhanced Sidebar */}

@@ -6,17 +6,9 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getAPIBase } from '../utils/authService';
+import { getAPIBase, getWebSocketBase } from '../utils/authService';
 
 const API_BASE_URL = `${getAPIBase()}/api`;
-
-const getWebSocketBase = () => {
-  const apiBase = getAPIBase();
-  if (apiBase.startsWith('https://')) {
-    return apiBase.replace('https://', 'wss://');
-  }
-  return apiBase.replace('http://', 'ws://');
-};
 
 export const useNotifications = (userId) => {
   const [notifications, setNotifications] = useState([]);

@@ -20,6 +20,14 @@ export function getAPIBase() {
   return window.location.origin
 }
 
+export function getWebSocketBase() {
+  const apiBase = getAPIBase()
+  if (apiBase.startsWith('https://')) {
+    return apiBase.replace('https://', 'wss://')
+  }
+  return apiBase.replace('http://', 'ws://')
+}
+
 class AuthService {
   /**
    * Register a new user.

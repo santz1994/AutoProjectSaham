@@ -5,6 +5,67 @@ import { CardSkeleton } from './LoadingSkeletons'
 import apiService from '../utils/apiService'
 import '../styles/tradelogs.css'
 
+function toNumber(value, fallback = 0) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function parseDurationToMinutes(value) {
+  if (typeof value === 'number') return value
+  if (!value || typeof value !== 'string') return 0
+
+  const cleaned = value.toLowerCase().trim()
+  const dayMatch = cleaned.match(/(\d+)\s*d/)
+  const hourMatch = cleaned.match(/(\d+)\s*h/)
+  const minuteMatch = cleaned.match(/(\d+)\s*m/)
+
+  const days = dayMatch ? Number(dayMatch[1]) : 0
+  const hours = hourMatch ? Number(hourMatch[1]) : 0
+  const minutes = minuteMatch ? Number(minuteMatch[1]) : 0
+
+  if (days || hours || minutes) {
+    return days * 24 * 60 + hours * 60 + minutes
+  }
+
+  const numeric = Number(cleaned)
+  return Number.isFinite(numeric) ? numeric : 0
+}
+
+function normalizeTrade(trade, index) {
+  const quantity = toNumber(trade.quantity, 0)
+  const entryPrice = toNumber(trade.entryPrice ?? trade.price, 0)
+  const exitPrice = toNumber(trade.exitPrice ?? (trade.type === 'SELL' ? trade.price : 0), 0)
+
+  let profit = toNumber(trade.profit, Number.NaN)
+  if (!Number.isFinite(profit)) {
+    if (entryPrice > 0 && exitPrice > 0 && quantity > 0) {
+      profit = (exitPrice - entryPrice) * quantity
+    } else {
+      profit = 0
+    }
+  }
+
+  let profitPct = toNumber(trade.profitPct, Number.NaN)
+  if (!Number.isFinite(profitPct)) {
+    const invested = entryPrice * quantity
+    profitPct = invested > 0 ? (profit / invested) * 100 : 0
+  }
+
+  return {
+    id: trade.id ?? `${trade.symbol || 'trade'}-${index}`,
+    symbol: trade.symbol || '-',
+    type: String(trade.type || 'BUY').toUpperCase(),
+    quantity,
+    entryPrice,
+    exitPrice,
+    profit,
+    profitPct,
+    date: trade.date || trade.timestamp || new Date().toISOString(),
+    duration: trade.duration || '-',
+    status: String(trade.status || 'UNKNOWN').toUpperCase(),
+  }
+}
+
 export default function TradeLogsPage() {
   const [filterType, setFilterType] = useState('all')
   const [sortBy, setSortBy] = useState('date')
@@ -17,8 +78,7 @@ export default function TradeLogsPage() {
     setError(null)
     try {
       const data = await apiService.getTradeLogs()
-      setTrades(data)
-      toast.success('Trade logs loaded successfully')
+      setTrades(Array.isArray(data) ? data : [])
     } catch (err) {
       const errorMsg = err.message || 'Failed to load trade logs'
       setError(errorMsg)
@@ -32,28 +92,82 @@ export default function TradeLogsPage() {
     loadTradeLogs()
   }, [])
 
+  const normalizedTrades = useMemo(
+    () => trades.map((trade, index) => normalizeTrade(trade, index)),
+    [trades]
+  )
+
   const filteredTrades = useMemo(() => {
-    let filtered = trades
+    let filtered = [...normalizedTrades]
     if (filterType !== 'all') {
       filtered = filtered.filter((t) => t.type === filterType)
     }
     return filtered.sort((a, b) => {
       if (sortBy === 'date') return new Date(b.date) - new Date(a.date)
       if (sortBy === 'profit') return b.profit - a.profit
-      if (sortBy === 'duration') return Math.random() - 0.5
+      if (sortBy === 'duration') {
+        return parseDurationToMinutes(b.duration) - parseDurationToMinutes(a.duration)
+      }
       return 0
     })
-  }, [filterType, sortBy, trades])
+  }, [filterType, sortBy, normalizedTrades])
+
+  const closedTrades = normalizedTrades.filter((t) => t.status === 'CLOSED' || t.status === 'EXECUTED')
+  const closedCount = closedTrades.length
+  const totalProfit = closedTrades.reduce((sum, t) => sum + t.profit, 0)
 
   const stats = {
-    totalTrades: trades.length,
-    winRate: trades.length > 0 
-      ? ((trades.filter((t) => t.profit > 0).length / trades.filter((t) => t.status === 'CLOSED').length) * 100).toFixed(1)
+    totalTrades: normalizedTrades.length,
+    winRate: closedCount > 0 
+      ? ((closedTrades.filter((t) => t.profit > 0).length / closedCount) * 100).toFixed(1)
       : 0,
-    totalProfit: trades.reduce((sum, t) => sum + t.profit, 0),
-    avgProfit: trades.length > 0 
-      ? (trades.reduce((sum, t) => sum + t.profit, 0) / trades.filter((t) => t.status === 'CLOSED').length).toFixed(2)
+    totalProfit,
+    avgProfit: closedCount > 0
+      ? totalProfit / closedCount
       : 0,
+  }
+
+  const handleExportCSV = () => {
+    if (filteredTrades.length === 0) {
+      toast.info('No trade data available to export.')
+      return
+    }
+
+    const headers = ['symbol', 'type', 'quantity', 'entryPrice', 'exitPrice', 'profit', 'profitPct', 'date', 'duration', 'status']
+    const rows = filteredTrades.map((trade) => [
+      trade.symbol,
+      trade.type,
+      trade.quantity,
+      trade.entryPrice,
+      trade.exitPrice,
+      trade.profit,
+      trade.profitPct,
+      trade.date,
+      trade.duration,
+      trade.status,
+    ])
+
+    const csvBody = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
+    const blob = new Blob([csvBody], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `trades-${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+
+    toast.success(`Exported ${filteredTrades.length} trades to CSV.`)
+  }
+
+  const handleGenerateReport = async () => {
+    try {
+      const report = await apiService.getPerformanceReport('today')
+      const reportTrades = report?.trades ?? stats.totalTrades
+      const reportPL = report?.totalP_L ?? stats.totalProfit
+      toast.success(`Report generated: ${reportTrades} trades, P/L IDR ${toNumber(reportPL).toLocaleString('id-ID')}`)
+    } catch (err) {
+      toast.warning('Backend report unavailable. Displaying current on-screen analytics only.')
+    }
   }
 
   if (loading) {
@@ -94,7 +208,7 @@ export default function TradeLogsPage() {
     )
   }
 
-  if (trades.length === 0) {
+  if (normalizedTrades.length === 0) {
     return (
       <div className="tradelogs-page">
         <h1>Trade Logs & Analytics</h1>
@@ -124,14 +238,14 @@ export default function TradeLogsPage() {
           <Button 
             variant="success" 
             icon={<span>📥</span>}
-            onClick={() => toast.success('Trades exported to CSV!')}
+            onClick={handleExportCSV}
           >
             Export CSV
           </Button>
           <Button 
             variant="primary"
             icon={<span>📊</span>}
-            onClick={() => toast.info('Analytics report generated')}
+            onClick={handleGenerateReport}
           >
             Generate Report
           </Button>

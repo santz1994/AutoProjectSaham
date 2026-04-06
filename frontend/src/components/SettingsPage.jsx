@@ -1,8 +1,10 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import toast from '../store/toastStore'
+import apiService from '../utils/apiService'
+import AuthService from '../utils/authService'
 import '../styles/settings.css'
 
-export default function SettingsPage() {
-  const [settings, setSettings] = useState({
+const defaultSettings = {
     theme: 'dark',
     notifications: true,
     soundAlerts: false,
@@ -13,9 +15,43 @@ export default function SettingsPage() {
     maxDrawdown: 15,
     apiKey: '****',
     brokerName: 'Indonesia Securities',
-  })
+}
+
+export default function SettingsPage({ onLogout }) {
+  const [settings, setSettings] = useState(defaultSettings)
+  const [initialSettings, setInitialSettings] = useState(defaultSettings)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
   const [showApiKey, setShowApiKey] = useState(false)
+
+  const hasChanges = useMemo(
+    () => JSON.stringify(settings) !== JSON.stringify(initialSettings),
+    [settings, initialSettings]
+  )
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      setLoading(true)
+      try {
+        const remoteSettings = await apiService.getUserSettings()
+        const merged = {
+          ...defaultSettings,
+          ...(remoteSettings || {}),
+        }
+        setSettings(merged)
+        setInitialSettings(merged)
+      } catch (error) {
+        toast.warning('Failed to load settings from server. Using local defaults.')
+        setSettings(defaultSettings)
+        setInitialSettings(defaultSettings)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadSettings()
+  }, [])
 
   const handleToggle = (key) => {
     setSettings({ ...settings, [key]: !settings[key] })
@@ -23,6 +59,52 @@ export default function SettingsPage() {
 
   const handleChange = (key, value) => {
     setSettings({ ...settings, [key]: value })
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await apiService.updateUserSettings(settings)
+      setInitialSettings(settings)
+      toast.success('Settings saved successfully')
+    } catch (error) {
+      toast.error(`Failed to save settings: ${error.message}`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleResetToDefaults = () => {
+    setSettings(defaultSettings)
+    toast.info('Settings reset to defaults. Click Save Changes to apply.')
+  }
+
+  const handleLogout = async () => {
+    try {
+      const res = await AuthService.logout()
+      if (!res.ok) {
+        toast.error('Logout failed. Please try again.')
+        return
+      }
+      toast.success('Logged out successfully')
+      if (onLogout) {
+        onLogout()
+      }
+    } catch (error) {
+      toast.error('Logout failed. Please try again.')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="settings-page">
+        <h1>⚙️ Settings & Configuration</h1>
+        <div className="settings-section">
+          <h2>Loading settings...</h2>
+          <p style={{ color: '#94a3b8' }}>Please wait while we fetch your preferences.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -203,9 +285,15 @@ export default function SettingsPage() {
 
       {/* Action Buttons */}
       <div className="settings-actions">
-        <button className="btn-primary">Save Changes</button>
-        <button className="btn-secondary">Reset to Defaults</button>
-        <button className="btn-danger">Logout</button>
+        <button className="btn-primary" onClick={handleSave} disabled={saving || !hasChanges}>
+          {saving ? 'Saving...' : 'Save Changes'}
+        </button>
+        <button className="btn-secondary" onClick={handleResetToDefaults} disabled={saving}>
+          Reset to Defaults
+        </button>
+        <button className="btn-danger" onClick={handleLogout} disabled={saving}>
+          Logout
+        </button>
       </div>
     </div>
   )

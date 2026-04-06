@@ -7,9 +7,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import useTradingStore from '../store/tradingStore';
 import Button from './Button';
 import toast from '../store/toastStore';
+import AuthService from '../utils/authService';
 import '../styles/navbar-enhanced.css';
 
-export default function NavbarEnhanced() {
+export default function NavbarEnhanced({ user = 'Trader', onLogout, onNavigate }) {
   const killSwitchTriggered = useTradingStore((s) => s.killSwitchTriggered);
   const botStatus = useTradingStore((s) => s.botStatus);
   const toggleKillSwitch = useTradingStore((s) => s.toggleKillSwitch);
@@ -97,9 +98,20 @@ export default function NavbarEnhanced() {
     toast.success('All notifications marked as read', { duration: 2000 });
   };
 
-  const handleLogout = () => {
-    toast.info('Logging out...', { duration: 2000 });
-    // Implement logout logic
+  const handleLogout = async () => {
+    try {
+      const res = await AuthService.logout();
+      if (!res.ok) {
+        toast.error('Logout failed. Please try again.');
+        return;
+      }
+      toast.success('Logged out successfully');
+      if (onLogout) {
+        onLogout();
+      }
+    } catch (error) {
+      toast.error('Logout failed. Please try again.');
+    }
   };
 
   return (
@@ -211,7 +223,9 @@ export default function NavbarEnhanced() {
                 ))}
               </div>
               <div className="dropdown-footer">
-                <button className="view-all-btn">View all notifications</button>
+                <button className="view-all-btn" onClick={() => setNotificationsOpen(false)}>
+                  View all notifications
+                </button>
               </div>
             </div>
           )}
@@ -246,7 +260,7 @@ export default function NavbarEnhanced() {
               className="user-avatar"
               aria-hidden="true"
             />
-            <span className="user-name">Trader</span>
+            <span className="user-name">{user}</span>
             <span className="dropdown-arrow" aria-hidden="true">
               {userMenuOpen ? '▲' : '▼'}
             </span>
@@ -254,20 +268,45 @@ export default function NavbarEnhanced() {
 
           {userMenuOpen && (
             <div className="user-menu-dropdown" id="user-menu-dropdown" role="menu">
-              <div className="menu-item" role="menuitem" tabIndex={0}>
+              <div
+                className="menu-item"
+                role="menuitem"
+                tabIndex={0}
+                onClick={() => toast.info('Profile page is coming soon')}
+              >
                 <span className="menu-icon">👤</span>
                 <span>Profile</span>
               </div>
-              <div className="menu-item" role="menuitem" tabIndex={0}>
+              <div
+                className="menu-item"
+                role="menuitem"
+                tabIndex={0}
+                onClick={() => {
+                  if (onNavigate) {
+                    onNavigate('settings');
+                  }
+                  setUserMenuOpen(false);
+                }}
+              >
                 <span className="menu-icon">⚙️</span>
                 <span>Settings</span>
               </div>
-              <div className="menu-item" role="menuitem" tabIndex={0}>
+              <div
+                className="menu-item"
+                role="menuitem"
+                tabIndex={0}
+                onClick={() => toast.info('Theme switch is managed by responsive settings')}
+              >
                 <span className="menu-icon">🎨</span>
                 <span>Theme</span>
               </div>
               <div className="menu-divider" role="separator"></div>
-              <div className="menu-item" role="menuitem" tabIndex={0}>
+              <div
+                className="menu-item"
+                role="menuitem"
+                tabIndex={0}
+                onClick={() => toast.info('Help center is coming soon')}
+              >
                 <span className="menu-icon">❓</span>
                 <span>Help & Support</span>
               </div>
