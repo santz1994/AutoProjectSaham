@@ -4,7 +4,7 @@ Contains endpoints for portfolio, bot status, signals, strategies, trades, and m
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Header
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 import random
@@ -63,10 +63,16 @@ class Signal(BaseModel):
 class Strategy(BaseModel):
     id: int
     name: str
-    type: str
-    status: str
-    description: str
-    metrics: dict
+    type: str = "custom"
+    status: str = "ready"
+    description: str = ""
+    icon: str = "🎯"
+    desc: str = ""
+    expectedReturn: str = "N/A"
+    sharpeRatio: str = "N/A"
+    maxDrawdown: str = "N/A"
+    rules: List[str] = []
+    metrics: dict = {}
 
 class Trade(BaseModel):
     id: int
@@ -108,6 +114,52 @@ class Activity(BaseModel):
     status: str
     signal: Optional[str] = None
     message: Optional[str] = None
+
+
+class MarketMover(BaseModel):
+    symbol: str
+    change: float
+
+
+class MarketMoversResponse(BaseModel):
+    gainers: List[MarketMover]
+    losers: List[MarketMover]
+
+
+class UserSettings(BaseModel):
+    theme: str = "dark"
+    notifications: bool = True
+    soundAlerts: bool = False
+    emailReports: bool = True
+    twoFactor: bool = False
+    dailyReport: str = "end-of-day"
+    autoTrading: bool = False
+    riskLevel: str = "moderate"
+    maxDrawdown: int = 15
+    apiKey: str = "****"
+    brokerName: str = "Indonesia Securities"
+    maxPositionSize: float = 10.0
+    stopLossPercent: float = 5.0
+    takeProfitPercent: float = 10.0
+
+
+_user_settings_store: Dict[str, Any] = {
+    "theme": "dark",
+    "notifications": True,
+    "soundAlerts": False,
+    "emailReports": True,
+    "twoFactor": False,
+    "dailyReport": "end-of-day",
+    "autoTrading": False,
+    "riskLevel": "moderate",
+    "maxDrawdown": 15,
+    "apiKey": "****",
+    "brokerName": "Indonesia Securities",
+    "maxPositionSize": 10.0,
+    "stopLossPercent": 5.0,
+    "takeProfitPercent": 10.0,
+    "updatedAt": datetime.now().isoformat(),
+}
 
 # ============== Temporary Data (Replace with real DB queries) ==============
 
@@ -257,11 +309,22 @@ async def get_sector_heatmap():
         SectorData(name="Mining", value=-1.2, color="#FF5555"),
     ]
 
-@router.get("/market/movers")
+@router.get("/market/movers", response_model=MarketMoversResponse)
 async def get_top_movers():
     """Get top market movers"""
     # TODO: Replace with actual market data
-    return []
+    return MarketMoversResponse(
+        gainers=[
+            MarketMover(symbol="BBCA.JK", change=2.41),
+            MarketMover(symbol="INDF.JK", change=1.87),
+            MarketMover(symbol="TLKM.JK", change=1.22),
+        ],
+        losers=[
+            MarketMover(symbol="UNVR.JK", change=-1.53),
+            MarketMover(symbol="ANTM.JK", change=-1.24),
+            MarketMover(symbol="PGAS.JK", change=-0.98),
+        ],
+    )
 
 @router.get("/market/news")
 async def get_market_news(limit: int = 10):
@@ -273,7 +336,74 @@ async def get_market_news(limit: int = 10):
 async def get_strategies():
     """Get all trading strategies"""
     # TODO: Replace with actual strategies from DB
-    return []
+    return [
+        Strategy(
+            id=1,
+            name="Momentum Breakout",
+            type="momentum",
+            status="ready",
+            description="Captures upside continuation after confirmed volume-backed breakout.",
+            icon="🚀",
+            desc="Buy when price breaks key resistance with strong volume confirmation.",
+            expectedReturn="+18.4% / year",
+            sharpeRatio="1.42",
+            maxDrawdown="-8.6%",
+            rules=[
+                "Price closes above 20-day resistance level",
+                "Volume >= 1.5x 20-day average",
+                "RSI between 55 and 75 to avoid overheat",
+                "Stop loss at 4.5% below entry",
+            ],
+            metrics={
+                "winRate": 0.61,
+                "avgHoldingDays": 12,
+            },
+        ),
+        Strategy(
+            id=2,
+            name="Mean Reversion Swing",
+            type="mean_reversion",
+            status="ready",
+            description="Targets oversold rebounds in quality large-cap IDX names.",
+            icon="📉",
+            desc="Enter on oversold pullbacks and exit near equilibrium moving average.",
+            expectedReturn="+14.9% / year",
+            sharpeRatio="1.27",
+            maxDrawdown="-7.2%",
+            rules=[
+                "RSI(14) below 32 and turning up",
+                "Price near lower Bollinger band",
+                "Trend filter: 50-day SMA still upward",
+                "Take profit near 20-day SMA reversion",
+            ],
+            metrics={
+                "winRate": 0.67,
+                "avgHoldingDays": 9,
+            },
+        ),
+        Strategy(
+            id=3,
+            name="Defensive Rotation",
+            type="rotation",
+            status="ready",
+            description="Rotates allocation toward resilient sectors during risk-off phases.",
+            icon="🛡️",
+            desc="Favor low-volatility and dividend sectors when market breadth weakens.",
+            expectedReturn="+11.6% / year",
+            sharpeRatio="1.55",
+            maxDrawdown="-5.4%",
+            rules=[
+                "Breadth ratio < 0.9 for 3 consecutive sessions",
+                "Increase consumer staples and telecom exposure",
+                "Reduce cyclical weights by 20%",
+                "Rebalance weekly while volatility remains elevated",
+            ],
+            metrics={
+                "winRate": 0.7,
+                "avgHoldingDays": 21,
+            },
+        ),
+    ]
 
 @router.get("/trades", response_model=List[Trade])
 async def get_trade_logs():
@@ -316,3 +446,17 @@ async def get_performance_report(period: str = "today"):
         "winRate": 0.75,
         "generatedAt": datetime.now().isoformat()
     }
+
+
+@router.get("/user/settings")
+async def get_user_settings():
+    """Return persisted user settings for frontend settings page."""
+    return _user_settings_store
+
+
+@router.put("/user/settings")
+async def update_user_settings(payload: UserSettings):
+    """Update user settings in memory (placeholder for DB-backed persistence)."""
+    _user_settings_store.update(payload.model_dump())
+    _user_settings_store["updatedAt"] = datetime.now().isoformat()
+    return _user_settings_store

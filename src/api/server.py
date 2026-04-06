@@ -373,6 +373,11 @@ if FASTAPI_AVAILABLE:
         
         metadata = await fetch_symbol_metadata(symbol)
         if metadata:
+            metadata = {
+                **metadata,
+                "tradingStart": metadata.get("tradingStart", "09:00"),
+                "tradingEnd": metadata.get("tradingEnd", "16:00"),
+            }
             return metadata
         
         # Fallback for unknown symbols
@@ -382,6 +387,8 @@ if FASTAPI_AVAILABLE:
             "exchange": "IDX" if ".JK" in symbol else "OTHER",
             "currency": "IDR" if ".JK" in symbol else "USD",
             "timezone": "Asia/Jakarta" if ".JK" in symbol else "UTC",
+            "tradingStart": "09:00" if ".JK" in symbol else "00:00",
+            "tradingEnd": "16:00" if ".JK" in symbol else "23:59",
         }
 
     @app.get("/api/charts/candles/{symbol}")
@@ -414,6 +421,56 @@ if FASTAPI_AVAILABLE:
         
         status = await fetch_trading_status()
         return status
+
+    @app.websocket("/ws/charts/{symbol}")
+    async def websocket_charts(ws: WebSocket, symbol: str):
+        """WebSocket stream for chart updates used by frontend ChartComponent."""
+        from src.data.idx_fetcher import fetch_candlesticks
+
+        timeframe = ws.query_params.get("timeframe", "1d")
+
+        try:
+            await ws.accept()
+        except Exception as e:
+            print(f"[ChartsWS] Failed to accept: {type(e).__name__}: {e}")
+            return
+
+        try:
+            initial = await fetch_candlesticks(symbol, timeframe=timeframe, limit=100)
+            await ws.send_json({
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "candles": (initial or {}).get("candles", []),
+            })
+
+            while True:
+                try:
+                    message = await asyncio.wait_for(ws.receive_text(), timeout=30)
+                except asyncio.TimeoutError:
+                    message = "update"
+
+                if message == "ping":
+                    await ws.send_text("pong")
+                    continue
+
+                if message.startswith("timeframe:"):
+                    requested = message.split(":", 1)[1].strip()
+                    if requested:
+                        timeframe = requested
+
+                latest = await fetch_candlesticks(symbol, timeframe=timeframe, limit=1)
+                candles = (latest or {}).get("candles", [])
+                if candles:
+                    await ws.send_json({
+                        "type": "candle_update",
+                        "candle": candles[-1],
+                    })
+        except WebSocketDisconnect:
+            print(f"[ChartsWS] Client disconnected for {symbol}")
+        except Exception as e:
+            print(f"[ChartsWS] Error for {symbol}: {type(e).__name__}: {e}")
+        finally:
+            print(f"[ChartsWS] Handler exiting for {symbol}")
 
     @app.websocket("/ws/events")
     async def websocket_events(ws: WebSocket):

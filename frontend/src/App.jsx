@@ -16,8 +16,9 @@ import Register from './components/Register'
 import ForgotPassword from './components/ForgotPassword'
 import PWAInstallButton from './components/PWAInstallButton'
 // Hooks and Utilities
-import useMarketFeed from './hooks/useMarketFeed'
+import startMarketFeed from './hooks/useMarketFeed'
 import useResponsive from './hooks/useResponsive'
+import apiService from './utils/apiService'
 import AuthService from './utils/authService'
 import toast from './store/toastStore'
 // Styles
@@ -35,7 +36,16 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [authPage, setAuthPage] = useState('login') // 'login', 'register', 'forgot-password'
   const [isInitializing, setIsInitializing] = useState(true)
-  const { cssVariables, darkMode } = useResponsive()
+  const [themePreference, setThemePreference] = useState(() => {
+    if (typeof window === 'undefined') return 'auto'
+    return localStorage.getItem('autosaham.theme') || 'auto'
+  })
+  const { cssVariables, darkMode: systemDarkMode } = useResponsive()
+  const darkMode = themePreference === 'dark'
+    ? true
+    : themePreference === 'light'
+      ? false
+      : systemDarkMode
 
   // Register Service Worker on mount
   useEffect(() => {
@@ -115,6 +125,25 @@ export default function App() {
     root.classList.toggle('light-theme', !darkMode)
   }, [cssVariables, darkMode])
 
+  // Listen for theme updates coming from settings page.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const applyThemePreference = () => {
+      const nextTheme = localStorage.getItem('autosaham.theme') || 'auto'
+      setThemePreference(nextTheme)
+    }
+
+    applyThemePreference()
+    window.addEventListener('autosaham:theme-changed', applyThemePreference)
+    window.addEventListener('storage', applyThemePreference)
+
+    return () => {
+      window.removeEventListener('autosaham:theme-changed', applyThemePreference)
+      window.removeEventListener('storage', applyThemePreference)
+    }
+  }, [])
+
   // SECURITY FIX: Check auth status on mount using secure httpOnly cookies
   useEffect(() => {
     async function checkAuth() {
@@ -123,6 +152,16 @@ export default function App() {
         const userInfo = await AuthService.getMe()
         if (userInfo && userInfo.username) {
           setUser(userInfo.username)
+          try {
+            const userSettings = await apiService.getUserSettings()
+            const preferredTheme = userSettings?.theme || 'auto'
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('autosaham.theme', preferredTheme)
+              window.dispatchEvent(new Event('autosaham:theme-changed'))
+            }
+          } catch {
+            // Keep default theme preference when settings API is unavailable.
+          }
           toast.success(`Welcome back, ${userInfo.username}!`, { duration: 3000 })
         }
       } catch (error) {
@@ -135,8 +174,15 @@ export default function App() {
     checkAuth()
   }, [])
 
-  // Start market feed to populate live candles/orderbook
-  useMarketFeed()
+  // Start market feed once after mount and clean up on unmount.
+  useEffect(() => {
+    const stopFeed = startMarketFeed()
+    return () => {
+      if (typeof stopFeed === 'function') {
+        stopFeed()
+      }
+    }
+  }, [])
 
   // Handle login with toast notification
   const handleLogin = (username) => {

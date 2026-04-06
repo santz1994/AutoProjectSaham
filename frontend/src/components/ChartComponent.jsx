@@ -14,11 +14,32 @@
  * Version: 1.0.0
  */
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { createChart, ColorType } from 'lightweight-charts';
 import useResponsive from '../hooks/useResponsive';
 import { getAPIBase, getWebSocketBase } from '../utils/authService';
 import './ChartComponent.css';
+
+const THEME_COLORS = {
+  dark: {
+    background: '#131722',
+    textColor: '#d1d5db',
+    gridColor: '#2c2c2c',
+    upColor: '#26a69a',
+    downColor: '#f23645',
+    borderUpColor: '#26a69a',
+    borderDownColor: '#f23645',
+  },
+  light: {
+    background: '#ffffff',
+    textColor: '#262626',
+    gridColor: '#f0f0f0',
+    upColor: '#26a69a',
+    downColor: '#f23645',
+    borderUpColor: '#26a69a',
+    borderDownColor: '#f23645',
+  },
+};
 
 const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChange, theme = 'dark' }) => {
   const containerRef = useRef(null);
@@ -30,30 +51,9 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
   const [metadata, setMetadata] = useState(null);
   const [isTrading, setIsTrading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [wsWarning, setWsWarning] = useState(null);
 
-  // Color scheme based on theme
-  const colors = {
-    dark: {
-      background: '#131722',
-      textColor: '#d1d5db',
-      gridColor: '#2c2c2c',
-      upColor: '#26a69a',
-      downColor: '#f23645',
-      borderUpColor: '#26a69a',
-      borderDownColor: '#f23645',
-    },
-    light: {
-      background: '#ffffff',
-      textColor: '#262626',
-      gridColor: '#f0f0f0',
-      upColor: '#26a69a',
-      downColor: '#f23645',
-      borderUpColor: '#26a69a',
-      borderDownColor: '#f23645',
-    },
-  };
-
-  const chartColors = colors[theme] || colors.dark;
+  const chartColors = useMemo(() => THEME_COLORS[theme] || THEME_COLORS.dark, [theme]);
 
   // Format timestamp to readable date
   const formatDate = useCallback((timestamp) => {
@@ -95,6 +95,12 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
       }
 
       try {
+        if (chartRef.current) {
+          chartRef.current.remove();
+          chartRef.current = null;
+          candleSeriesRef.current = null;
+        }
+
         // Create chart with responsive dimensions
         chart = createChart(containerRef.current, {
           layout: {
@@ -179,6 +185,11 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
       window.removeEventListener('resize', handleResize);
       clearTimeout(resizeTimer);
       if (resizeObserver) resizeObserver.disconnect();
+      if (chartRef.current) {
+        chartRef.current.remove();
+        chartRef.current = null;
+        candleSeriesRef.current = null;
+      }
     };
   }, [chartColors, isMobile, isTablet, viewport.height]);
 
@@ -241,6 +252,7 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
 
       ws.onopen = () => {
         console.log(`WebSocket connected for ${symbol}`);
+        setWsWarning(null);
 
         // Send keep-alive ping every 30 seconds
         pingInterval = setInterval(() => {
@@ -252,6 +264,9 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
 
       ws.onmessage = (event) => {
         try {
+          if (event.data === 'pong') {
+            return;
+          }
           const data = JSON.parse(event.data);
 
           if (data.type === 'candle_update') {
@@ -274,11 +289,12 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
 
       ws.onerror = (err) => {
         console.error('WebSocket error:', err);
-        setError('WebSocket connection error');
+        setWsWarning('Live updates unavailable. Showing latest fetched data.');
       };
 
       ws.onclose = () => {
         console.log(`WebSocket disconnected for ${symbol}`);
+        setWsWarning('Live updates disconnected. Reconnect by refreshing the page.');
         if (pingInterval) {
           clearInterval(pingInterval);
         }
@@ -293,7 +309,7 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
         }
       };
     } catch (err) {
-      setError(`Failed to connect WebSocket: ${err.message}`);
+      setWsWarning(`Live updates unavailable: ${err.message}`);
     }
   }, [symbol]);
 
@@ -321,7 +337,7 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
                 <strong>Currency:</strong> {metadata.currency}
               </span>
               <span className="metadata-item">
-                <strong>Hours:</strong> {metadata.tradingStart} - {metadata.tradingEnd} WIB
+                <strong>Hours:</strong> {metadata.tradingStart || metadata.trading_hours?.start || '09:00'} - {metadata.tradingEnd || metadata.trading_hours?.end || '16:00'} WIB
               </span>
               <span className={`metadata-item trading-status ${isTrading ? 'open' : 'closed'}`}>
                 <strong>Status:</strong> {isTrading ? '🟢 Open' : '🔴 Closed'}
@@ -330,6 +346,9 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
           )}
           {lastUpdate && (
             <p className="last-update">Last update: {formatDate(lastUpdate.getTime() / 1000)}</p>
+          )}
+          {wsWarning && (
+            <p className="last-update" style={{ color: '#fbbf24' }}>{wsWarning}</p>
           )}
         </div>
 

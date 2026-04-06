@@ -46,6 +46,10 @@ export default function SettingsPage({ onLogout }) {
           ...defaultSettings,
           ...(remoteSettings || {}),
         }
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('autosaham.theme', merged.theme || 'auto')
+          window.dispatchEvent(new Event('autosaham:theme-changed'))
+        }
         setSettings(merged)
         setInitialSettings(merged)
       } catch (error) {
@@ -71,8 +75,17 @@ export default function SettingsPage({ onLogout }) {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await apiService.updateUserSettings(settings)
-      setInitialSettings(settings)
+      const saved = await apiService.updateUserSettings(settings)
+      const nextSettings = {
+        ...settings,
+        ...(saved || {}),
+      }
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('autosaham.theme', nextSettings.theme || 'auto')
+        window.dispatchEvent(new Event('autosaham:theme-changed'))
+      }
+      setSettings(nextSettings)
+      setInitialSettings(nextSettings)
       toast.success('Settings saved successfully')
     } catch (error) {
       toast.error(`Failed to save settings: ${error.message}`)
@@ -82,7 +95,12 @@ export default function SettingsPage({ onLogout }) {
   }
 
   const handleResetToDefaults = () => {
-    setSettings(defaultSettings)
+    const resetSettings = { ...defaultSettings }
+    setSettings(resetSettings)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('autosaham.theme', resetSettings.theme || 'auto')
+      window.dispatchEvent(new Event('autosaham:theme-changed'))
+    }
     toast.info('Settings reset to defaults. Click Save Changes to apply.')
   }
 
