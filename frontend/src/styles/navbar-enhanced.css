@@ -494,6 +494,77 @@
   font-weight: 700;
 }
 
+/* Light Theme Surface Overrides */
+[data-theme='light'] .navbar-enhanced {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-bottom: 2px solid var(--border-light);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme='light'] .search-trigger,
+[data-theme='light'] .icon-button,
+[data-theme='light'] .user-menu-trigger {
+  background: var(--surface-elevated);
+  border-color: var(--card-border);
+  color: var(--text-secondary);
+}
+
+[data-theme='light'] .search-trigger:hover,
+[data-theme='light'] .icon-button:hover,
+[data-theme='light'] .user-menu-trigger:hover {
+  background: var(--surface-elevated-hover);
+  border-color: var(--border-color);
+}
+
+[data-theme='light'] .search-dropdown,
+[data-theme='light'] .notifications-dropdown,
+[data-theme='light'] .user-menu-dropdown {
+  background: var(--card-bg);
+  border-color: var(--card-border);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+[data-theme='light'] .search-input {
+  border-bottom-color: var(--card-border);
+  color: var(--text-primary);
+}
+
+[data-theme='light'] .search-input::placeholder,
+[data-theme='light'] .notif-time,
+[data-theme='light'] .dropdown-arrow {
+  color: var(--text-muted);
+}
+
+[data-theme='light'] .dropdown-header,
+[data-theme='light'] .dropdown-footer,
+[data-theme='light'] .notification-item,
+[data-theme='light'] .menu-divider {
+  border-color: var(--card-border);
+}
+
+[data-theme='light'] .dropdown-header h3,
+[data-theme='light'] .notif-message,
+[data-theme='light'] .user-name,
+[data-theme='light'] .view-all-btn,
+[data-theme='light'] .menu-item {
+  color: var(--text-primary);
+}
+
+[data-theme='light'] .view-all-btn {
+  border-color: var(--card-border);
+}
+
+[data-theme='light'] .view-all-btn:hover,
+[data-theme='light'] .notification-item:hover,
+[data-theme='light'] .menu-item:hover,
+[data-theme='light'] .suggestion-item:hover {
+  background: var(--surface-elevated);
+}
+
+[data-theme='light'] .notification-badge {
+  border-color: #ffffff;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .navbar-enhanced {

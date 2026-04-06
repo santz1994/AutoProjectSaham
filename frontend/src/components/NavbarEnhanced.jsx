@@ -10,7 +10,13 @@ import toast from '../store/toastStore';
 import AuthService from '../utils/authService';
 import '../styles/navbar-enhanced.css';
 
-export default function NavbarEnhanced({ user = 'Trader', onLogout, onNavigate }) {
+export default function NavbarEnhanced({
+  user = 'Trader',
+  onLogout,
+  onNavigate,
+  currentThemePreference = 'auto',
+  onThemePreferenceChange,
+}) {
   const killSwitchTriggered = useTradingStore((s) => s.killSwitchTriggered);
   const botStatus = useTradingStore((s) => s.botStatus);
   const toggleKillSwitch = useTradingStore((s) => s.toggleKillSwitch);
@@ -122,6 +128,38 @@ export default function NavbarEnhanced({ user = 'Trader', onLogout, onNavigate }
     if (message) {
       toast.info(message);
     }
+  };
+
+  const openProfileFromMenu = () => {
+    if (typeof onNavigate === 'function') {
+      onNavigate('settings');
+    }
+
+    setUserMenuOpen(false);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('autosaham:open-profile'));
+    }
+  };
+
+  const handleThemeMenuClick = () => {
+    const themeOrder = ['dark', 'light', 'auto'];
+    const themeLabels = {
+      dark: 'Dark Mode',
+      light: 'Light Mode',
+      auto: 'Auto (System)',
+    };
+    const currentIndex = themeOrder.indexOf(currentThemePreference);
+    const nextTheme = themeOrder[(currentIndex + 1 + themeOrder.length) % themeOrder.length];
+
+    if (typeof onThemePreferenceChange === 'function') {
+      onThemePreferenceChange(nextTheme);
+      toast.success(`Theme updated to ${themeLabels[nextTheme]}`, { duration: 2000 });
+    } else {
+      toast.info('Theme options are available in Settings');
+    }
+
+    setUserMenuOpen(false);
   };
 
   return (
@@ -282,7 +320,7 @@ export default function NavbarEnhanced({ user = 'Trader', onLogout, onNavigate }
                 className="menu-item"
                 role="menuitem"
                 tabIndex={0}
-                onClick={() => openSettingsFromMenu('Profile and account options are available in Settings.')}
+                onClick={openProfileFromMenu}
               >
                 <span className="menu-icon">👤</span>
                 <span>Profile</span>
@@ -302,7 +340,7 @@ export default function NavbarEnhanced({ user = 'Trader', onLogout, onNavigate }
                 className="menu-item"
                 role="menuitem"
                 tabIndex={0}
-                onClick={() => toast.info('Theme switch is managed by responsive settings')}
+                onClick={handleThemeMenuClick}
               >
                 <span className="menu-icon">🎨</span>
                 <span>Theme</span>

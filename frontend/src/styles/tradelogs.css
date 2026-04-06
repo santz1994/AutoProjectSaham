@@ -72,7 +72,7 @@
 .filter-group select,
 .sort-group select {
   padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-elevated);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-md);
   color: var(--text-primary);
@@ -85,7 +85,7 @@
 .sort-group select:hover,
 .filter-group select:focus,
 .sort-group select:focus {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--surface-elevated-hover);
   border-color: var(--accent-blue);
   outline: none;
 }
@@ -106,7 +106,7 @@
 }
 
 .trades-table thead {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-elevated);
   border-bottom: 2px solid var(--card-border);
   position: sticky;
   top: 0;
@@ -121,7 +121,7 @@
   text-transform: uppercase;
   font-size: 0.8rem;
   letter-spacing: 0.5px;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid var(--border-light);
 }
 
 .trades-table th:last-child {
@@ -129,17 +129,17 @@
 }
 
 .trades-table tbody tr {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-light);
   transition: background 0.2s ease;
 }
 
 .trades-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-elevated);
 }
 
 .trades-table td {
   padding: 1rem;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid var(--border-light);
   color: var(--text-secondary);
 }
 

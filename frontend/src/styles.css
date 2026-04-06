@@ -10,6 +10,26 @@
   --text-muted: #94a3b8;
   --border-color: #334155;
   --border-light: #1e293b;
+  --card-bg: rgba(15, 23, 42, 0.78);
+  --card-border: rgba(148, 163, 184, 0.3);
+  --surface-elevated: rgba(30, 41, 59, 0.75);
+  --surface-elevated-hover: rgba(51, 65, 85, 0.85);
+  --input-bg: rgba(30, 41, 59, 0.8);
+  --input-bg-focus: rgba(30, 41, 59, 1);
+  --button-bg: linear-gradient(135deg, #1e293b, rgba(30, 41, 59, 0.8));
+  --button-bg-hover: linear-gradient(135deg, #334155, #1e293b);
+
+  /* Accent Colors */
+  --accent-blue: #3b82f6;
+  --accent-purple: #8b5cf6;
+  --accent-green: #22c55e;
+  --accent-red: #ef4444;
+  --accent-yellow: #f59e0b;
+  --accent-orange: #f97316;
+
+  /* Theme Surfaces */
+  --app-main-bg: linear-gradient(135deg, #0a0e27 0%, #1a2332 100%);
+  --auth-bg: linear-gradient(135deg, #0a0e27 0%, #1a2332 100%);
 
   /* Gradients */
   --gradient-primary: linear-gradient(135deg, #3b82f6, #60a5fa);
@@ -91,7 +111,7 @@ html, body {
   margin-left: 280px;  /* Account for sidebar width (fixed positioned) */
   overflow-y: auto;
   overflow-x: hidden;
-  background: linear-gradient(135deg, #0a0e27 0%, #1a2332 100%);
+  background: var(--app-main-bg);
   scrollbar-width: thin;
   scrollbar-color: rgba(100, 116, 139, 0.5) transparent;
   transition: margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -150,7 +170,7 @@ html, body {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #0a0e27 0%, #1a2332 100%);
+  background: var(--auth-bg);
   padding: 1rem;
 }
 
@@ -195,8 +215,8 @@ a:hover {
 
 /* ===== Form Elements ===== */
 input, textarea, select {
-  background: rgba(30, 41, 59, 0.8);
-  border: 1px solid var(--border-color);
+  background: var(--input-bg);
+  border: 1px solid var(--card-border);
   color: var(--text-primary);
   padding: 0.75rem 1rem;
   border-radius: var(--radius-md);
@@ -207,8 +227,8 @@ input, textarea, select {
 
 input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: #3b82f6;
-  background: rgba(30, 41, 59, 1);
+  border-color: var(--accent-blue);
+  background: var(--input-bg-focus);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -218,8 +238,8 @@ input::placeholder {
 
 /* ===== Buttons ===== */
 button {
-  background: linear-gradient(135deg, var(--bg-tertiary), rgba(30, 41, 59, 0.7));
-  border: 1px solid var(--border-color);
+  background: var(--button-bg);
+  border: 1px solid var(--card-border);
   color: var(--text-primary);
   padding: 0.75rem 1.5rem;
   border-radius: var(--radius-md);
@@ -230,8 +250,8 @@ button {
 }
 
 button:hover:not(:disabled) {
-  background: linear-gradient(135deg, #334155, #1e293b);
-  border-color: #475569;
+  background: var(--button-bg-hover);
+  border-color: var(--border-color);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
@@ -305,5 +325,21 @@ button:disabled {
   --text-muted: #64748b;
   --border-color: #cbd5e1;
   --border-light: #e2e8f0;
+  --card-bg: rgba(255, 255, 255, 0.92);
+  --card-border: rgba(148, 163, 184, 0.45);
+  --surface-elevated: rgba(241, 245, 249, 0.92);
+  --surface-elevated-hover: rgba(226, 232, 240, 0.98);
+  --input-bg: rgba(241, 245, 249, 0.92);
+  --input-bg-focus: rgba(226, 232, 240, 0.98);
+  --button-bg: linear-gradient(135deg, #ffffff, #f1f5f9);
+  --button-bg-hover: linear-gradient(135deg, #f8fafc, #e2e8f0);
+  --accent-blue: #2563eb;
+  --accent-purple: #7c3aed;
+  --accent-green: #16a34a;
+  --accent-red: #dc2626;
+  --accent-yellow: #d97706;
+  --accent-orange: #ea580c;
+  --app-main-bg: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+  --auth-bg: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   color-scheme: light;
 }

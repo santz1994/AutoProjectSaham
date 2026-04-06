@@ -177,6 +177,9 @@ if FASTAPI_AVAILABLE:
         username: str
         password: str
 
+    class ForgotPasswordPayload(BaseModel):
+        email: str
+
     @app.post("/auth/register")
     async def auth_register(payload: UserPayload):
         try:
@@ -234,6 +237,22 @@ if FASTAPI_AVAILABLE:
             samesite="lax"
         )
         return response
+
+    @app.post("/auth/forgot-password")
+    async def auth_forgot_password(payload: ForgotPasswordPayload):
+        """Demo-safe forgot password endpoint.
+
+        Production implementations should issue secure reset tokens and send
+        transactional emails through a trusted provider.
+        """
+        if not payload.email or "@" not in payload.email:
+            raise HTTPException(status_code=400, detail="invalid_email")
+
+        # Do not reveal whether email exists to avoid account enumeration.
+        return {
+            "status": "ok",
+            "message": "If the email exists, reset instructions have been sent.",
+        }
 
     @app.get("/api/training")
     async def api_training(limit: int = 50):

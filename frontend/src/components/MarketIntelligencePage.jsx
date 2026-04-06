@@ -8,7 +8,7 @@ import '../styles/market.css'
 
 const IDX_SYMBOLS = ['BBCA.JK', 'USIM.JK', 'KLBF.JK', 'ASII.JK', 'UNVR.JK', 'INDF.JK', 'PGAS.JK', 'GGRM.JK']
 
-export default function MarketIntelligencePage() {
+export default function MarketIntelligencePage({ theme = 'dark' }) {
   const [selectedSymbol, setSelectedSymbol] = useState('BBCA.JK')
   const [selectedTimeframe, setSelectedTimeframe] = useState('1d')
   const [marketSentiment, setMarketSentiment] = useState(null)
@@ -90,11 +90,11 @@ export default function MarketIntelligencePage() {
         <div style={{
           textAlign: 'center',
           padding: '3rem',
-          background: '#1a1a1a',
+          background: 'var(--card-bg)',
           borderRadius: '12px',
-          border: '1px solid #ff6b6b'
+          border: '1px solid var(--accent-red)'
         }}>
-          <p style={{ color: '#ff6b6b', marginBottom: '1rem' }}>❌ {error}</p>
+          <p style={{ color: 'var(--accent-red)', marginBottom: '1rem' }}>❌ {error}</p>
           <Button 
             variant="primary"
             onClick={handleRefresh}
@@ -148,7 +148,7 @@ export default function MarketIntelligencePage() {
           
           <div className="control-group">
             <label>Timeframe</label>
-            <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
               Use chart toolbar to switch timeframe quickly.
             </div>
           </div>
@@ -160,7 +160,7 @@ export default function MarketIntelligencePage() {
             symbol={selectedSymbol}
             timeframe={selectedTimeframe}
             onTimeframeChange={setSelectedTimeframe}
-            theme="dark"
+            theme={theme}
           />
         </div>
       </div>
@@ -214,7 +214,7 @@ export default function MarketIntelligencePage() {
                   </div>
                 ))
               ) : (
-                <p style={{ color: '#999' }}>No recent news available</p>
+                <p style={{ color: 'var(--text-secondary)' }}>No recent news available</p>
               )}
             </div>
           </>
@@ -241,7 +241,7 @@ export default function MarketIntelligencePage() {
             })}
           </div>
         ) : (
-          <p style={{ color: '#999', padding: '2rem', textAlign: 'center' }}>No sector data available</p>
+          <p style={{ color: 'var(--text-secondary)', padding: '2rem', textAlign: 'center' }}>No sector data available</p>
         )}
       </div>
 

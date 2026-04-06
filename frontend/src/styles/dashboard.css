@@ -2,14 +2,14 @@
 
 .dashboard-page {
   padding: 2rem;
-  background: #0a0e27;
+  background: var(--bg-primary);
   min-height: 100%;
   transition: all 0.3s ease;
 }
 
 .dashboard-page.kill-switch-mode {
   opacity: 0.85;
-  background: linear-gradient(135deg, #0a0e27 0%, rgba(239, 68, 68, 0.05) 100%);
+  background: linear-gradient(135deg, var(--bg-primary) 0%, rgba(239, 68, 68, 0.05) 100%);
 }
 
 .emergency-banner {
@@ -60,11 +60,11 @@
 
 /* Card Base Styling - Professional Cards */
 .card {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-  border: 1px solid #334155;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-md);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
@@ -88,7 +88,7 @@
 
 .card h2 {
   margin: 0 0 1.5rem 0;
-  color: #f1f5f9;
+  color: var(--text-primary);
   font-size: 1.25rem;
   font-weight: 700;
   display: flex;
@@ -114,7 +114,7 @@
 }
 
 .portfolio-item label {
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 0.875rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -122,7 +122,7 @@
 }
 
 .portfolio-item .value {
-  color: #e2e8f0;
+  color: var(--text-primary);
   font-size: 1.5rem;
   font-weight: 700;
   font-family: 'Monaco', 'Courier New', monospace;
@@ -242,7 +242,7 @@
 
 .status-meta p {
   margin: 0;
-  color: #cbd5e1;
+  color: var(--text-secondary);
   font-size: 0.875rem;
   line-height: 1.4;
 }
@@ -304,7 +304,7 @@
 .score-text .label {
   display: block;
   font-size: 0.875rem;
-  color: #94a3b8;
+  color: var(--text-secondary);
   margin-top: 0.25rem;
 }
 
@@ -322,7 +322,7 @@
 }
 
 .factor label {
-  color: #cbd5e1;
+  color: var(--text-secondary);
   font-size: 0.875rem;
   font-weight: 600;
 }
@@ -393,7 +393,7 @@
 
 .signal-header .symbol {
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--text-primary);
   font-size: 1.1rem;
 }
 
@@ -422,7 +422,7 @@
 
 .signal-body .reason {
   margin: 0 0 0.75rem 0;
-  color: #cbd5e1;
+  color: var(--text-secondary);
   font-size: 0.95rem;
   line-height: 1.4;
 }
@@ -431,7 +431,7 @@
   display: flex;
   justify-content: space-between;
   font-size: 0.875rem;
-  color: #94a3b8;
+  color: var(--text-secondary);
 }
 
 .signal-meta .target {
@@ -491,7 +491,7 @@
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 0.5rem;
-  color: #e2e8f0;
+  color: var(--text-primary);
 }
 
 .activity-main .symbol {
@@ -504,7 +504,7 @@
 }
 
 .activity-meta {
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 0.8rem;
 }
 

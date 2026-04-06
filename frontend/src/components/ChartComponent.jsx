@@ -45,6 +45,10 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
   const containerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
+  const resizeObserverRef = useRef(null);
+  const pendingCandlesRef = useRef(null);
+  const latestCandleRef = useRef(null);
+  const initialThemeRef = useRef(THEME_COLORS[theme] || THEME_COLORS.dark);
   const { isMobile, isTablet, viewport } = useResponsive();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -68,51 +72,72 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
     });
   }, []);
 
-  // Initialize chart with responsive sizing
+  const calculateChartHeight = useCallback(() => {
+    const currentHeight = typeof window !== 'undefined' ? window.innerHeight : 768;
+    const currentWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
+
+    if (currentWidth < 768) return Math.min(currentHeight * 0.6, 400);
+    if (currentWidth < 1024) return Math.min(currentHeight * 0.65, 500);
+    return 600;
+  }, []);
+
+  const applyChartDimensions = useCallback(() => {
+    if (!chartRef.current || !containerRef.current) {
+      return;
+    }
+
+    const width = containerRef.current.clientWidth;
+    if (!width || width < 100) {
+      return;
+    }
+
+    const compactView = (typeof window !== 'undefined' ? window.innerWidth : 1024) < 768;
+
+    chartRef.current.applyOptions({
+      width,
+      height: calculateChartHeight(),
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: !compactView,
+        rightOffset: compactView ? 10 : 40,
+      },
+    });
+  }, [calculateChartHeight]);
+
+  // Initialize chart only once to avoid stacking chart instances.
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || chartRef.current) {
+      return undefined;
+    }
 
-    // Calculate responsive chart height
-    const calculateChartHeight = () => {
-      if (isMobile) return Math.min(viewport.height * 0.6, 400);
-      if (isTablet) return Math.min(viewport.height * 0.65, 500);
-      return 600;
-    };
+    let disposed = false;
+    let resizeTimer = null;
 
-    let chart = null;
-    let resizeTimer;
-    let resizeObserver = null;
-
-    // Initialize chart after container is properly sized
     const initChart = () => {
-      const width = containerRef.current?.clientWidth;
-      const height = calculateChartHeight();
-
-      // Skip if container isn't sized yet
-      if (!width || width < 100) {
-        console.debug('Container not sized yet, waiting...', { width, height });
-        return false;
+      if (disposed || chartRef.current || !containerRef.current) {
+        return;
       }
 
-      try {
-        if (chartRef.current) {
-          chartRef.current.remove();
-          chartRef.current = null;
-          candleSeriesRef.current = null;
-        }
+      const width = containerRef.current.clientWidth;
+      if (!width || width < 100) {
+        return;
+      }
 
-        // Create chart with responsive dimensions
-        chart = createChart(containerRef.current, {
+      const compactView = (typeof window !== 'undefined' ? window.innerWidth : 1024) < 768;
+      const seedTheme = initialThemeRef.current;
+
+      try {
+        const chart = createChart(containerRef.current, {
           layout: {
-            background: { color: chartColors.background, type: ColorType.Solid },
-            textColor: chartColors.textColor,
+            background: { color: seedTheme.background, type: ColorType.Solid },
+            textColor: seedTheme.textColor,
           },
-          width: width,
-          height: height,
+          width,
+          height: calculateChartHeight(),
           timeScale: {
             timeVisible: true,
-            secondsVisible: !isMobile, // Hide seconds on mobile
-            rightOffset: isMobile ? 10 : 40,
+            secondsVisible: !compactView,
+            rightOffset: compactView ? 10 : 40,
           },
           localization: {
             locale: 'id-ID',
@@ -123,75 +148,127 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
                 month: '2-digit',
                 day: '2-digit',
                 hour: '2-digit',
-                minute: isMobile ? undefined : '2-digit', // Hide minutes on mobile for space
+                minute: compactView ? undefined : '2-digit',
               });
             },
           },
         });
 
-        chartRef.current = chart;
-
-        // Add candlestick series
         const candleSeries = chart.addCandlestickSeries({
-          upColor: chartColors.upColor,
-          downColor: chartColors.downColor,
-          borderUpColor: chartColors.borderUpColor,
-          borderDownColor: chartColors.borderDownColor,
-          wickUpColor: chartColors.upColor,
-          wickDownColor: chartColors.downColor,
+          upColor: seedTheme.upColor,
+          downColor: seedTheme.downColor,
+          borderUpColor: seedTheme.borderUpColor,
+          borderDownColor: seedTheme.borderDownColor,
+          wickUpColor: seedTheme.upColor,
+          wickDownColor: seedTheme.downColor,
         });
 
+        chartRef.current = chart;
         candleSeriesRef.current = candleSeries;
-        return true;
+
+        if (Array.isArray(pendingCandlesRef.current) && pendingCandlesRef.current.length > 0) {
+          candleSeriesRef.current.setData(pendingCandlesRef.current);
+          chartRef.current.timeScale().fitContent();
+        }
+
+        if (latestCandleRef.current) {
+          candleSeriesRef.current.update(latestCandleRef.current);
+        }
+
+        if (typeof window !== 'undefined') {
+          const currentCount = Number(window.__AUTOSAHAM_CHART_INSTANCE_COUNT || 0);
+          window.__AUTOSAHAM_CHART_INSTANCE_COUNT = currentCount + 1;
+        }
       } catch (err) {
         setError(`Failed to initialize chart: ${err.message}`);
         console.error('Chart initialization error:', err);
-        return false;
       }
     };
 
-    // Use ResizeObserver to detect when container gets sized
-    resizeObserver = new ResizeObserver(() => {
-      if (!chartRef.current && containerRef.current?.clientWidth > 100) {
-        console.debug('Container sized, initializing chart');
-        initChart();
-      }
-    });
-
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
-    }
-
-    // Try immediate initialization first
-    if (!initChart()) {
-      console.debug('Initial chart init failed, waiting for resize observer...');
-    }
-
-    // Enhanced resize handler with debounce
     const handleResize = () => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
-        if (containerRef.current && chartRef.current) {
-          chartRef.current.applyOptions({
-            width: containerRef.current.clientWidth,
-            height: calculateChartHeight(),
-          });
+        if (chartRef.current) {
+          applyChartDimensions();
+          return;
         }
-      }, 150); // Debounce to 150ms
+
+        initChart();
+      }, 120);
     };
 
-    window.addEventListener('resize', handleResize);
+    initChart();
+
+    if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+      resizeObserverRef.current = new ResizeObserver(() => {
+        if (chartRef.current) {
+          applyChartDimensions();
+          return;
+        }
+
+        initChart();
+      });
+
+      resizeObserverRef.current.observe(containerRef.current);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+    }
+
     return () => {
-      window.removeEventListener('resize', handleResize);
+      disposed = true;
+
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', handleResize);
+      }
+
       clearTimeout(resizeTimer);
-      if (resizeObserver) resizeObserver.disconnect();
+
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+
       if (chartRef.current) {
         chartRef.current.remove();
         chartRef.current = null;
         candleSeriesRef.current = null;
+
+        if (typeof window !== 'undefined') {
+          const currentCount = Number(window.__AUTOSAHAM_CHART_INSTANCE_COUNT || 1);
+          window.__AUTOSAHAM_CHART_INSTANCE_COUNT = Math.max(currentCount - 1, 0);
+        }
       }
     };
-  }, [chartColors, isMobile, isTablet, viewport.height]);
+  }, [applyChartDimensions, calculateChartHeight]);
+
+  // Apply theme updates without re-creating chart instance.
+  useEffect(() => {
+    if (!chartRef.current || !candleSeriesRef.current) {
+      return;
+    }
+
+    chartRef.current.applyOptions({
+      layout: {
+        background: { color: chartColors.background, type: ColorType.Solid },
+        textColor: chartColors.textColor,
+      },
+    });
+
+    candleSeriesRef.current.applyOptions({
+      upColor: chartColors.upColor,
+      downColor: chartColors.downColor,
+      borderUpColor: chartColors.borderUpColor,
+      borderDownColor: chartColors.borderDownColor,
+      wickUpColor: chartColors.upColor,
+      wickDownColor: chartColors.downColor,
+    });
+  }, [chartColors]);
+
+  useEffect(() => {
+    applyChartDimensions();
+  }, [applyChartDimensions, isMobile, isTablet, viewport.height, viewport.width]);
 
   // Fetch initial chart data
   useEffect(() => {
@@ -216,9 +293,11 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
           throw new Error(`Failed to fetch candles: ${candlesRes.statusText}`);
         }
         const candlesData = await candlesRes.json();
+        const normalizedCandles = Array.isArray(candlesData.candles) ? candlesData.candles : [];
+        pendingCandlesRef.current = normalizedCandles;
 
-        if (candleSeriesRef.current && candlesData.candles) {
-          candleSeriesRef.current.setData(candlesData.candles);
+        if (candleSeriesRef.current) {
+          candleSeriesRef.current.setData(normalizedCandles);
           chartRef.current?.timeScale().fitContent();
         }
 
@@ -246,6 +325,7 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
 
     const wsUrl = `${getWebSocketBase()}/ws/charts/${symbol}`;
     let pingInterval = null;
+    let isUnmounting = false;
 
     try {
       const ws = new WebSocket(wsUrl);
@@ -264,35 +344,69 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
 
       ws.onmessage = (event) => {
         try {
-          if (event.data === 'pong') {
+          const rawPayload = String(event.data ?? '').trim();
+          if (!rawPayload) {
             return;
           }
-          const data = JSON.parse(event.data);
+
+          const normalizedPayload = rawPayload.toLowerCase();
+          if (
+            normalizedPayload === 'pong' ||
+            normalizedPayload === '"pong"' ||
+            normalizedPayload.includes('"type":"pong"') ||
+            normalizedPayload.includes('"event":"pong"')
+          ) {
+            return;
+          }
+
+          if (!(rawPayload.startsWith('{') || rawPayload.startsWith('['))) {
+            return;
+          }
+
+          const data = JSON.parse(rawPayload);
+          if (data?.type === 'pong' || data?.event === 'pong') {
+            return;
+          }
 
           if (data.type === 'candle_update') {
             // Update with new candle
             if (candleSeriesRef.current) {
               candleSeriesRef.current.update(data.candle);
+            } else {
+              latestCandleRef.current = data.candle;
             }
             setLastUpdate(new Date());
           } else {
             // Initial data
-            if (candleSeriesRef.current && data.candles) {
-              candleSeriesRef.current.setData(data.candles);
+            const normalizedCandles = Array.isArray(data.candles) ? data.candles : [];
+            pendingCandlesRef.current = normalizedCandles;
+
+            if (candleSeriesRef.current) {
+              candleSeriesRef.current.setData(normalizedCandles);
               chartRef.current?.timeScale().fitContent();
             }
           }
         } catch (err) {
+          // Ignore malformed keep-alive payloads and non-JSON messages.
+          if (String(event.data ?? '').toLowerCase().includes('pong')) {
+            return;
+          }
           console.error('Error processing WebSocket message:', err);
         }
       };
 
       ws.onerror = (err) => {
+        if (isUnmounting) {
+          return;
+        }
         console.error('WebSocket error:', err);
         setWsWarning('Live updates unavailable. Showing latest fetched data.');
       };
 
       ws.onclose = () => {
+        if (isUnmounting) {
+          return;
+        }
         console.log(`WebSocket disconnected for ${symbol}`);
         setWsWarning('Live updates disconnected. Reconnect by refreshing the page.');
         if (pingInterval) {
@@ -301,10 +415,11 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
       };
 
       return () => {
+        isUnmounting = true;
         if (pingInterval) {
           clearInterval(pingInterval);
         }
-        if (ws.readyState === WebSocket.OPEN) {
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
           ws.close();
         }
       };
@@ -348,7 +463,7 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
             <p className="last-update">Last update: {formatDate(lastUpdate.getTime() / 1000)}</p>
           )}
           {wsWarning && (
-            <p className="last-update" style={{ color: '#fbbf24' }}>{wsWarning}</p>
+            <p className="last-update" style={{ color: 'var(--accent-yellow)' }}>{wsWarning}</p>
           )}
         </div>
 

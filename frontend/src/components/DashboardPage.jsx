@@ -218,7 +218,7 @@ function TopSignalsWidget() {
       <h2>Top AI Signals 🎯</h2>
       <div className="signals-list">
         {signals.length === 0 ? (
-          <p style={{ color: '#94a3b8', textAlign: 'center', padding: '2rem' }}>
+          <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '2rem' }}>
             No signals available at the moment
           </p>
         ) : (
@@ -272,7 +272,7 @@ function RecentActivityWidget() {
       <h2>Recent Activity</h2>
       <div className="activity-list">
         {activities.length === 0 ? (
-          <p style={{ color: '#94a3b8', textAlign: 'center', padding: '2rem' }}>
+          <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '2rem' }}>
             No recent activity
           </p>
         ) : (
@@ -333,7 +333,7 @@ export default function DashboardPage({ onNavigate }) {
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ margin: 0, color: '#f1f5f9' }}>Dashboard</h1>
+        <h1 style={{ margin: 0, color: 'var(--text-primary)' }}>Dashboard</h1>
         <div style={{ display: 'flex', gap: '1rem' }}>
           <Button 
             variant="primary" 

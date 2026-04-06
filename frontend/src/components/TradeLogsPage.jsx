@@ -192,11 +192,11 @@ export default function TradeLogsPage() {
         <div style={{
           textAlign: 'center',
           padding: '3rem',
-          background: '#1a1a1a',
+          background: 'var(--card-bg)',
           borderRadius: '12px',
-          border: '1px solid #ff6b6b'
+          border: '1px solid var(--accent-red)'
         }}>
-          <p style={{ color: '#ff6b6b', marginBottom: '1rem' }}>❌ {error}</p>
+          <p style={{ color: 'var(--accent-red)', marginBottom: '1rem' }}>❌ {error}</p>
           <Button 
             variant="primary"
             onClick={loadTradeLogs}
@@ -215,10 +215,10 @@ export default function TradeLogsPage() {
         <div style={{
           textAlign: 'center',
           padding: '3rem',
-          background: '#1a1a1a',
+          background: 'var(--card-bg)',
           borderRadius: '12px'
         }}>
-          <p style={{ color: '#999', marginBottom: '1rem' }}>📊 No trades yet. Start trading to see your logs here.</p>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>📊 No trades yet. Start trading to see your logs here.</p>
           <Button 
             variant="primary"
             onClick={loadTradeLogs}

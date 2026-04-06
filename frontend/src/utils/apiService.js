@@ -172,6 +172,28 @@ class ApiService {
     });
   }
 
+  // ============ Broker Connection API ============
+  async getAvailableBrokers() {
+    return this.request('/api/brokers/available');
+  }
+
+  async getBrokerConnection() {
+    return this.request('/api/broker/connection');
+  }
+
+  async connectBroker(payload) {
+    return this.request('/api/broker/connect', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async disconnectBroker() {
+    return this.request('/api/broker/disconnect', {
+      method: 'POST',
+    });
+  }
+
   // ============ Performance Reports API ============
   async getPerformanceReport(period = 'today') {
     return this.request(`/api/reports/performance?period=${period}`);

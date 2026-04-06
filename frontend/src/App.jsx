@@ -47,6 +47,16 @@ export default function App() {
       ? false
       : systemDarkMode
 
+  const applyThemePreference = (nextTheme) => {
+    const allowedThemes = ['dark', 'light', 'auto']
+    const safeTheme = allowedThemes.includes(nextTheme) ? nextTheme : 'auto'
+    setThemePreference(safeTheme)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('autosaham.theme', safeTheme)
+      window.dispatchEvent(new Event('autosaham:theme-changed'))
+    }
+  }
+
   // Register Service Worker on mount
   useEffect(() => {
     // DISABLED: Service Worker causing update loop and session issues
@@ -129,18 +139,18 @@ export default function App() {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const applyThemePreference = () => {
+    const syncThemePreferenceFromStorage = () => {
       const nextTheme = localStorage.getItem('autosaham.theme') || 'auto'
       setThemePreference(nextTheme)
     }
 
-    applyThemePreference()
-    window.addEventListener('autosaham:theme-changed', applyThemePreference)
-    window.addEventListener('storage', applyThemePreference)
+    syncThemePreferenceFromStorage()
+    window.addEventListener('autosaham:theme-changed', syncThemePreferenceFromStorage)
+    window.addEventListener('storage', syncThemePreferenceFromStorage)
 
     return () => {
-      window.removeEventListener('autosaham:theme-changed', applyThemePreference)
-      window.removeEventListener('storage', applyThemePreference)
+      window.removeEventListener('autosaham:theme-changed', syncThemePreferenceFromStorage)
+      window.removeEventListener('storage', syncThemePreferenceFromStorage)
     }
   }, [])
 
@@ -155,10 +165,7 @@ export default function App() {
           try {
             const userSettings = await apiService.getUserSettings()
             const preferredTheme = userSettings?.theme || 'auto'
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('autosaham.theme', preferredTheme)
-              window.dispatchEvent(new Event('autosaham:theme-changed'))
-            }
+            applyThemePreference(preferredTheme)
           } catch {
             // Keep default theme preference when settings API is unavailable.
           }
@@ -240,13 +247,21 @@ export default function App() {
       case 'dashboard':
         return <ErrorBoundary><DashboardPage onNavigate={handleNavigate} /></ErrorBoundary>
       case 'market':
-        return <ErrorBoundary><MarketIntelligencePage /></ErrorBoundary>
+        return <ErrorBoundary><MarketIntelligencePage theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
       case 'strategies':
         return <ErrorBoundary><StrategiesPage /></ErrorBoundary>
       case 'trades':
         return <ErrorBoundary><TradeLogsPage /></ErrorBoundary>
       case 'settings':
-        return <ErrorBoundary><SettingsPage onLogout={handleLogout} /></ErrorBoundary>
+        return (
+          <ErrorBoundary>
+            <SettingsPage
+              onLogout={handleLogout}
+              currentThemePreference={themePreference}
+              onThemePreferenceChange={applyThemePreference}
+            />
+          </ErrorBoundary>
+        )
       default:
         return <ErrorBoundary><DashboardPage /></ErrorBoundary>
     }
@@ -256,7 +271,13 @@ export default function App() {
     <ErrorBoundary>
       <div className="app-container" style={cssVariables} data-theme={darkMode ? 'dark' : 'light'}>
         {/* Enhanced Navigation Bar */}
-        <NavbarEnhanced user={user} onLogout={handleLogout} onNavigate={handleNavigate} />
+        <NavbarEnhanced
+          user={user}
+          onLogout={handleLogout}
+          onNavigate={handleNavigate}
+          currentThemePreference={themePreference}
+          onThemePreferenceChange={applyThemePreference}
+        />
 
         <div className="app-layout">
           {/* Enhanced Sidebar */}

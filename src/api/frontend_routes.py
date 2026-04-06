@@ -3,11 +3,10 @@ Additional API routes for AutoSaham frontend integration.
 Contains endpoints for portfolio, bot status, signals, strategies, trades, and market data.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Header
+from fastapi import APIRouter, HTTPException
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 from datetime import datetime, timedelta
-import random
 
 router = APIRouter(prefix="/api", tags=["frontend"])
 
@@ -127,6 +126,9 @@ class MarketMoversResponse(BaseModel):
 
 
 class UserSettings(BaseModel):
+    fullName: str = "AutoSaham User"
+    email: str = "user@autosaham.local"
+    phone: str = ""
     theme: str = "dark"
     notifications: bool = True
     soundAlerts: bool = False
@@ -136,14 +138,38 @@ class UserSettings(BaseModel):
     autoTrading: bool = False
     riskLevel: str = "moderate"
     maxDrawdown: int = 15
+    brokerProvider: str = "indonesia-securities"
     apiKey: str = "****"
     brokerName: str = "Indonesia Securities"
+    brokerAccountId: str = ""
+    tradingMode: str = "paper"
     maxPositionSize: float = 10.0
     stopLossPercent: float = 5.0
     takeProfitPercent: float = 10.0
+    maxOpenPositions: int = 5
+    preferredUniverse: List[str] = ["BBCA.JK", "USIM.JK", "KLBF.JK", "ASII.JK", "UNVR.JK"]
+
+
+class BrokerProvider(BaseModel):
+    id: str
+    name: str
+    country: str = "ID"
+    supportsPaper: bool = True
+    supportsLive: bool = False
+    integrationReady: bool = False
+
+
+class BrokerConnectPayload(BaseModel):
+    provider: str
+    accountId: str
+    apiKey: Optional[str] = ""
+    tradingMode: str = "paper"
 
 
 _user_settings_store: Dict[str, Any] = {
+    "fullName": "AutoSaham User",
+    "email": "user@autosaham.local",
+    "phone": "",
     "theme": "dark",
     "notifications": True,
     "soundAlerts": False,
@@ -153,12 +179,63 @@ _user_settings_store: Dict[str, Any] = {
     "autoTrading": False,
     "riskLevel": "moderate",
     "maxDrawdown": 15,
+    "brokerProvider": "indonesia-securities",
     "apiKey": "****",
     "brokerName": "Indonesia Securities",
+    "brokerAccountId": "",
+    "tradingMode": "paper",
     "maxPositionSize": 10.0,
     "stopLossPercent": 5.0,
     "takeProfitPercent": 10.0,
+    "maxOpenPositions": 5,
+    "preferredUniverse": ["BBCA.JK", "USIM.JK", "KLBF.JK", "ASII.JK", "UNVR.JK"],
     "updatedAt": datetime.now().isoformat(),
+}
+
+_available_broker_providers: List[BrokerProvider] = [
+    BrokerProvider(
+        id="indonesia-securities",
+        name="Indonesia Securities",
+        supportsPaper=True,
+        supportsLive=False,
+        integrationReady=False,
+    ),
+    BrokerProvider(
+        id="ajaib",
+        name="Ajaib",
+        supportsPaper=True,
+        supportsLive=False,
+        integrationReady=False,
+    ),
+    BrokerProvider(
+        id="motiontrade",
+        name="MotionTrade (MNC Sekuritas)",
+        supportsPaper=True,
+        supportsLive=False,
+        integrationReady=False,
+    ),
+    BrokerProvider(
+        id="indopremier",
+        name="Indo Premier",
+        supportsPaper=True,
+        supportsLive=False,
+        integrationReady=False,
+    ),
+]
+
+_broker_connection_store: Dict[str, Any] = {
+    "connected": False,
+    "provider": None,
+    "providerName": None,
+    "accountId": None,
+    "tradingMode": "paper",
+    "maskedApiKey": None,
+    "lastSync": None,
+    "features": {
+        "paperTrading": True,
+        "liveTrading": False,
+        "autoWithdraw": False,
+    },
 }
 
 # ============== Temporary Data (Replace with real DB queries) ==============
@@ -460,3 +537,103 @@ async def update_user_settings(payload: UserSettings):
     _user_settings_store.update(payload.model_dump())
     _user_settings_store["updatedAt"] = datetime.now().isoformat()
     return _user_settings_store
+
+
+@router.get("/brokers/available", response_model=List[BrokerProvider])
+async def get_available_brokers():
+    """Return broker integrations available in current environment."""
+    return _available_broker_providers
+
+
+@router.get("/broker/connection")
+async def get_broker_connection():
+    """Return current broker connection state."""
+    return _broker_connection_store
+
+
+@router.post("/broker/connect")
+async def connect_broker(payload: BrokerConnectPayload):
+    """Connect selected broker in safe paper mode by default.
+
+    This route currently persists connection settings in memory only.
+    """
+    provider = next((p for p in _available_broker_providers if p.id == payload.provider), None)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Broker provider not found")
+
+    requested_mode = (payload.tradingMode or "paper").lower()
+    if requested_mode not in {"paper", "live"}:
+        raise HTTPException(status_code=400, detail="Invalid trading mode")
+
+    if requested_mode == "live":
+        raise HTTPException(
+            status_code=400,
+            detail="Live trading integration is not enabled yet. Use paper mode for now.",
+        )
+
+    account_id = payload.accountId.strip()
+    if not account_id:
+        raise HTTPException(status_code=400, detail="Account ID is required")
+
+    masked_key = "****"
+    api_key = (payload.apiKey or "").strip()
+    if api_key:
+        masked_key = f"{api_key[:4]}****"
+
+    _broker_connection_store.update(
+        {
+            "connected": True,
+            "provider": provider.id,
+            "providerName": provider.name,
+            "accountId": account_id,
+            "tradingMode": requested_mode,
+            "maskedApiKey": masked_key,
+            "lastSync": datetime.now().isoformat(),
+        }
+    )
+
+    _user_settings_store.update(
+        {
+            "brokerProvider": provider.id,
+            "brokerName": provider.name,
+            "brokerAccountId": account_id,
+            "apiKey": masked_key,
+            "tradingMode": requested_mode,
+            "updatedAt": datetime.now().isoformat(),
+        }
+    )
+
+    return {
+        "status": "connected",
+        "connection": _broker_connection_store,
+    }
+
+
+@router.post("/broker/disconnect")
+async def disconnect_broker():
+    """Disconnect active broker account and keep app in paper-only mode."""
+    _broker_connection_store.update(
+        {
+            "connected": False,
+            "provider": None,
+            "providerName": None,
+            "accountId": None,
+            "tradingMode": "paper",
+            "maskedApiKey": None,
+            "lastSync": datetime.now().isoformat(),
+        }
+    )
+
+    _user_settings_store.update(
+        {
+            "brokerAccountId": "",
+            "apiKey": "****",
+            "tradingMode": "paper",
+            "updatedAt": datetime.now().isoformat(),
+        }
+    )
+
+    return {
+        "status": "disconnected",
+        "connection": _broker_connection_store,
+    }
