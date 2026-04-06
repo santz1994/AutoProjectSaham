@@ -4,6 +4,7 @@ Contains endpoints for portfolio, bot status, signals, strategies, trades, and m
 """
 
 import csv
+import json
 import os
 from fastapi import APIRouter, HTTPException
 from typing import Optional, List, Dict, Any
@@ -304,6 +305,32 @@ _state_store.ensure_seed_ai_logs(
 )
 
 
+_SYMBOL_NAME_MAP: Dict[str, str] = {
+    "BBCA.JK": "Bank Central Asia",
+    "TLKM.JK": "Telekomunikasi Indonesia",
+    "INDF.JK": "Indofood Sukses Makmur",
+    "ASII.JK": "Astra International",
+    "UNVR.JK": "Unilever Indonesia",
+    "KLBF.JK": "Kalbe Farma",
+    "USIM.JK": "Universal Broker Basket",
+}
+
+_SYMBOL_SECTOR_MAP: Dict[str, str] = {
+    "BBCA.JK": "Financial Services",
+    "TLKM.JK": "Telecommunications",
+    "INDF.JK": "Consumer Goods",
+    "ASII.JK": "Industrials",
+    "UNVR.JK": "Consumer Goods",
+    "KLBF.JK": "Healthcare",
+}
+
+_transformer_runtime_cache: Dict[str, Any] = {
+    "path": None,
+    "mtime": None,
+    "runtime": None,
+}
+
+
 def _count_csv_rows(csv_path: str) -> int:
     if not os.path.exists(csv_path):
         return 0
@@ -319,7 +346,7 @@ def _count_csv_rows(csv_path: str) -> int:
 
 def _resolve_dataset_csv_path() -> str:
     """Resolve the most relevant dataset CSV path for AI overview metrics."""
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    project_root = _get_project_root()
     candidates = [
         os.path.join(project_root, "data", "dataset", "dataset.csv"),
         os.path.join(project_root, "data", "dataset.csv"),
@@ -332,8 +359,275 @@ def _resolve_dataset_csv_path() -> str:
     return candidates[0]
 
 
+def _get_project_root() -> str:
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+
+def _safe_float(value: Any, default: Optional[float] = 0.0) -> Optional[float]:
+    try:
+        parsed = float(value)
+    except Exception:
+        return default
+    if parsed != parsed:  # NaN
+        return default
+    if parsed in (float("inf"), float("-inf")):
+        return default
+    return parsed
+
+
+def _is_within_path(candidate_path: str, root_path: str) -> bool:
+    try:
+        candidate_abs = os.path.abspath(candidate_path)
+        root_abs = os.path.abspath(root_path)
+        return os.path.commonpath([candidate_abs, root_abs]) == root_abs
+    except Exception:
+        return False
+
+
+def _coerce_model_path(project_root: str, model_path: Optional[str]) -> Optional[str]:
+    if model_path is None:
+        return None
+
+    raw = str(model_path).strip()
+    if not raw:
+        return None
+
+    normalized = raw.replace("\\", os.sep).replace("/", os.sep)
+    if os.path.isabs(normalized):
+        candidate = os.path.normpath(normalized)
+    else:
+        candidate = os.path.normpath(os.path.join(project_root, normalized))
+
+    if not _is_within_path(candidate, project_root):
+        return None
+    return candidate
+
+
+def _load_json_if_exists(path: str) -> Optional[Dict[str, Any]]:
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+            return payload if isinstance(payload, dict) else None
+    except Exception:
+        return None
+
+
+def _artifact_meta(
+    project_root: str,
+    abs_path: str,
+    architecture: Optional[str],
+    source: str,
+    score: Optional[float],
+    accuracy: Optional[float] = None,
+) -> Optional[Dict[str, Any]]:
+    if not abs_path or (not os.path.exists(abs_path)):
+        return None
+
+    modified_ts = os.path.getmtime(abs_path)
+    rel_path = os.path.relpath(abs_path, project_root).replace("\\", "/")
+    return {
+        "path": abs_path,
+        "artifact": rel_path,
+        "mtime": modified_ts,
+        "lastTrainedAt": datetime.fromtimestamp(modified_ts).isoformat(),
+        "architecture": architecture,
+        "source": source,
+        "score": float(score) if score is not None else None,
+        "accuracy": float(accuracy) if accuracy is not None else None,
+    }
+
+
+def _resolve_best_walk_forward_artifact(project_root: str) -> Optional[Dict[str, Any]]:
+    report_path = os.path.join(project_root, "models", "transformers", "walk_forward_report.json")
+    report = _load_json_if_exists(report_path)
+    if not report:
+        return None
+
+    results = report.get("results")
+    if not isinstance(results, dict):
+        return None
+
+    best_meta = None
+    best_rank = None
+
+    for architecture, payload in results.items():
+        if not isinstance(payload, dict):
+            continue
+        folds = payload.get("results")
+        if not isinstance(folds, list):
+            continue
+
+        for fold in folds:
+            if not isinstance(fold, dict):
+                continue
+            if fold.get("status") != "ok":
+                continue
+
+            model_path = _coerce_model_path(project_root, fold.get("model_path"))
+            if not model_path:
+                continue
+
+            metrics = fold.get("metrics") or {}
+            if not isinstance(metrics, dict):
+                metrics = {}
+            score = metrics.get("f1_macro")
+            accuracy = metrics.get("accuracy")
+            meta = _artifact_meta(
+                project_root,
+                model_path,
+                architecture=str(architecture).lower(),
+                source="walk_forward",
+                score=_safe_float(score, default=None) if score is not None else None,
+                accuracy=_safe_float(accuracy, default=None) if accuracy is not None else None,
+            )
+            if not meta:
+                continue
+
+            rank = (
+                float(meta["score"]) if meta.get("score") is not None else float("-inf"),
+                float(meta["accuracy"]) if meta.get("accuracy") is not None else float("-inf"),
+                float(meta.get("mtime") or 0.0),
+            )
+            if best_rank is None or rank > best_rank:
+                best_rank = rank
+                best_meta = meta
+
+    return best_meta
+
+
+def _resolve_best_baseline_artifact(project_root: str) -> Optional[Dict[str, Any]]:
+    report_path = os.path.join(project_root, "models", "transformers", "baseline_report.json")
+    report = _load_json_if_exists(report_path)
+    if not report:
+        return None
+
+    results = report.get("results")
+    if not isinstance(results, dict):
+        return None
+
+    best_meta = None
+    best_rank = None
+
+    for architecture, payload in results.items():
+        if not isinstance(payload, dict):
+            continue
+
+        model_path = _coerce_model_path(project_root, payload.get("model_path"))
+        if not model_path:
+            continue
+
+        metrics = payload.get("metrics") or {}
+        if not isinstance(metrics, dict):
+            metrics = {}
+        score = metrics.get("f1_macro")
+        accuracy = metrics.get("accuracy")
+        meta = _artifact_meta(
+            project_root,
+            model_path,
+            architecture=str(architecture).lower(),
+            source="baseline",
+            score=_safe_float(score, default=None) if score is not None else None,
+            accuracy=_safe_float(accuracy, default=None) if accuracy is not None else None,
+        )
+        if not meta:
+            continue
+
+        rank = (
+            float(meta["score"]) if meta.get("score") is not None else float("-inf"),
+            float(meta["accuracy"]) if meta.get("accuracy") is not None else float("-inf"),
+            float(meta.get("mtime") or 0.0),
+        )
+        if best_rank is None or rank > best_rank:
+            best_rank = rank
+            best_meta = meta
+
+    return best_meta
+
+
+def _resolve_latest_transformer_artifact(project_root: str) -> Optional[Dict[str, Any]]:
+    transformers_dir = os.path.join(project_root, "models", "transformers")
+    if not os.path.isdir(transformers_dir):
+        return None
+
+    latest_path = None
+    latest_ts = None
+    for root, _, files in os.walk(transformers_dir):
+        for name in files:
+            if not name.lower().endswith(".pt"):
+                continue
+            path = os.path.join(root, name)
+            modified_ts = os.path.getmtime(path)
+            if latest_ts is None or modified_ts > latest_ts:
+                latest_ts = modified_ts
+                latest_path = path
+
+    if not latest_path:
+        return None
+
+    arch = None
+    basename = os.path.basename(latest_path).lower()
+    if "fusion" in basename:
+        arch = "fusion"
+    elif "patchtst" in basename:
+        arch = "patchtst"
+    elif "mtst" in basename:
+        arch = "mtst"
+    elif "tft" in basename:
+        arch = "tft"
+
+    return _artifact_meta(
+        project_root,
+        latest_path,
+        architecture=arch,
+        source="latest_pt",
+        score=None,
+        accuracy=None,
+    )
+
+
+def _resolve_best_transformer_artifact(project_root: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    root = project_root or _get_project_root()
+    candidates = [
+        _resolve_best_walk_forward_artifact(root),
+        _resolve_best_baseline_artifact(root),
+        _resolve_latest_transformer_artifact(root),
+    ]
+    valid_candidates = [candidate for candidate in candidates if candidate]
+    if not valid_candidates:
+        return None
+
+    def _candidate_rank(item: Dict[str, Any]) -> tuple[float, float, float]:
+        score = item.get("score")
+        accuracy = item.get("accuracy")
+        return (
+            float(score) if score is not None else float("-inf"),
+            float(accuracy) if accuracy is not None else float("-inf"),
+            float(item.get("mtime") or 0.0),
+        )
+
+    scored_candidates = [candidate for candidate in valid_candidates if candidate.get("score") is not None]
+    if scored_candidates:
+        return max(scored_candidates, key=_candidate_rank)
+
+    return max(valid_candidates, key=lambda item: float(item.get("mtime") or 0.0))
+
+
 def _get_latest_model_artifact() -> Dict[str, Any]:
-    models_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "models"))
+    project_root = _get_project_root()
+
+    transformer_artifact = _resolve_best_transformer_artifact(project_root)
+    if transformer_artifact:
+        return {
+            "artifact": transformer_artifact.get("artifact"),
+            "lastTrainedAt": transformer_artifact.get("lastTrainedAt"),
+            "architecture": transformer_artifact.get("architecture"),
+            "source": transformer_artifact.get("source"),
+            "score": transformer_artifact.get("score"),
+        }
+
+    models_dir = os.path.join(project_root, "models")
     candidates = ["model.joblib", "ensemble_test.joblib"]
     latest_name = None
     latest_ts = None
@@ -351,12 +645,493 @@ def _get_latest_model_artifact() -> Dict[str, Any]:
         return {
             "artifact": None,
             "lastTrainedAt": None,
+            "architecture": None,
+            "source": None,
+            "score": None,
         }
 
     return {
         "artifact": latest_name,
         "lastTrainedAt": datetime.fromtimestamp(latest_ts).isoformat(),
+        "architecture": "legacy",
+        "source": "legacy_joblib",
+        "score": None,
     }
+
+
+def _resolve_signal_universe(df: Any, preferred_universe: Optional[List[str]], max_symbols: int) -> List[str]:
+    if "symbol" not in df.columns:
+        return []
+
+    available_symbols = [str(value) for value in df["symbol"].dropna().astype(str).tolist()]
+    available_set = set(available_symbols)
+    selected: List[str] = []
+
+    for symbol in preferred_universe or []:
+        normalized = str(symbol).strip()
+        if normalized and normalized in available_set and normalized not in selected:
+            selected.append(normalized)
+
+    if not selected:
+        if "t_index" in df.columns:
+            latest = (
+                df[["symbol", "t_index"]]
+                .dropna(subset=["symbol"])
+                .groupby("symbol", as_index=False)["t_index"]
+                .max()
+                .sort_values("t_index", ascending=False)
+            )
+            for value in latest["symbol"].tolist():
+                symbol = str(value)
+                if symbol not in selected:
+                    selected.append(symbol)
+        else:
+            for symbol in available_symbols:
+                if symbol not in selected:
+                    selected.append(symbol)
+
+    safe_max = max(1, int(max_symbols))
+    return selected[:safe_max]
+
+
+def _signal_from_expected_return(expected_return: float, confidence: float, return_levels: List[float]) -> str:
+    if not return_levels:
+        return_levels = [-0.01, 0.01]
+
+    max_level = max(return_levels)
+    min_level = min(return_levels)
+    strong_buy_threshold = max(0.01, max_level * 0.7)
+    strong_sell_threshold = min(-0.01, min_level * 0.7)
+
+    if expected_return >= strong_buy_threshold and confidence >= 0.60:
+        return "STRONG_BUY"
+    if expected_return > 0.0 and confidence >= 0.52:
+        return "BUY"
+    if expected_return <= strong_sell_threshold and confidence >= 0.60:
+        return "STRONG_SELL"
+    if expected_return < 0.0 and confidence >= 0.52:
+        return "SELL"
+    return "HOLD"
+
+
+def _risk_level_from_prediction(expected_return: float, confidence: float) -> str:
+    absolute_move = abs(expected_return)
+    if confidence >= 0.70 and absolute_move <= 0.02:
+        return "Low"
+    if confidence >= 0.60 and absolute_move <= 0.04:
+        return "Low-Medium"
+    if confidence >= 0.52 and absolute_move <= 0.07:
+        return "Medium"
+    return "High"
+
+
+def _symbol_name(symbol: str) -> str:
+    if symbol in _SYMBOL_NAME_MAP:
+        return _SYMBOL_NAME_MAP[symbol]
+    return str(symbol).replace(".JK", "")
+
+
+def _symbol_sector(symbol: str) -> str:
+    return _SYMBOL_SECTOR_MAP.get(symbol, "IDX")
+
+
+def _load_transformer_runtime(project_root: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    root = project_root or _get_project_root()
+    best_artifact = _resolve_best_transformer_artifact(root)
+    if not best_artifact:
+        return None
+
+    model_path = best_artifact.get("path")
+    model_mtime = best_artifact.get("mtime")
+    if (
+        _transformer_runtime_cache.get("runtime") is not None
+        and _transformer_runtime_cache.get("path") == model_path
+        and _transformer_runtime_cache.get("mtime") == model_mtime
+    ):
+        return _transformer_runtime_cache.get("runtime")
+
+    try:
+        import numpy as np
+        import torch
+        from src.ml.transformer_baselines import build_baseline_model
+
+        checkpoint = torch.load(model_path, map_location="cpu")
+        if not isinstance(checkpoint, dict):
+            return None
+
+        feature_columns = [str(col) for col in (checkpoint.get("feature_columns") or [])]
+        if not feature_columns:
+            return None
+
+        architecture = str(
+            checkpoint.get("architecture")
+            or best_artifact.get("architecture")
+            or "fusion"
+        ).lower()
+        train_config = checkpoint.get("train_config") or {}
+
+        input_dim = int(checkpoint.get("input_dim") or len(feature_columns))
+        raw_index_to_label = checkpoint.get("index_to_label") or {}
+        num_classes = int(checkpoint.get("num_classes") or max(2, len(raw_index_to_label)))
+
+        model = build_baseline_model(
+            architecture=architecture,
+            input_dim=input_dim,
+            num_classes=num_classes,
+            feature_columns=feature_columns,
+            patch_sizes=train_config.get("patch_sizes") or [4, 8, 16],
+            patch_stride=int(train_config.get("patch_stride", 4)),
+            d_model=int(train_config.get("d_model", 128)),
+            n_heads=int(train_config.get("n_heads", 4)),
+            n_layers=int(train_config.get("n_layers", 2)),
+            dropout=float(train_config.get("dropout", 0.1)),
+        )
+
+        state_dict = checkpoint.get("state_dict")
+        if not state_dict:
+            return None
+        model.load_state_dict(state_dict)
+        model.eval()
+
+        mean_values = checkpoint.get("normalization_mean") or [0.0] * input_dim
+        std_values = checkpoint.get("normalization_std") or [1.0] * input_dim
+        mean = np.asarray(mean_values, dtype=np.float32).reshape(1, 1, -1)
+        std = np.asarray(std_values, dtype=np.float32).reshape(1, 1, -1)
+        std = np.where(np.abs(std) < 1e-6, 1.0, std).astype(np.float32)
+
+        index_to_label: Dict[int, int] = {}
+        for key, value in raw_index_to_label.items():
+            try:
+                idx = int(key)
+                index_to_label[idx] = int(value)
+            except Exception:
+                continue
+
+        runtime = {
+            "model": model,
+            "feature_columns": feature_columns,
+            "normalization_mean": mean,
+            "normalization_std": std,
+            "index_to_label": index_to_label,
+            "architecture": architecture,
+            "source": best_artifact.get("source") or "transformer",
+            "seq_len": int(train_config.get("seq_len", 32)),
+        }
+
+        _transformer_runtime_cache.update(
+            {
+                "path": model_path,
+                "mtime": model_mtime,
+                "runtime": runtime,
+            }
+        )
+        return runtime
+    except Exception:
+        _transformer_runtime_cache.update({"path": model_path, "mtime": model_mtime, "runtime": None})
+        return None
+
+
+def _estimate_label_returns(df: Any) -> Dict[int, float]:
+    if "label" not in df.columns or "future_return" not in df.columns:
+        return {}
+
+    stats = {}
+    grouped = (
+        df[["label", "future_return"]]
+        .dropna(subset=["label", "future_return"])
+        .groupby("label")["future_return"]
+        .mean()
+    )
+    for label, value in grouped.items():
+        try:
+            stats[int(label)] = float(value)
+        except Exception:
+            continue
+    return stats
+
+
+def _build_symbol_sequences(
+    df: Any,
+    feature_columns: List[str],
+    seq_len: int,
+    symbols: List[str],
+) -> List[Dict[str, Any]]:
+    import numpy as np
+    import pandas as pd
+
+    if "symbol" not in df.columns or not feature_columns:
+        return []
+
+    work = df.copy()
+    if "t_index" not in work.columns:
+        work["t_index"] = np.arange(len(work), dtype=int)
+
+    work["_row_order"] = np.arange(len(work), dtype=int)
+    work = work.sort_values(["symbol", "t_index", "_row_order"], kind="mergesort").reset_index(drop=True)
+
+    for col in feature_columns:
+        if col not in work.columns:
+            work[col] = 0.0
+
+    for col in feature_columns:
+        if pd.api.types.is_bool_dtype(work[col]):
+            work[col] = work[col].astype(int)
+        elif not pd.api.types.is_numeric_dtype(work[col]):
+            work[col] = work[col].astype("category").cat.codes.astype(float)
+
+    feature_frame = (
+        work[feature_columns]
+        .replace([np.inf, -np.inf], np.nan)
+        .ffill()
+        .bfill()
+        .fillna(0.0)
+        .astype(np.float32)
+    )
+
+    price_col = None
+    for candidate in ["last_price", "close", "price", "adj_close", "open"]:
+        if candidate in work.columns:
+            price_col = candidate
+            break
+
+    samples: List[Dict[str, Any]] = []
+    for symbol in symbols:
+        symbol_mask = work["symbol"].astype(str) == str(symbol)
+        if not bool(symbol_mask.any()):
+            continue
+
+        symbol_features = feature_frame.loc[symbol_mask].to_numpy(dtype=np.float32)
+        if symbol_features.shape[0] < 1:
+            continue
+
+        if symbol_features.shape[0] >= seq_len:
+            sequence = symbol_features[-seq_len:]
+        else:
+            pad = np.repeat(symbol_features[:1], repeats=(seq_len - symbol_features.shape[0]), axis=0)
+            sequence = np.concatenate([pad, symbol_features], axis=0)
+
+        symbol_rows = work.loc[symbol_mask]
+        last_row = symbol_rows.iloc[-1]
+        current_price = _safe_float(last_row.get(price_col), default=0.0) if price_col else 0.0
+
+        samples.append(
+            {
+                "symbol": str(symbol),
+                "sequence": sequence,
+                "current_price": float(max(0.0, current_price)),
+            }
+        )
+
+    return samples
+
+
+def _infer_signals_from_transformer(limit: int, preferred_universe: Optional[List[str]]) -> List[Signal]:
+    import numpy as np
+
+    safe_limit = max(1, int(limit))
+    dataset_csv = _resolve_dataset_csv_path()
+    if not os.path.exists(dataset_csv):
+        return []
+
+    runtime = _load_transformer_runtime()
+    if runtime is None:
+        return []
+
+    try:
+        import pandas as pd
+        import torch
+
+        df = pd.read_csv(dataset_csv)
+        if df.empty or "symbol" not in df.columns:
+            return []
+
+        symbols = _resolve_signal_universe(df, preferred_universe, max_symbols=max(safe_limit * 3, 6))
+        if not symbols:
+            return []
+
+        samples = _build_symbol_sequences(
+            df,
+            feature_columns=runtime["feature_columns"],
+            seq_len=int(runtime["seq_len"]),
+            symbols=symbols,
+        )
+        if not samples:
+            return []
+
+        x = np.stack([item["sequence"] for item in samples], axis=0).astype(np.float32)
+        mean = runtime["normalization_mean"]
+        std = runtime["normalization_std"]
+        if mean.shape[-1] != x.shape[-1] or std.shape[-1] != x.shape[-1]:
+            mean = np.zeros((1, 1, x.shape[-1]), dtype=np.float32)
+            std = np.ones((1, 1, x.shape[-1]), dtype=np.float32)
+
+        normalized = ((x - mean) / std).astype(np.float32)
+        tensor = torch.tensor(normalized, dtype=torch.float32)
+
+        with torch.no_grad():
+            logits = runtime["model"](tensor)
+            probs = torch.softmax(logits, dim=1).cpu().numpy()
+
+        label_returns = _estimate_label_returns(df)
+        return_levels = list(label_returns.values())
+        generated_at = datetime.now().isoformat()
+        ranked_rows: List[Dict[str, Any]] = []
+
+        for index, sample in enumerate(samples):
+            probabilities = probs[index]
+            pred_idx = int(np.argmax(probabilities))
+            confidence = float(np.max(probabilities))
+
+            predicted_label = runtime["index_to_label"].get(pred_idx, pred_idx)
+            try:
+                predicted_label_int = int(predicted_label)
+            except Exception:
+                predicted_label_int = pred_idx
+
+            expected_return = float(label_returns.get(predicted_label_int, 0.0))
+            signal_name = _signal_from_expected_return(expected_return, confidence, return_levels)
+            current_price = float(sample["current_price"])
+            target_price = current_price * (1.0 + expected_return) if current_price > 0 else 0.0
+
+            ranked_rows.append(
+                {
+                    "rank": confidence * (abs(expected_return) + 0.001),
+                    "symbol": sample["symbol"],
+                    "name": _symbol_name(sample["symbol"]),
+                    "signal": signal_name,
+                    "confidence": confidence,
+                    "reason": (
+                        f"{str(runtime['architecture']).upper()} model ({runtime['source']}) "
+                        f"predicted class {predicted_label_int} with {confidence * 100:.1f}% confidence."
+                    ),
+                    "predictedMove": f"{expected_return * 100:+.2f}%",
+                    "riskLevel": _risk_level_from_prediction(expected_return, confidence),
+                    "sector": _symbol_sector(sample["symbol"]),
+                    "currentPrice": current_price,
+                    "targetPrice": float(max(0.0, target_price)),
+                    "timestamp": generated_at,
+                }
+            )
+
+        ranked_rows.sort(key=lambda item: item["rank"], reverse=True)
+
+        signals: List[Signal] = []
+        for rank, row in enumerate(ranked_rows[:safe_limit], start=1):
+            signals.append(
+                Signal(
+                    id=rank,
+                    symbol=row["symbol"],
+                    name=row["name"],
+                    signal=row["signal"],
+                    confidence=row["confidence"],
+                    reason=row["reason"],
+                    predictedMove=row["predictedMove"],
+                    riskLevel=row["riskLevel"],
+                    sector=row["sector"],
+                    currentPrice=row["currentPrice"],
+                    targetPrice=row["targetPrice"],
+                    timestamp=row["timestamp"],
+                )
+            )
+
+        return signals
+    except Exception:
+        return []
+
+
+def _build_fallback_signals(limit: int, preferred_universe: Optional[List[str]]) -> List[Signal]:
+    safe_limit = max(1, int(limit))
+    dataset_csv = _resolve_dataset_csv_path()
+
+    try:
+        import pandas as pd
+
+        if os.path.exists(dataset_csv):
+            df = pd.read_csv(dataset_csv)
+            if (not df.empty) and ("symbol" in df.columns):
+                symbols = _resolve_signal_universe(df, preferred_universe, max_symbols=max(safe_limit * 3, 6))
+                generated_at = datetime.now().isoformat()
+                rows: List[Dict[str, Any]] = []
+
+                for symbol in symbols:
+                    symbol_df = df[df["symbol"].astype(str) == str(symbol)]
+                    if symbol_df.empty:
+                        continue
+                    last_row = symbol_df.iloc[-1]
+
+                    momentum = _safe_float(last_row.get("momentum"), default=0.0)
+                    short_sma = _safe_float(last_row.get("short_sma"), default=0.0)
+                    long_sma = _safe_float(last_row.get("long_sma"), default=0.0)
+                    current_price = _safe_float(last_row.get("last_price"), default=0.0)
+
+                    trend_gap = ((short_sma - long_sma) / long_sma) if long_sma > 0 else 0.0
+                    expected_return = max(-0.08, min(0.08, (0.6 * momentum) + (0.4 * trend_gap)))
+                    confidence = max(0.50, min(0.85, 0.55 + (abs(expected_return) * 4.0)))
+                    signal_name = _signal_from_expected_return(
+                        expected_return,
+                        confidence,
+                        return_levels=[-abs(expected_return), abs(expected_return)],
+                    )
+
+                    rows.append(
+                        {
+                            "rank": confidence * (abs(expected_return) + 0.001),
+                            "symbol": str(symbol),
+                            "name": _symbol_name(str(symbol)),
+                            "signal": signal_name,
+                            "confidence": confidence,
+                            "reason": (
+                                "Fallback technical heuristic using momentum and SMA trend gap "
+                                "while transformer signal model is unavailable."
+                            ),
+                            "predictedMove": f"{expected_return * 100:+.2f}%",
+                            "riskLevel": _risk_level_from_prediction(expected_return, confidence),
+                            "sector": _symbol_sector(str(symbol)),
+                            "currentPrice": float(max(0.0, current_price)),
+                            "targetPrice": float(max(0.0, current_price * (1.0 + expected_return))),
+                            "timestamp": generated_at,
+                        }
+                    )
+
+                rows.sort(key=lambda item: item["rank"], reverse=True)
+                if rows:
+                    return [
+                        Signal(
+                            id=index,
+                            symbol=item["symbol"],
+                            name=item["name"],
+                            signal=item["signal"],
+                            confidence=item["confidence"],
+                            reason=item["reason"],
+                            predictedMove=item["predictedMove"],
+                            riskLevel=item["riskLevel"],
+                            sector=item["sector"],
+                            currentPrice=item["currentPrice"],
+                            targetPrice=item["targetPrice"],
+                            timestamp=item["timestamp"],
+                        )
+                        for index, item in enumerate(rows[:safe_limit], start=1)
+                    ]
+    except Exception:
+        pass
+
+    # Absolute fallback to maintain API contract.
+    return [
+        Signal(
+            id=1,
+            symbol="INDF.JK",
+            name="Indofood Sukses Makmur",
+            signal="HOLD",
+            confidence=0.5,
+            reason="No valid model output is available yet; fallback signal is neutral.",
+            predictedMove="+0.00%",
+            riskLevel="Medium",
+            sector="Consumer Goods",
+            currentPrice=9150,
+            targetPrice=9150,
+            timestamp=datetime.now().isoformat(),
+        )
+    ][:safe_limit]
 
 # ============== Temporary Data (Replace with real DB queries) ==============
 
@@ -453,24 +1228,21 @@ async def pause_bot():
 @router.get("/signals", response_model=List[Signal])
 async def get_signals(limit: int = 10):
     """Get top trading signals from ML models"""
-    # TODO: Replace with actual signals from ML pipeline
-    signals = [
-        Signal(
-            id=1,
-            symbol="INDF.JK",
-            name="Indofood Sukses Makmur",
-            signal="STRONG_BUY",
-            confidence=0.92,
-            reason="Volume spike 45% + Positive sentiment",
-            predictedMove="+3.2%",
-            riskLevel="Low-Medium",
-            sector="Consumer Goods",
-            currentPrice=9150,
-            targetPrice=9440,
-            timestamp=datetime.now().isoformat()
-        )
-    ]
-    return signals[:limit]
+    safe_limit = max(1, min(50, int(limit)))
+    settings = _state_store.get_user_settings(_default_user_settings)
+    preferred_universe = settings.get("preferredUniverse", [])
+
+    transformer_signals = _infer_signals_from_transformer(
+        limit=safe_limit,
+        preferred_universe=preferred_universe,
+    )
+    if transformer_signals:
+        return transformer_signals[:safe_limit]
+
+    return _build_fallback_signals(
+        limit=safe_limit,
+        preferred_universe=preferred_universe,
+    )[:safe_limit]
 
 @router.get("/market/sentiment", response_model=MarketSentiment)
 async def get_market_sentiment():
@@ -923,6 +1695,9 @@ async def get_ai_overview():
         "model": {
             "artifact": model_meta.get("artifact"),
             "lastTrainedAt": model_meta.get("lastTrainedAt"),
+            "architecture": model_meta.get("architecture"),
+            "source": model_meta.get("source"),
+            "selectionScore": model_meta.get("score"),
             "datasetRows": dataset_rows,
             "datasetSource": os.path.relpath(dataset_path, project_root),
             "datasetUpdatedAt": dataset_updated_at,
