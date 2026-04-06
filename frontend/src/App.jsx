@@ -41,6 +41,10 @@ export default function App() {
 
   // Register Service Worker on mount
   useEffect(() => {
+    // DISABLED: Service Worker causing update loop and session issues
+    // Re-enable in production after fixing authentication persistence
+    
+    /* COMMENTED OUT - CAUSING LOGIN LOOP
     const registerServiceWorker = async () => {
       if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
       try {
@@ -57,6 +61,17 @@ export default function App() {
       }
     }
     registerServiceWorker()
+    */
+    
+    // Unregister any existing service workers to clear the update loop
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => {
+          console.log('[App] Unregistering service worker to fix update loop')
+          registration.unregister()
+        })
+      })
+    }
   }, [])
 
   // Setup manifest and theme meta tags
