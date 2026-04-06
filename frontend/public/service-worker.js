@@ -10,7 +10,7 @@
  * - Third-party: Stale-while-revalidate
  */
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const APP_CACHE = `autosaham-app-${CACHE_VERSION}`;
 const ASSETS_CACHE = `autosaham-assets-${CACHE_VERSION}`;
 const API_CACHE = `autosaham-api-${CACHE_VERSION}`;
@@ -20,10 +20,7 @@ const IMAGE_CACHE = `autosaham-images-${CACHE_VERSION}`;
 const PRECACHE_URLS = [
   '/',
   '/index.html',
-  '/manifest.json',
-  '/src/main.jsx',
-  '/src/App.jsx',
-  '/src/styles.css'
+  '/manifest.json'
 ];
 
 /**
@@ -95,6 +92,19 @@ self.addEventListener('fetch', (event) => {
   
   // Skip non-HTTP requests
   if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
+  // SKIP AUTH REQUESTS ENTIRELY - let them pass through without Service Worker interception
+  // Auth requests must reach the actual backend at localhost:8000, not localhost:5173
+  if (url.pathname.includes('/auth/')) {
+    console.log('[SW] Skipping auth request (letting it pass through):', url.href);
+    return; // Don't event.respondWith - let browser handle it
+  }
+
+  // Always prefer fresh HTML/app shell to avoid stale UI after deployments.
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirstStrategy(request, APP_CACHE, 3000));
     return;
   }
   

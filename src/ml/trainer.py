@@ -6,7 +6,7 @@ Functions:
 from __future__ import annotations
 
 import os
-from typing import Dict
+from typing import Dict, Optional
 
 
 def train_model(
@@ -23,6 +23,9 @@ def train_model(
     price_dir: str = "data/prices",
     etl_dir: str = "data",
     horizon_bars: int = 5,
+    use_finbert: Optional[bool] = None,
+    finbert_model: str = "ProsusAI/finbert",
+    finbert_device: int = -1,
 ) -> Dict:
     """Train a binary classifier with optional Purged Time-Series CV + Optuna tuning.
 
@@ -65,6 +68,9 @@ def train_model(
                 price_dir=price_dir,
                 etl_dir=etl_dir,
                 horizon_bars=horizon_bars,
+                use_finbert=use_finbert,
+                finbert_model=finbert_model,
+                finbert_device=finbert_device,
             )
         except Exception:
             # best-effort enrichment only
@@ -256,12 +262,33 @@ def train_model(
     preds = model.predict(X_test)
     probs = None
     try:
-        probs = model.predict_proba(X_test)[:, 1]
+        raw_probs = model.predict_proba(X_test)
+        if getattr(raw_probs, "ndim", 1) == 2 and raw_probs.shape[1] > 2:
+            probs = raw_probs
+        elif getattr(raw_probs, "ndim", 1) == 2:
+            classes = list(getattr(model, "classes_", []))
+            pos_idx = classes.index(1) if 1 in classes else (raw_probs.shape[1] - 1)
+            probs = raw_probs[:, pos_idx]
+        else:
+            probs = raw_probs
     except Exception:
         pass
 
     report = classification_report(y_test, preds, output_dict=True)
-    auc = roc_auc_score(y_test, probs) if probs is not None else None
+    auc = None
+    if probs is not None:
+        try:
+            if getattr(probs, "ndim", 1) == 2:
+                auc = roc_auc_score(
+                    y_test,
+                    probs,
+                    multi_class="ovr",
+                    average="weighted",
+                )
+            else:
+                auc = roc_auc_score(y_test, probs)
+        except ValueError:
+            auc = None
 
     # persist model and metadata
     os.makedirs(os.path.dirname(model_out) or ".", exist_ok=True)

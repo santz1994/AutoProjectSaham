@@ -12,6 +12,7 @@ from __future__ import annotations
 import glob
 import json
 import os
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -67,6 +68,9 @@ def build_dataset(
     sample_weight_method: str = "time_decay",
     include_multimodal: bool = True,
     etl_dir: str = "data",
+    use_finbert: Optional[bool] = None,
+    finbert_model: str = "ProsusAI/finbert",
+    finbert_device: int = -1,
 ) -> str:
     """
     Build labeled dataset from price history.
@@ -86,6 +90,9 @@ def build_dataset(
         sample_weight_method: "time_decay" or "return_magnitude"
         include_multimodal: If True, merge sentiment + COT + horizon features
         etl_dir: Directory containing ETL artifacts (etl_*.json)
+        use_finbert: Enable FinBERT sentiment model (None reads env)
+        finbert_model: Hugging Face FinBERT model id
+        finbert_device: Transformers device id (-1 CPU, 0+ GPU)
         
     Returns:
         Path to output CSV file
@@ -185,6 +192,9 @@ def build_dataset(
                 price_dir=price_dir,
                 etl_dir=etl_dir,
                 horizon_bars=horizon,
+                use_finbert=use_finbert,
+                finbert_model=finbert_model,
+                finbert_device=finbert_device,
             )
         except Exception as e:
             print(f"Warning: multimodal augmentation skipped: {e}")

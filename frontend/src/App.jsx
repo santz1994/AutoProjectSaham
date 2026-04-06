@@ -63,35 +63,33 @@ export default function App() {
 
   // Register Service Worker on mount
   useEffect(() => {
-    // DISABLED: Service Worker causing update loop and session issues
-    // Re-enable in production after fixing authentication persistence
-    
-    /* COMMENTED OUT - CAUSING LOGIN LOOP
-    const registerServiceWorker = async () => {
-      if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
-      try {
-        console.log('[App] Registering Service Worker...')
-        // Service Worker in public/ can register root scope
-        const registration = await navigator.serviceWorker.register('/service-worker.js', {
-          scope: '/',
-        })
-        console.log('[App] Service Worker registered successfully')
-        toast.success('App is ready to work offline', { duration: 3000 })
-      } catch (error) {
-        console.error('[App] Service Worker registration failed:', error)
-        toast.warning('Offline mode unavailable', { duration: 3000 })
-      }
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
+
+    const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+    const isTestMode = import.meta?.env?.MODE === 'test'
+
+    // Local dev only: clear stale workers/caches once so UI always reflects latest code.
+    if (!isLocalHost || isTestMode) {
+      return
     }
-    registerServiceWorker()
-    */
-    
-    // Unregister any existing service workers to clear the update loop
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        registrations.forEach((registration) => {
-          console.log('[App] Unregistering service worker to fix update loop')
-          registration.unregister()
+
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => {
+        registration.unregister()
+      })
+    }).catch(() => {
+      // Non-blocking cleanup.
+    })
+
+    if ('caches' in window && typeof caches.keys === 'function') {
+      caches.keys().then((cacheNames) => {
+        cacheNames.forEach((cacheName) => {
+          if (cacheName.includes('autosaham')) {
+            caches.delete(cacheName)
+          }
         })
+      }).catch(() => {
+        // Non-blocking cleanup.
       })
     }
   }, [])
@@ -168,7 +166,10 @@ export default function App() {
           setUser(userInfo.username)
           try {
             const userSettings = await apiService.getUserSettings()
-            const preferredTheme = userSettings?.theme || 'auto'
+            const localTheme = typeof window !== 'undefined'
+              ? localStorage.getItem('autosaham.theme')
+              : null
+            const preferredTheme = localTheme || userSettings?.theme || 'auto'
             applyThemePreference(preferredTheme)
           } catch {
             // Keep default theme preference when settings API is unavailable.

@@ -59,6 +59,7 @@ class FeatureStoreTests(unittest.TestCase):
             sentiment_features=sentiment,
             cot_payload=cot,
             horizon="swing",
+            horizon_bars=8,
         )
 
         self.assertEqual(row["symbol"], "BBCA")
@@ -67,6 +68,9 @@ class FeatureStoreTests(unittest.TestCase):
         self.assertIn("news_sentiment_7d", row)
         self.assertIn("cot_index_noncommercial", row)
         self.assertIn("cot_index_spread", row)
+        self.assertIn("horizon_return", row)
+        self.assertIn("horizon_volatility", row)
+        self.assertEqual(row["horizon_bars"], 8)
         self.assertEqual(row["has_sentiment_features"], 1)
         self.assertEqual(row["has_cot_features"], 1)
 
@@ -148,6 +152,8 @@ class FeatureStoreTests(unittest.TestCase):
 
             self.assertIn("horizon_tag", out.columns)
             self.assertIn("horizon_bars", out.columns)
+            self.assertIn("horizon_return", out.columns)
+            self.assertIn("horizon_volatility", out.columns)
             self.assertIn("has_sentiment_features", out.columns)
             self.assertIn("has_cot_features", out.columns)
             self.assertIn("cot_index_noncommercial", out.columns)
@@ -156,6 +162,56 @@ class FeatureStoreTests(unittest.TestCase):
             self.assertTrue((bbca_rows["has_sentiment_features"] == 1).all())
             self.assertTrue((bbca_rows["has_cot_features"] == 1).all())
             self.assertEqual(bbca_rows["horizon_tag"].iloc[0], "short_term")
+            self.assertTrue(bbca_rows["horizon_return"].notna().all())
+
+    def test_augment_dataset_forwards_finbert_settings(self):
+        from src.ml.feature_store import augment_dataset_with_multimodal
+
+        with tempfile.TemporaryDirectory() as td:
+            price_dir = os.path.join(td, "prices")
+            os.makedirs(price_dir, exist_ok=True)
+
+            with open(
+                os.path.join(price_dir, "BBCA.JK.json"),
+                "w",
+                encoding="utf-8",
+            ) as file:
+                json.dump(
+                    {
+                        "symbol": "BBCA.JK",
+                        "prices": [100.0 + i for i in range(20)],
+                        "volumes": [1000 + i for i in range(20)],
+                    },
+                    file,
+                )
+
+            df = pd.DataFrame(
+                {
+                    "symbol": ["BBCA"],
+                    "label": [1],
+                    "future_return": [0.01],
+                }
+            )
+
+            with patch(
+                "src.ml.feature_store._compute_symbol_sentiment_features",
+                return_value={"news_sentiment_1d": 0.1},
+            ) as mocked_sentiment:
+                augment_dataset_with_multimodal(
+                    df,
+                    price_dir=price_dir,
+                    etl_dir=td,
+                    horizon_bars=5,
+                    use_finbert=True,
+                    finbert_model="ProsusAI/finbert",
+                    finbert_device=0,
+                )
+
+            self.assertTrue(mocked_sentiment.called)
+            kwargs = mocked_sentiment.call_args.kwargs
+            self.assertTrue(kwargs["use_finbert"])
+            self.assertEqual(kwargs["finbert_model"], "ProsusAI/finbert")
+            self.assertEqual(kwargs["finbert_device"], 0)
 
 
 if __name__ == "__main__":

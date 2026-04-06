@@ -100,6 +100,93 @@ class TrainerMultimodalTests(unittest.TestCase):
             self.assertEqual(result["model_path"], model_out)
             self.assertTrue(os.path.exists(model_out))
 
+    def test_train_model_handles_multiclass_roc_auc(self):
+        from src.ml.trainer import train_model
+
+        with tempfile.TemporaryDirectory() as td:
+            dataset_csv = os.path.join(td, "dataset_multiclass.csv")
+            model_out = os.path.join(td, "model_multiclass.joblib")
+
+            rows = []
+            labels = [-1, 0, 1]
+            for i in range(60):
+                rows.append(
+                    {
+                        "symbol": "BBCA.JK",
+                        "t_index": i,
+                        "future_return": 0.01 if i % 2 == 0 else -0.01,
+                        "label": labels[i % 3],
+                        "last_price": 100 + i,
+                        "short_sma": 99 + i,
+                        "long_sma": 98 + i,
+                        "volatility": 0.02,
+                        "momentum": 0.01,
+                    }
+                )
+
+            pd.DataFrame(rows).to_csv(dataset_csv, index=False)
+
+            result = train_model(
+                dataset_csv=dataset_csv,
+                model_out=model_out,
+                use_optuna=False,
+                enable_multimodal=False,
+                test_size=0.2,
+                purge_gap=2,
+            )
+
+            self.assertEqual(result["model_path"], model_out)
+            self.assertIn("roc_auc", result)
+            self.assertTrue(os.path.exists(model_out))
+
+    def test_train_model_forwards_finbert_settings(self):
+        from src.ml.trainer import train_model
+
+        with tempfile.TemporaryDirectory() as td:
+            dataset_csv = os.path.join(td, "dataset_finbert.csv")
+            model_out = os.path.join(td, "model_finbert.joblib")
+
+            rows = []
+            for i in range(40):
+                rows.append(
+                    {
+                        "symbol": "BBCA.JK",
+                        "t_index": i,
+                        "future_return": 0.01 if i % 2 == 0 else -0.01,
+                        "label": 1 if i % 3 == 0 else 0,
+                        "last_price": 100 + i,
+                        "short_sma": 99 + i,
+                        "long_sma": 98 + i,
+                        "volatility": 0.02,
+                        "momentum": 0.01,
+                    }
+                )
+
+            pd.DataFrame(rows).to_csv(dataset_csv, index=False)
+
+            with patch(
+                "src.ml.feature_store.augment_dataset_with_multimodal",
+                side_effect=lambda df, **_: df,
+            ) as mocked_augment:
+                result = train_model(
+                    dataset_csv=dataset_csv,
+                    model_out=model_out,
+                    use_optuna=False,
+                    enable_multimodal=True,
+                    test_size=0.2,
+                    purge_gap=2,
+                    use_finbert=True,
+                    finbert_model="ProsusAI/finbert",
+                    finbert_device=0,
+                )
+
+            self.assertEqual(result["model_path"], model_out)
+            self.assertTrue(mocked_augment.called)
+            kwargs = mocked_augment.call_args.kwargs
+            self.assertTrue(kwargs["use_finbert"])
+            self.assertEqual(kwargs["finbert_model"], "ProsusAI/finbert")
+            self.assertEqual(kwargs["finbert_device"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

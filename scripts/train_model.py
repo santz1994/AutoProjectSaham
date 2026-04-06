@@ -13,7 +13,7 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
-        sys.path.insert(0, ROOT)
+    sys.path.insert(0, ROOT)
 
 from src.ml.labeler import build_dataset
 from src.ml.trainer import train_model
@@ -27,6 +27,22 @@ def main():
     parser.add_argument("--model-out", default="models/model.joblib")
     parser.add_argument("--horizon", type=int, default=5)
     parser.add_argument("--threshold", type=float, default=0.02)
+    parser.add_argument(
+        "--use-finbert",
+        action="store_true",
+        help="Enable FinBERT sentiment model in multimodal feature extraction",
+    )
+    parser.add_argument(
+        "--finbert-model",
+        default="ProsusAI/finbert",
+        help="Hugging Face model id for FinBERT sentiment analysis",
+    )
+    parser.add_argument(
+        "--finbert-device",
+        type=int,
+        default=-1,
+        help="Transformers device id (-1 CPU, 0+ GPU)",
+    )
     parser.add_argument(
         "--disable-multimodal",
         action="store_true",
@@ -49,6 +65,9 @@ def main():
         max_symbols=args.limit,
         include_multimodal=not args.disable_multimodal,
         etl_dir=args.etl_dir,
+        use_finbert=args.use_finbert,
+        finbert_model=args.finbert_model,
+        finbert_device=args.finbert_device,
     )
     print("Dataset created at", ds)
 
@@ -60,6 +79,9 @@ def main():
         price_dir=args.price_dir,
         etl_dir=args.etl_dir,
         horizon_bars=args.horizon,
+        use_finbert=args.use_finbert,
+        finbert_model=args.finbert_model,
+        finbert_device=args.finbert_device,
     )
     print("Model saved to", res.get("model_path"))
     print("ROC AUC:", res.get("roc_auc"))

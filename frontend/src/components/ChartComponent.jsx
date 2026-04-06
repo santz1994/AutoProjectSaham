@@ -20,6 +20,8 @@ import useResponsive from '../hooks/useResponsive';
 import { getAPIBase, getWebSocketBase } from '../utils/authService';
 import './ChartComponent.css';
 
+const DEFAULT_TIMEFRAMES = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w', '1mo'];
+
 const THEME_COLORS = {
   dark: {
     background: '#131722',
@@ -53,6 +55,7 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [metadata, setMetadata] = useState(null);
+  const [timeframes, setTimeframes] = useState(DEFAULT_TIMEFRAMES);
   const [isTrading, setIsTrading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [wsWarning, setWsWarning] = useState(null);
@@ -270,6 +273,26 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
     applyChartDimensions();
   }, [applyChartDimensions, isMobile, isTablet, viewport.height, viewport.width]);
 
+  useEffect(() => {
+    const fetchSupportedTimeframes = async () => {
+      try {
+        const res = await fetch(`${getAPIBase()}/api/charts/timeframes`);
+        if (!res.ok) {
+          return;
+        }
+        const payload = await res.json();
+        const fromApi = Array.isArray(payload?.timeframes) ? payload.timeframes : [];
+        if (fromApi.length > 0) {
+          setTimeframes(fromApi);
+        }
+      } catch (err) {
+        console.warn('Using default chart timeframes:', err);
+      }
+    };
+
+    fetchSupportedTimeframes();
+  }, []);
+
   // Fetch initial chart data
   useEffect(() => {
     const fetchChartData = async () => {
@@ -469,7 +492,7 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
 
         <div className="chart-controls">
           <div className={`timeframe-buttons ${isMobile ? 'mobile' : ''}`}>
-            {['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w', '1mo'].map((tf) => (
+            {timeframes.map((tf) => (
               <button
                 key={tf}
                 className={`timeframe-btn ${timeframe === tf ? 'active' : ''}`}

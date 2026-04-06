@@ -8,7 +8,7 @@ const defaultSettings = {
     fullName: 'AutoSaham User',
     email: 'user@autosaham.local',
     phone: '',
-    theme: 'dark',
+  theme: 'auto',
     notifications: true,
     soundAlerts: false,
     emailReports: true,

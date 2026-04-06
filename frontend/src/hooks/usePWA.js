@@ -24,6 +24,30 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
+const SERVICE_WORKER_PATH = '/service-worker.js';
+
+const isServiceWorkerEnabledForEnvironment = () => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const mode = import.meta?.env?.MODE;
+  const forceEnableForLocal = import.meta?.env?.VITE_ENABLE_PWA_DEV === 'true';
+  const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+  // Keep service worker enabled in test mode for hook tests.
+  if (mode === 'test') {
+    return true;
+  }
+
+  // In local development, default to disabled to avoid stale UI from old caches.
+  if (isLocalHost && !forceEnableForLocal) {
+    return false;
+  }
+
+  return true;
+};
+
 export const usePWA = () => {
   const [isInstalled, setIsInstalled] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -53,11 +77,38 @@ export const usePWA = () => {
       return;
     }
 
+    const serviceWorkerEnabled = isServiceWorkerEnabledForEnvironment();
+
+    if (!serviceWorkerEnabled) {
+      const cleanupLegacyCachesAndWorkers = async () => {
+        try {
+          if (typeof navigator.serviceWorker.getRegistrations === 'function') {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((registration) => registration.unregister()));
+          }
+
+          if ('caches' in window && typeof caches.keys === 'function') {
+            const cacheNames = await caches.keys();
+            await Promise.all(
+              cacheNames
+                .filter((name) => name.includes('autosaham'))
+                .map((name) => caches.delete(name))
+            );
+          }
+        } catch (error) {
+          console.warn('[usePWA] Cleanup skipped:', error);
+        }
+      };
+
+      cleanupLegacyCachesAndWorkers();
+      return;
+    }
+
     const registerServiceWorker = async () => {
       try {
         console.log('[usePWA] Registering Service Worker...');
         const registration = await navigator.serviceWorker.register(
-          '/src/service-worker.js',
+          SERVICE_WORKER_PATH,
           { scope: '/' }
         );
 
@@ -301,7 +352,7 @@ Supported browsers:
       // Unregister old SW and register new one
       await swRegistration.unregister();
       const newRegistration = await navigator.serviceWorker.register(
-        '/src/service-worker.js',
+        SERVICE_WORKER_PATH,
         { scope: '/' }
       );
 

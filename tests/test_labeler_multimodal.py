@@ -125,6 +125,54 @@ class LabelerMultimodalTests(unittest.TestCase):
             self.assertIn("entry_price", df.columns)
             self.assertTrue(df["bars_to_exit"].notna().all())
 
+    def test_build_dataset_forwards_finbert_settings(self):
+        from src.ml.labeler import build_dataset
+
+        with tempfile.TemporaryDirectory() as td:
+            price_dir = os.path.join(td, "prices")
+            os.makedirs(price_dir, exist_ok=True)
+            out_csv = os.path.join(td, "dataset_finbert.csv")
+
+            with open(
+                os.path.join(price_dir, "BBCA.JK.json"),
+                "w",
+                encoding="utf-8",
+            ) as file:
+                json.dump(
+                    {
+                        "symbol": "BBCA.JK",
+                        "prices": [100.0 + (i * 0.2) for i in range(50)],
+                        "volumes": [1000 + i for i in range(50)],
+                    },
+                    file,
+                )
+
+            with patch(
+                "src.ml.labeler.augment_dataset_with_multimodal",
+                side_effect=lambda df, **_: df,
+            ) as mocked_augment:
+                build_dataset(
+                    price_dir=price_dir,
+                    out_csv=out_csv,
+                    short=3,
+                    long=5,
+                    horizon=4,
+                    max_symbols=1,
+                    use_triple_barrier=False,
+                    use_sample_weights=False,
+                    include_multimodal=True,
+                    etl_dir=td,
+                    use_finbert=True,
+                    finbert_model="ProsusAI/finbert",
+                    finbert_device=0,
+                )
+
+            self.assertTrue(mocked_augment.called)
+            kwargs = mocked_augment.call_args.kwargs
+            self.assertTrue(kwargs["use_finbert"])
+            self.assertEqual(kwargs["finbert_model"], "ProsusAI/finbert")
+            self.assertEqual(kwargs["finbert_device"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

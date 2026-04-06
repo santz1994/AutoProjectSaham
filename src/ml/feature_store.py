@@ -12,6 +12,7 @@ import glob
 import json
 import os
 from datetime import datetime
+from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -185,6 +186,95 @@ def compute_latest_features(
     return features
 
 
+def compute_horizon_features(
+    prices: List[float],
+    volumes: Optional[List[float]] = None,
+    horizon_bars: int = 5,
+) -> Dict[str, float]:
+    """Compute horizon-aware features for a configurable prediction window.
+
+    These features explicitly encode short/medium/long behavior for the target
+    horizon and help the model adapt across regimes.
+    """
+    if not prices:
+        return {}
+
+    try:
+        bars = max(1, int(horizon_bars))
+    except (TypeError, ValueError):
+        bars = 5
+
+    series = pd.Series(prices, dtype=float).dropna()
+    n_obs = len(series)
+    if n_obs < 2:
+        return {}
+
+    lookback = min(bars, n_obs - 1)
+    start_idx = n_obs - (lookback + 1)
+    segment = series.iloc[start_idx:]
+
+    start_price = float(segment.iloc[0])
+    end_price = float(segment.iloc[-1])
+    denom = max(abs(start_price), 1.0)
+
+    horizon_return = float((end_price / start_price) - 1.0) if start_price != 0 else 0.0
+
+    seg_returns = segment.pct_change().dropna()
+    if len(seg_returns) >= 2:
+        horizon_volatility = float(seg_returns.std())
+    elif len(seg_returns) == 1:
+        horizon_volatility = float(abs(seg_returns.iloc[-1]))
+    else:
+        horizon_volatility = 0.0
+
+    running_max = segment.cummax().replace(0, np.nan)
+    drawdowns = (segment / running_max - 1.0).fillna(0.0)
+    horizon_max_drawdown = float(drawdowns.min())
+
+    seg_min = float(segment.min())
+    seg_max = float(segment.max())
+    horizon_range_pct = float((seg_max - seg_min) / denom)
+
+    horizon_trend_slope = 0.0
+    if len(segment) >= 3:
+        x_axis = np.arange(len(segment), dtype=float)
+        y_axis = segment.to_numpy(dtype=float)
+        if np.isfinite(y_axis).all():
+            slope = float(np.polyfit(x_axis, y_axis, 1)[0])
+            horizon_trend_slope = float(slope / denom)
+
+    horizon_avg_volume = 0.0
+    horizon_volume_ratio = 1.0
+    if volumes:
+        try:
+            vol_series = pd.Series(volumes, dtype=float).dropna()
+            if len(vol_series) > 0:
+                recent_vol = vol_series.tail(lookback)
+                horizon_avg_volume = float(recent_vol.mean())
+                if len(vol_series) >= (lookback * 2):
+                    baseline_vol = vol_series.iloc[-(lookback * 2) : -lookback]
+                    baseline = float(baseline_vol.mean())
+                else:
+                    baseline = float(vol_series.mean())
+
+                if baseline and not np.isnan(baseline):
+                    horizon_volume_ratio = float(horizon_avg_volume / baseline)
+        except Exception:
+            horizon_avg_volume = 0.0
+            horizon_volume_ratio = 1.0
+
+    return {
+        "horizon_return": float(horizon_return),
+        "horizon_volatility": float(horizon_volatility),
+        "horizon_max_drawdown": float(horizon_max_drawdown),
+        "horizon_range_pct": float(horizon_range_pct),
+        "horizon_trend_slope": float(horizon_trend_slope),
+        "horizon_avg_volume": float(horizon_avg_volume),
+        "horizon_volume_ratio": float(horizon_volume_ratio),
+        "horizon_window_bars": int(lookback),
+    }
+
+
 def build_multimodal_feature_row(
     symbol: str,
     prices: List[float],
@@ -193,6 +283,7 @@ def build_multimodal_feature_row(
     sentiment_features: Optional[Dict[str, Any]] = None,
     cot_payload: Optional[Dict[str, Any]] = None,
     horizon: str = "intraday",
+    horizon_bars: int = 5,
 ) -> Dict[str, Any]:
     """Build a single multimodal feature row for model training/inference.
 
@@ -215,8 +306,16 @@ def build_multimodal_feature_row(
     row: Dict[str, Any] = {
         "symbol": str(symbol),
         "horizon": str(horizon),
+        "horizon_bars": int(horizon_bars),
     }
     row.update(base)
+    row.update(
+        compute_horizon_features(
+            prices=prices,
+            volumes=volumes,
+            horizon_bars=horizon_bars,
+        )
+    )
 
     # Sentiment inputs are already feature-like, keep numeric fields only.
     sentiment = sentiment_features or {}
@@ -307,21 +406,57 @@ def _load_latest_etl_context(etl_dir: str = "data") -> Dict[str, Any]:
     }
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+
+
+@lru_cache(maxsize=8)
+def _get_news_feature_extractor(
+    use_finbert: bool,
+    finbert_model: str,
+    finbert_device: int,
+):
+    from src.ml.sentiment_features import NewsFeatureExtractor, SentimentAnalyzer
+
+    analyzer = SentimentAnalyzer(
+        use_vader=True,
+        use_finbert=bool(use_finbert),
+        finbert_model=finbert_model,
+        device=int(finbert_device),
+    )
+    return NewsFeatureExtractor(sentiment_analyzer=analyzer)
+
+
 def _compute_symbol_sentiment_features(
     symbol: str,
     articles: List[Dict[str, Any]],
+    *,
+    use_finbert: Optional[bool] = None,
+    finbert_model: str = "ProsusAI/finbert",
+    finbert_device: int = -1,
 ) -> Dict[str, Any]:
     """Best-effort sentiment features for one symbol from news articles."""
     if not articles:
         return {}
 
+    if use_finbert is None:
+        use_finbert = _env_bool("SENTIMENT_USE_FINBERT", default=False)
+
+    model_name = os.getenv("SENTIMENT_FINBERT_MODEL", finbert_model)
     try:
-        from src.ml.sentiment_features import NewsFeatureExtractor
-    except ImportError:
-        return {}
+        device = int(os.getenv("SENTIMENT_FINBERT_DEVICE", str(finbert_device)))
+    except (TypeError, ValueError):
+        device = int(finbert_device)
 
     try:
-        extractor = NewsFeatureExtractor()
+        extractor = _get_news_feature_extractor(
+            bool(use_finbert),
+            model_name,
+            device,
+        )
     except (RuntimeError, ImportError):
         return {}
 
@@ -369,6 +504,9 @@ def augment_dataset_with_multimodal(
     price_dir: str = "data/prices",
     etl_dir: str = "data",
     horizon_bars: int = 5,
+    use_finbert: Optional[bool] = None,
+    finbert_model: str = "ProsusAI/finbert",
+    finbert_device: int = -1,
 ) -> pd.DataFrame:
     """Augment an existing labeled dataset with multimodal feature columns.
 
@@ -402,6 +540,9 @@ def augment_dataset_with_multimodal(
         sentiment_features = _compute_symbol_sentiment_features(
             symbol=symbol,
             articles=articles,
+            use_finbert=use_finbert,
+            finbert_model=finbert_model,
+            finbert_device=finbert_device,
         )
         multimodal = build_multimodal_feature_row(
             symbol=symbol,
@@ -410,6 +551,7 @@ def augment_dataset_with_multimodal(
             sentiment_features=sentiment_features,
             cot_payload=cot_payload,
             horizon=horizon_tag,
+            horizon_bars=horizon_bars,
         )
         if not multimodal:
             continue

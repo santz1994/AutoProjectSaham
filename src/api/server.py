@@ -433,6 +433,20 @@ if FASTAPI_AVAILABLE:
             }
         }
 
+    @app.get("/api/charts/timeframes")
+    async def charts_timeframes():
+        """Return supported chart timeframes and the backend source capability."""
+        from src.data.idx_fetcher import TIMEFRAME_MAP
+
+        return {
+            "timeframes": list(TIMEFRAME_MAP.keys()),
+            "provider": "yfinance",
+            "note": (
+                "Timeframe list follows backend/provider support and stability "
+                "for IDX chart delivery."
+            ),
+        }
+
     @app.get("/api/charts/trading-status")
     async def charts_trading_status():
         """Get current IDX trading status."""

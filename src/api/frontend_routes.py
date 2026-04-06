@@ -133,7 +133,7 @@ class UserSettings(BaseModel):
     fullName: str = "AutoSaham User"
     email: str = "user@autosaham.local"
     phone: str = ""
-    theme: str = "dark"
+    theme: str = "auto"
     notifications: bool = True
     soundAlerts: bool = False
     emailReports: bool = True
@@ -197,7 +197,7 @@ _default_user_settings: Dict[str, Any] = {
     "fullName": "AutoSaham User",
     "email": "user@autosaham.local",
     "phone": "",
-    "theme": "dark",
+    "theme": "auto",
     "notifications": True,
     "soundAlerts": False,
     "emailReports": True,
@@ -315,6 +315,21 @@ def _count_csv_rows(csv_path: str) -> int:
             pass
 
     return max(0, count)
+
+
+def _resolve_dataset_csv_path() -> str:
+    """Resolve the most relevant dataset CSV path for AI overview metrics."""
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    candidates = [
+        os.path.join(project_root, "data", "dataset", "dataset.csv"),
+        os.path.join(project_root, "data", "dataset.csv"),
+    ]
+
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+
+    return candidates[0]
 
 
 def _get_latest_model_artifact() -> Dict[str, Any]:
@@ -890,7 +905,12 @@ async def get_ai_overview():
     """Return AI workflow status, learning pipeline state, and key ML metrics."""
     settings = _state_store.get_user_settings(_default_user_settings)
     model_meta = _get_latest_model_artifact()
-    dataset_rows = _count_csv_rows(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "dataset.csv")))
+    dataset_path = _resolve_dataset_csv_path()
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    dataset_rows = _count_csv_rows(dataset_path)
+    dataset_updated_at = None
+    if os.path.exists(dataset_path):
+        dataset_updated_at = datetime.fromtimestamp(os.path.getmtime(dataset_path)).isoformat()
     recent_logs = _state_store.list_ai_logs(limit=50)
     bot_status = get_mock_bot_status()
 
@@ -904,6 +924,9 @@ async def get_ai_overview():
             "artifact": model_meta.get("artifact"),
             "lastTrainedAt": model_meta.get("lastTrainedAt"),
             "datasetRows": dataset_rows,
+            "datasetSource": os.path.relpath(dataset_path, project_root),
+            "datasetUpdatedAt": dataset_updated_at,
+            "isRealtimeDataset": False,
             "preferredUniverse": settings.get("preferredUniverse", []),
         },
         "learningPipeline": [
