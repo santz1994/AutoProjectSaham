@@ -114,6 +114,16 @@ export default function NavbarEnhanced({ user = 'Trader', onLogout, onNavigate }
     }
   };
 
+  const openSettingsFromMenu = (message) => {
+    if (typeof onNavigate === 'function') {
+      onNavigate('settings');
+    }
+    setUserMenuOpen(false);
+    if (message) {
+      toast.info(message);
+    }
+  };
+
   return (
     <nav className="navbar-enhanced" role="navigation" aria-label="Main navigation">
       {/* Left Section */}
@@ -272,7 +282,7 @@ export default function NavbarEnhanced({ user = 'Trader', onLogout, onNavigate }
                 className="menu-item"
                 role="menuitem"
                 tabIndex={0}
-                onClick={() => toast.info('Profile page is coming soon')}
+                onClick={() => openSettingsFromMenu('Profile and account options are available in Settings.')}
               >
                 <span className="menu-icon">👤</span>
                 <span>Profile</span>
@@ -282,10 +292,7 @@ export default function NavbarEnhanced({ user = 'Trader', onLogout, onNavigate }
                 role="menuitem"
                 tabIndex={0}
                 onClick={() => {
-                  if (onNavigate) {
-                    onNavigate('settings');
-                  }
-                  setUserMenuOpen(false);
+                  openSettingsFromMenu();
                 }}
               >
                 <span className="menu-icon">⚙️</span>
@@ -305,7 +312,7 @@ export default function NavbarEnhanced({ user = 'Trader', onLogout, onNavigate }
                 className="menu-item"
                 role="menuitem"
                 tabIndex={0}
-                onClick={() => toast.info('Help center is coming soon')}
+                onClick={() => openSettingsFromMenu('Help and support shortcuts are available in Settings.')}
               >
                 <span className="menu-icon">❓</span>
                 <span>Help & Support</span>

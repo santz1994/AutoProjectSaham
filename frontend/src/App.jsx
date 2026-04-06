@@ -192,7 +192,7 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <ErrorBoundary><DashboardPage /></ErrorBoundary>
+        return <ErrorBoundary><DashboardPage onNavigate={handleNavigate} /></ErrorBoundary>
       case 'market':
         return <ErrorBoundary><MarketIntelligencePage /></ErrorBoundary>
       case 'strategies':

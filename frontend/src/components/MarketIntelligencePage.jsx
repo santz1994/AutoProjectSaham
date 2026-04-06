@@ -46,6 +46,29 @@ export default function MarketIntelligencePage() {
     await loadMarketData()
   }
 
+  const handleExportReport = () => {
+    const report = {
+      generatedAt: new Date().toISOString(),
+      symbol: selectedSymbol,
+      timeframe: selectedTimeframe,
+      marketSentiment,
+      sectorHeatmap,
+      topMovers,
+    }
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], {
+      type: 'application/json;charset=utf-8',
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `market-report-${new Date().toISOString().slice(0, 10)}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+
+    toast.success('Market report exported successfully')
+  }
+
   if (loading) {
     return (
       <div className="market-page">
@@ -99,7 +122,7 @@ export default function MarketIntelligencePage() {
           <Button 
             variant="secondary"
             icon={<span>📊</span>}
-            onClick={() => toast.info('Export feature coming soon')}
+            onClick={handleExportReport}
           >
             Export Report
           </Button>

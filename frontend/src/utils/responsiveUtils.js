@@ -55,6 +55,15 @@ export const MEDIA_QUERIES = {
   highDPI: '(min-resolution: 2dppx)'
 };
 
+function matchMediaSafe(query) {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+
+  const result = window.matchMedia(query);
+  return Boolean(result && result.matches);
+}
+
 /**
  * Get screen size category
  * Useful for responsive logic without hooks required
@@ -129,12 +138,12 @@ export const TOUCH_CAPABILITIES = {
 
   supportsHover: () => {
     if (typeof window === 'undefined') return true;
-    return window.matchMedia('(hover: hover)').matches;
+    return matchMediaSafe('(hover: hover)');
   },
 
   isCoarsePointer: () => {
     if (typeof window === 'undefined') return false;
-    return window.matchMedia('(pointer: coarse)').matches;
+    return matchMediaSafe('(pointer: coarse)');
   }
 };
 
@@ -173,7 +182,7 @@ export const DEVICE_DETECTION = {
    */
   isStandalone: () => {
     if (typeof window === 'undefined') return false;
-    return window.matchMedia('(display-mode: standalone)').matches ||
+    return matchMediaSafe('(display-mode: standalone)') ||
            (navigator.standalone === true);
   },
 
@@ -262,7 +271,7 @@ export const ORIENTATION = {
    */
   getCurrent: () => {
     if (typeof window === 'undefined') return 'portrait';
-    return window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape';
+    return matchMediaSafe('(orientation: portrait)') ? 'portrait' : 'landscape';
   },
 
   /**
@@ -270,7 +279,7 @@ export const ORIENTATION = {
    */
   isPortrait: () => {
     if (typeof window === 'undefined') return true;
-    return window.matchMedia('(orientation: portrait)').matches;
+    return matchMediaSafe('(orientation: portrait)');
   },
 
   /**
@@ -278,7 +287,7 @@ export const ORIENTATION = {
    */
   isLandscape: () => {
     if (typeof window === 'undefined') return false;
-    return window.matchMedia('(orientation: landscape)').matches;
+    return matchMediaSafe('(orientation: landscape)');
   }
 };
 
@@ -291,7 +300,7 @@ export const ACCESSIBILITY = {
    */
   prefersReducedMotion: () => {
     if (typeof window === 'undefined') return false;
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+    return matchMediaSafe('(prefers-reduced-motion: reduce)') ||
            navigator.userAgentData?.mobile === true;
   },
 
@@ -300,7 +309,7 @@ export const ACCESSIBILITY = {
    */
   prefersDarkMode: () => {
     if (typeof window === 'undefined') return false;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return matchMediaSafe('(prefers-color-scheme: dark)');
   },
 
   /**
@@ -308,7 +317,7 @@ export const ACCESSIBILITY = {
    */
   prefersHighContrast: () => {
     if (typeof window === 'undefined') return false;
-    return window.matchMedia('(prefers-contrast: more)').matches;
+    return matchMediaSafe('(prefers-contrast: more)');
   },
 
   /**
@@ -316,7 +325,7 @@ export const ACCESSIBILITY = {
    */
   getColorScheme: () => {
     if (typeof window === 'undefined') return 'light';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    return matchMediaSafe('(prefers-color-scheme: dark)') ? 'dark' : 'light';
   }
 };
 

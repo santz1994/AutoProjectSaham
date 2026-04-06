@@ -13,12 +13,14 @@ function PortfolioCard() {
     setPortfolio: s.setPortfolio,
   }))
 
-  const loadPortfolio = async () => {
+  const loadPortfolio = async ({ showSuccessToast = false } = {}) => {
     setLoading(true)
     try {
       const data = await apiService.getPortfolio()
       setPortfolio(data)
-      toast.success('Portfolio data loaded')
+      if (showSuccessToast) {
+        toast.success('Portfolio data refreshed')
+      }
     } catch (error) {
       toast.error('Failed to load portfolio: ' + error.message)
     } finally {
@@ -33,8 +35,7 @@ function PortfolioCard() {
   const handleRefresh = async () => {
     try {
       await apiService.refreshPortfolio()
-      await loadPortfolio()
-      toast.success('Portfolio refreshed!')
+      await loadPortfolio({ showSuccessToast: true })
     } catch (error) {
       toast.error('Failed to refresh portfolio: ' + error.message)
     }
@@ -300,7 +301,7 @@ function RecentActivityWidget() {
   )
 }
 
-export default function DashboardPage() {
+export default function DashboardPage({ onNavigate }) {
   const killSwitchTriggered = useTradingStore((s) => s.killSwitchTriggered)
 
   const handleGenerateReport = async () => {
@@ -313,6 +314,14 @@ export default function DashboardPage() {
     } catch (error) {
       toast.error('Failed to generate report: ' + error.message)
     }
+  }
+
+  const handleOpenBotSettings = () => {
+    if (typeof onNavigate === 'function') {
+      onNavigate('settings')
+      return
+    }
+    toast.info('Open Settings to configure bot behavior.')
   }
 
   return (
@@ -336,7 +345,7 @@ export default function DashboardPage() {
           <Button 
             variant="secondary"
             icon={<span>⚙️</span>}
-            onClick={() => toast.info('Opening settings...')}
+            onClick={handleOpenBotSettings}
           >
             Bot Settings
           </Button>

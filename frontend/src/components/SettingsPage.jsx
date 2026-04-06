@@ -17,6 +17,13 @@ const defaultSettings = {
     brokerName: 'Indonesia Securities',
 }
 
+const brokerOptions = [
+  'Indonesia Securities',
+  'Mandiri Sekuritas',
+  'BCA Sekuritas',
+  'Mirae Asset Sekuritas',
+]
+
 export default function SettingsPage({ onLogout }) {
   const [settings, setSettings] = useState(defaultSettings)
   const [initialSettings, setInitialSettings] = useState(defaultSettings)
@@ -77,6 +84,28 @@ export default function SettingsPage({ onLogout }) {
   const handleResetToDefaults = () => {
     setSettings(defaultSettings)
     toast.info('Settings reset to defaults. Click Save Changes to apply.')
+  }
+
+  const handleChangeBroker = () => {
+    const currentIndex = brokerOptions.indexOf(settings.brokerName)
+    const nextIndex = (currentIndex + 1) % brokerOptions.length
+    const nextBroker = brokerOptions[nextIndex]
+
+    setSettings((prev) => ({
+      ...prev,
+      brokerName: nextBroker,
+    }))
+    toast.info(`Broker switched to ${nextBroker}. Save changes to persist.`)
+  }
+
+  const handleRegenerateApiKey = () => {
+    const token = Math.random().toString(36).slice(2, 10).toUpperCase()
+    const refreshedKey = `AK-${token}-****`
+    setSettings((prev) => ({
+      ...prev,
+      apiKey: refreshedKey,
+    }))
+    toast.success('New API key generated. Save changes to apply it.')
   }
 
   const handleLogout = async () => {
@@ -238,7 +267,7 @@ export default function SettingsPage({ onLogout }) {
           </div>
           <div className="broker-info">
             <div className="broker-name">{settings.brokerName}</div>
-            <button className="btn-secondary">Change Broker</button>
+            <button className="btn-secondary" onClick={handleChangeBroker} disabled={saving}>Change Broker</button>
           </div>
         </div>
 
@@ -261,7 +290,7 @@ export default function SettingsPage({ onLogout }) {
             >
               {showApiKey ? '👁️' : '🔒'}
             </button>
-            <button className="btn-secondary">Regenerate</button>
+            <button className="btn-secondary" onClick={handleRegenerateApiKey} disabled={saving}>Regenerate</button>
           </div>
         </div>
       </div>

@@ -5,6 +5,11 @@ import { CardSkeleton } from './LoadingSkeletons'
 import apiService from '../utils/apiService'
 import '../styles/strategies.css'
 
+function isEndpointUnavailable(error) {
+  const message = String(error?.message || '').toLowerCase()
+  return message.includes('404') || message.includes('not found')
+}
+
 export default function StrategiesPage() {
   const [selectedStrategy, setSelectedStrategy] = useState(null)
   const [strategies, setStrategies] = useState([])
@@ -39,6 +44,11 @@ export default function StrategiesPage() {
       setSelectedStrategy(strategy)
       toast.success(`${strategy.name} strategy deployed successfully!`)
     } catch (err) {
+      if (isEndpointUnavailable(err)) {
+        setSelectedStrategy(strategy)
+        toast.info('Deploy endpoint backend belum tersedia. Strategy tetap dipilih pada UI.')
+        return
+      }
       toast.error(`Failed to deploy strategy: ${err.message}`)
     } finally {
       setDeployingId(null)
@@ -51,6 +61,10 @@ export default function StrategiesPage() {
       await apiService.backtestStrategy(strategy.id)
       toast.success(`${strategy.name} backtest started`)
     } catch (err) {
+      if (isEndpointUnavailable(err)) {
+        toast.info('Backtest endpoint backend belum tersedia saat ini.')
+        return
+      }
       toast.error(`Failed to start backtest: ${err.message}`)
     } finally {
       setBacktestingId(null)
