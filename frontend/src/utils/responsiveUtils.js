@@ -398,7 +398,7 @@ export const JAKARTA_TZ = {
     }
 
     const jakartaDate = new Date(
-      date.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+      date.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })
     );
     
     // Simple format (can be extended with more options)

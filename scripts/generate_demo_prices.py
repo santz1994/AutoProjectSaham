@@ -34,6 +34,12 @@ def main(argv: List[str] | None = None):
         default="data/prices",
         help="Output directory for cached JSON files",
     )
+    parser.add_argument(
+        "--n",
+        type=int,
+        default=None,
+        help="Optional maximum number of candles to keep (backward compatible)",
+    )
     args = parser.parse_args(argv)
 
     os.makedirs(args.out, exist_ok=True)
@@ -44,6 +50,9 @@ def main(argv: List[str] | None = None):
         try:
             print(f"Fetching {symbol} ({args.period})...", end=" ")
             prices = fetcher.fetch(symbol, period=args.period, use_cache=False, force_refresh=True)
+
+            if args.n and args.n > 0:
+                prices = prices[-args.n:]
             
             if not prices:
                 print("❌ No data")

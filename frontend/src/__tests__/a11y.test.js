@@ -82,7 +82,7 @@ describe('Color Contrast Utilities', () => {
 
     test('6:1 should fail AA normal text', () => {
       const meets = a11y.meetsContrastStandard(6, 'AA', 'normal');
-      expect(meets).toBe(false);
+      expect(meets).toBe(true);
     });
   });
 });

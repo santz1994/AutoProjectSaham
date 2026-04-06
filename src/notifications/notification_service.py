@@ -6,12 +6,8 @@ Jakarta timezone aware with BEI trading hours compliance
 
 from enum import Enum
 from typing import List, Dict, Any, Optional, Callable
-from datetime import datetime, timedelta
-from dataclasses import dataclass, asdict, field
-import asyncio
-import json
+from datetime import datetime
 import logging
-from abc import ABC, abstractmethod
 from collections import deque
 import uuid
 
@@ -435,9 +431,9 @@ class NotificationManager:
             if user_id is not None and notification.user_id != user_id:
                 continue
 
-                notification.read = True
-                notification.read_at = datetime.now(JAKARTA_TZ)
-                return True
+            notification.read = True
+            notification.read_at = datetime.now(JAKARTA_TZ)
+            return True
         
         return False
     

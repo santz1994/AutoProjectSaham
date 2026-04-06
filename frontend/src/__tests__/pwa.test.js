@@ -14,41 +14,41 @@ import usePWA from '../hooks/usePWA';
 import useResponsive from '../hooks/useResponsive';
 import * as responsiveUtils from '../utils/responsiveUtils';
 
+beforeEach(() => {
+  if (typeof window.matchMedia !== 'function') {
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+  }
+
+  if (!('caches' in window)) {
+    Object.defineProperty(window, 'caches', {
+      value: {
+        keys: vi.fn(async () => []),
+        delete: vi.fn(async () => true),
+      },
+      writable: true,
+      configurable: true,
+    });
+  }
+
+  if (!('indexedDB' in window)) {
+    Object.defineProperty(window, 'indexedDB', {
+      value: { open: vi.fn() },
+      writable: true,
+      configurable: true,
+    });
+  }
+});
+
 describe('PWA Hooks and Utils', () => {
-  beforeEach(() => {
-    if (typeof window.matchMedia !== 'function') {
-      window.matchMedia = vi.fn().mockImplementation((query) => ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      }));
-    }
-
-    if (!('caches' in window)) {
-      Object.defineProperty(window, 'caches', {
-        value: {
-          keys: vi.fn(async () => []),
-          delete: vi.fn(async () => true),
-        },
-        writable: true,
-        configurable: true,
-      });
-    }
-
-    if (!('indexedDB' in window)) {
-      Object.defineProperty(window, 'indexedDB', {
-        value: { open: vi.fn() },
-        writable: true,
-        configurable: true,
-      });
-    }
-  });
-
   // ==================== usePWA Hook Tests ====================
   
   describe('usePWA Hook', () => {
@@ -129,8 +129,6 @@ describe('PWA Hooks and Utils', () => {
     
     it('should update service worker', async () => {
       const { result } = renderHook(() => usePWA());
-      
-      const updateSpy = vi.spyOn(result.current, 'updateApp' || {}, 'get');
       
       expect(typeof result.current.updateApp).toBe('function');
     });

@@ -152,10 +152,6 @@ failed_deliveries_*.log
 
 # Misc
 .cache/
-.pytest_cache/
-.coverage
 prompt.md
-.gitignore
 promptv2.md
-.gitignore
 PROMPTV2_AUDIT_COMPLETE.md

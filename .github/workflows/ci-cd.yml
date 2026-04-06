@@ -235,14 +235,12 @@ jobs:
       
       - name: Send Slack notification
         if: failure()
-        uses: 8398a7/action-slack@v3
+        uses: slackapi/slack-github-action@v2
         with:
-          status: ${{ steps.status.outputs.status }}
-          text: |
-            CI/CD Pipeline ${{ steps.status.outputs.status }}
-            Repository: ${{ github.repository }}
-            Branch: ${{ github.ref_name }}
-            Commit: ${{ github.sha }}
-            Author: ${{ github.actor }}
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-          fields: repo,message,commit,author
+          payload: |
+            {
+              "text": "CI/CD Pipeline ${{ steps.status.outputs.status }}\nRepository: ${{ github.repository }}\nBranch: ${{ github.ref_name }}\nCommit: ${{ github.sha }}\nAuthor: ${{ github.actor }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
