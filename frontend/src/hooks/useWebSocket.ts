@@ -18,8 +18,18 @@ export default function useWebSocket(path: string, onMessage?: (data: any) => vo
 
   useEffect(() => {
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    // For API/WebSocket calls, always use backend host (localhost:8000 in dev, same origin in prod)
-    const backendHost = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host
+    const envApiUrl = (import.meta as any)?.env?.VITE_API_URL as string | undefined
+    let backendHost = window.location.host
+    if (envApiUrl) {
+      try {
+        backendHost = new URL(envApiUrl).host
+      } catch {
+        backendHost = window.location.host
+      }
+    } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      // For local dev, route WebSocket to backend FastAPI server
+      backendHost = 'localhost:8000'
+    }
     const url = `${proto}://${backendHost}${path}`
     setStatus('connecting')
     

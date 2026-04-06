@@ -1,5 +1,12 @@
 import React, { useEffect, useRef } from 'react'
-import { createChart, ColorType, CrosshairMode } from 'lightweight-charts'
+import {
+  createChart,
+  ColorType,
+  CrosshairMode,
+  type Time,
+  type UTCTimestamp,
+  type SeriesMarker,
+} from 'lightweight-charts'
 
 type Candle = { time: string | number; open: number; high: number; low: number; close: number; volume?: number }
 type Marker = { time: string | number; position?: 'aboveBar' | 'belowBar'; color?: string; shape?: 'arrowUp' | 'arrowDown' | 'circle' | 'square'; text?: string }
@@ -8,6 +15,20 @@ interface Props {
   data?: Candle[]
   markers?: Marker[]
   height?: number
+}
+
+function toChartTime(value: string | number): Time {
+  if (typeof value === 'number') {
+    const seconds = value > 1e12 ? Math.floor(value / 1000) : Math.floor(value)
+    return seconds as UTCTimestamp
+  }
+
+  const parsed = Date.parse(value)
+  if (!Number.isNaN(parsed)) {
+    return Math.floor(parsed / 1000) as UTCTimestamp
+  }
+
+  return value as Time
 }
 
 export default function CandlestickChart({ data = [], markers = [], height = 360 }: Props) {
@@ -32,16 +53,19 @@ export default function CandlestickChart({ data = [], markers = [], height = 360
       borderVisible: false,
     })
 
-    const formatted = data.map((d) => {
-      const time = typeof d.time === 'number' ? Math.floor(d.time / 1000) : d.time
-      return { time, open: d.open, high: d.high, low: d.low, close: d.close }
-    })
+    const formatted = data.map((d) => ({
+      time: toChartTime(d.time),
+      open: d.open,
+      high: d.high,
+      low: d.low,
+      close: d.close,
+    }))
 
     series.setData(formatted)
 
     if (markers && markers.length) {
-      const m = markers.map((marker) => ({
-        time: typeof marker.time === 'number' ? Math.floor(marker.time / 1000) : marker.time,
+      const m: SeriesMarker<Time>[] = markers.map((marker) => ({
+        time: toChartTime(marker.time),
         position: marker.position || 'belowBar',
         color: marker.color || (marker.position === 'aboveBar' ? '#FF9800' : '#2196F3'),
         shape: marker.shape || (marker.position === 'aboveBar' ? 'arrowDown' : 'arrowUp'),

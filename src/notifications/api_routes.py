@@ -46,6 +46,7 @@ async def create_alert_rule(
         return {
             "success": True,
             "rule_id": rule_id,
+            "rule": manager.alert_rules[rule_id].dict(),
             "message": f"Alert rule '{rule.name}' created successfully"
         }
     except Exception as e:
@@ -182,6 +183,37 @@ async def update_notification_channels(
         raise HTTPException(status_code=400, detail=f"Invalid channel: {e}")
 
 
+@router.put("/preferences/{user_id}", response_model=Dict[str, Any])
+async def update_user_preferences(
+    user_id: str,
+    updates: Dict[str, Any],
+    manager = Depends(get_manager)
+) -> Dict[str, Any]:
+    """Update user notification preferences with partial payload"""
+    preference = manager.get_user_preference(user_id)
+
+    if not preference:
+        preference = NotificationPreference(user_id=user_id)
+
+    try:
+        for key, value in updates.items():
+            if key == "channels_enabled" and isinstance(value, list):
+                value = [NotificationChannel(c) for c in value]
+            elif key == "alert_types" and isinstance(value, list):
+                value = [TradeSignalType(t) for t in value]
+            elif key == "min_severity" and isinstance(value, str):
+                value = AlertSeverity(value)
+
+            if hasattr(preference, key):
+                setattr(preference, key, value)
+
+        preference.updated_at = datetime.now(JAKARTA_TZ)
+        manager.set_user_preference(preference)
+        return preference.dict()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.post("/preferences/{user_id}/quiet-hours", response_model=Dict[str, Any])
 async def set_quiet_hours(
     user_id: str,
@@ -226,6 +258,7 @@ async def set_quiet_hours(
 async def get_notification_history(
     user_id: str,
     limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
     signal_type: Optional[str] = Query(None),
     manager = Depends(get_manager)
 ) -> Dict[str, Any]:
@@ -238,6 +271,7 @@ async def get_notification_history(
         notifications = manager.get_notification_history(
             user_id=user_id,
             limit=limit,
+            offset=offset,
             signal_type=signal_type_enum
         )
         
@@ -268,7 +302,7 @@ async def get_unread_count(
 @router.post("/mark-read/{notification_id}", response_model=Dict[str, Any])
 async def mark_notification_read(
     notification_id: str,
-    user_id: str,
+    user_id: Optional[str] = None,
     manager = Depends(get_manager)
 ) -> Dict[str, Any]:
     """Mark a notification as read"""

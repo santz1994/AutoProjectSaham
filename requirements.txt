@@ -27,6 +27,10 @@ stable-baselines3>=2.0.0
 # API and test requirements
 fastapi>=0.95.0
 uvicorn[standard]>=0.22.0
+pytest>=8.0.0
+pytest-cov>=5.0.0
+pytest-asyncio>=0.23.0
+pytest-benchmark>=4.0.0
 # Phase 4: Advanced Testing & Deployment
 celery[redis]>=5.3.0              # Background task queue for ML retraining
 sb3-contrib>=2.1.0                # MaskablePPO for action masking in RL

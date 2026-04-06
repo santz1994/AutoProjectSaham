@@ -2,7 +2,13 @@ import { create } from 'zustand'
 
 export type Candle = { time: string | number; open: number; high: number; low: number; close: number; volume?: number }
 export type OrderBookItem = { price: number; volume: number }
-export type Marker = { time: string | number; position?: 'aboveBar' | 'belowBar'; color?: string; shape?: string; text?: string }
+export type Marker = {
+  time: string | number
+  position?: 'aboveBar' | 'belowBar'
+  color?: string
+  shape?: 'arrowUp' | 'arrowDown' | 'circle' | 'square'
+  text?: string
+}
 
 interface TradingState {
   candles: Candle[]

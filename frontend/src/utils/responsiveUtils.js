@@ -291,7 +291,7 @@ export const ACCESSIBILITY = {
    */
   prefersReducedMotion: () => {
     if (typeof window === 'undefined') return false;
-    return window.matchMedia('(prefers-color-scheme: reduce)').matches ||
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
            navigator.userAgentData?.mobile === true;
   },
 
@@ -384,13 +384,19 @@ export const JAKARTA_TZ = {
    * Get current time in Jakarta (WIB: UTC+7)
    */
   now: () => {
-    return new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+    return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
   },
 
   /**
    * Format date for Jakarta timezone
    */
-  format: (date, format = 'HH:mm:ss') => {
+  format: (dateOrFormat = new Date(), format = 'HH:mm:ss') => {
+    let date = dateOrFormat;
+    if (typeof dateOrFormat === 'string') {
+      format = dateOrFormat;
+      date = new Date();
+    }
+
     const jakartaDate = new Date(
       date.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
     );

@@ -11,6 +11,12 @@ from src.api.auth import register_user
 
 # Create test accounts
 try:
+    register_user('demo', 'demo123')
+    print('✅ Created: demo / demo123')
+except Exception as e:
+    print(f'⚠️  demo account already exists or error: {e}')
+
+try:
     register_user('admin', 'admin123')
     print('✅ Created: admin / admin123')
 except Exception as e:
@@ -29,7 +35,7 @@ except Exception as e:
     print(f'⚠️  test account already exists or error: {e}')
 
 print('\n📋 Available accounts:')
-print('   Username: demo      | Password: demo')
+print('   Username: demo      | Password: demo123')
 print('   Username: admin     | Password: admin123')
 print('   Username: trader    | Password: trader123')
 print('   Username: test      | Password: test123')

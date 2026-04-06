@@ -4,7 +4,7 @@
 
 ### Account 1: Demo (Already Exists)
 - **Username**: `demo`
-- **Password**: `demo`
+- **Password**: `demo123`
 - **Status**: ✅ Active
 
 ### Account 2: Admin (Create this if needed)
@@ -45,7 +45,7 @@ python -c "from src.api.auth import register_user; register_user('myusername', '
 
 **Recommended for Testing:**
 - Username: `demo`
-- Password: `demo`
+- Password: `demo123`
 
 This account already exists and you can login immediately!
 
@@ -78,7 +78,7 @@ This file contains all registered users with hashed passwords (PBKDF2 + salt).
 3. **Login**:
    - Open browser to http://localhost:5173
    - Enter username: `demo`
-   - Enter password: `demo`
+   - Enter password: `demo123`
    - Click "Login"
 
 ---

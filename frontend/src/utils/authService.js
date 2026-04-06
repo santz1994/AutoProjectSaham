@@ -5,8 +5,8 @@
  * to prevent XSS attacks. Tokens are never exposed to JavaScript.
  * 
  * The backend MUST set:
- * - Set-Cookie: auth_token=<token>; HttpOnly; Secure; SameSite=Strict; Path=/
- * - Set-Cookie: auth_token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0  (for logout)
+ * - Set-Cookie: auth_token=<token>; HttpOnly; Secure; SameSite=Lax; Path=/
+ * - Set-Cookie: auth_token=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0  (for logout)
  */
 
 // Helper: Get API base URL (dev vs prod)

@@ -34,6 +34,16 @@ export const usePWA = () => {
   const [installPromptShown, setInstallPromptShown] = useState(false);
   const updateCheckInterval = useRef(null);
 
+  const isStandaloneDisplayMode = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    if (typeof window.matchMedia === 'function') {
+      return window.matchMedia('(display-mode: standalone)').matches;
+    }
+    return window.navigator.standalone === true;
+  }, []);
+
   /**
    * Register Service Worker on mount
    */
@@ -56,14 +66,20 @@ export const usePWA = () => {
 
         // Check for updates periodically (every 6 hours)
         updateCheckInterval.current = setInterval(() => {
-          registration.update();
+          if (typeof registration.update === 'function') {
+            registration.update();
+          }
         }, 6 * 60 * 60 * 1000);
 
         // Listen for Service Worker updates
-        registration.addEventListener('updatefound', handleSWUpdate);
+        if (typeof registration.addEventListener === 'function') {
+          registration.addEventListener('updatefound', handleSWUpdate);
+        }
 
         // Handle messages from Service Worker
-        navigator.serviceWorker.addEventListener('message', handleSWMessage);
+        if (typeof navigator.serviceWorker.addEventListener === 'function') {
+          navigator.serviceWorker.addEventListener('message', handleSWMessage);
+        }
       } catch (error) {
         console.error('[usePWA] Service Worker registration failed:', error);
       }
@@ -150,7 +166,7 @@ export const usePWA = () => {
 
       // Check if already installed
       if (
-        window.matchMedia('(display-mode: standalone)').matches ||
+        isStandaloneDisplayMode() ||
         window.navigator.standalone === true
       ) {
         setIsInstalled(true);
@@ -181,7 +197,7 @@ export const usePWA = () => {
     window.addEventListener('appinstalled', handleAppInstalled);
 
     // Check if app is already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    if (isStandaloneDisplayMode()) {
       setIsInstalled(true);
     }
 
@@ -189,7 +205,7 @@ export const usePWA = () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
-  }, []);
+  }, [isStandaloneDisplayMode]);
 
   /**
    * Open install prompt

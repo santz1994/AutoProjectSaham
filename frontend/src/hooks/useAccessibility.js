@@ -379,7 +379,7 @@ export const useA11yAudit = (container, dependencies = []) => {
   const [auditResults, setAuditResults] = useState(null);
 
   useEffect(() => {
-    if (container && process.env.NODE_ENV === 'development') {
+    if (container && import.meta.env.DEV) {
       const results = a11y.runA11yAudit(container);
       setAuditResults(results);
 

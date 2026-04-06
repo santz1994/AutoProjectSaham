@@ -408,6 +408,7 @@ class NotificationManager:
         self,
         user_id: Optional[str] = None,
         limit: int = 100,
+        offset: int = 0,
         signal_type: Optional[TradeSignalType] = None
     ) -> List[Notification]:
         """Get notification history"""
@@ -418,13 +419,22 @@ class NotificationManager:
         
         if signal_type:
             notifications = [n for n in notifications if n.signal_type == signal_type]
-        
-        return notifications[-limit:]
+
+        notifications.sort(key=lambda n: n.created_at, reverse=True)
+        safe_offset = max(0, int(offset))
+        safe_limit = max(1, int(limit))
+
+        return notifications[safe_offset:safe_offset + safe_limit]
     
-    def mark_as_read(self, notification_id: str, user_id: str) -> bool:
+    def mark_as_read(self, notification_id: str, user_id: Optional[str] = None) -> bool:
         """Mark notification as read"""
         for notification in self.notification_queue:
-            if notification.id == notification_id and notification.user_id == user_id:
+            if notification.id != notification_id:
+                continue
+
+            if user_id is not None and notification.user_id != user_id:
+                continue
+
                 notification.read = True
                 notification.read_at = datetime.now(JAKARTA_TZ)
                 return True

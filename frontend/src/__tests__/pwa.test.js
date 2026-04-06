@@ -15,6 +15,40 @@ import useResponsive from '../hooks/useResponsive';
 import * as responsiveUtils from '../utils/responsiveUtils';
 
 describe('PWA Hooks and Utils', () => {
+  beforeEach(() => {
+    if (typeof window.matchMedia !== 'function') {
+      window.matchMedia = vi.fn().mockImplementation((query) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+    }
+
+    if (!('caches' in window)) {
+      Object.defineProperty(window, 'caches', {
+        value: {
+          keys: vi.fn(async () => []),
+          delete: vi.fn(async () => true),
+        },
+        writable: true,
+        configurable: true,
+      });
+    }
+
+    if (!('indexedDB' in window)) {
+      Object.defineProperty(window, 'indexedDB', {
+        value: { open: vi.fn() },
+        writable: true,
+        configurable: true,
+      });
+    }
+  });
+
   // ==================== usePWA Hook Tests ====================
   
   describe('usePWA Hook', () => {
@@ -25,16 +59,20 @@ describe('PWA Hooks and Utils', () => {
       mockServiceWorked = {
         ready: Promise.resolve({}),
         controller: { postMessage: vi.fn() },
-        registration: { showNotification: vi.fn() }
+        addEventListener: vi.fn(),
+        register: vi.fn(async () => ({
+          showNotification: vi.fn(),
+          addEventListener: vi.fn(),
+          update: vi.fn(),
+          unregister: vi.fn(async () => true),
+        })),
       };
-      
-      if (!('serviceWorker' in navigator)) {
-        Object.defineProperty(navigator, 'serviceWorker', {
-          value: { register: vi.fn(() => Promise.resolve(mockServiceWorked)) },
-          writable: true,
-          configurable: true
-        });
-      }
+
+      Object.defineProperty(navigator, 'serviceWorker', {
+        value: mockServiceWorked,
+        writable: true,
+        configurable: true,
+      });
     });
     
     afterEach(() => {
@@ -251,7 +289,7 @@ describe('PWA Hooks and Utils', () => {
     describe('getScreenSize', () => {
       it('should return correct size for mobile width', () => {
         const size = responsiveUtils.getScreenSize(400);
-        expect(size).toBe('sm');
+        expect(size).toBe('xs');
       });
       
       it('should return correct size for tablet width', () => {

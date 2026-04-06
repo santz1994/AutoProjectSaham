@@ -6,7 +6,8 @@
  * @module tests/test_a11y
  */
 
-import a11y from '../frontend/src/utils/a11y';
+import { describe, test, expect, vi } from 'vitest';
+import a11y from '../utils/a11y';
 
 describe('Color Contrast Utilities', () => {
   describe('getRelativeLuminance', () => {
@@ -241,25 +242,21 @@ describe('ARIA Announcements', () => {
       expect(announcement.getAttribute('aria-live')).toBe('assertive');
     });
 
-    test('should remove announcement after duration', (done) => {
+    test('should remove announcement after duration', async () => {
       const announcement = a11y.announceToScreenReader('Test', 'polite', 100);
       document.body.appendChild(announcement);
 
-      setTimeout(() => {
-        expect(announcement.parentNode).toBeNull();
-        done();
-      }, 150);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      expect(announcement.parentNode).toBeNull();
     });
 
-    test('should persist if duration is 0', (done) => {
+    test('should persist if duration is 0', async () => {
       const announcement = a11y.announceToScreenReader('Test', 'polite', 0);
       document.body.appendChild(announcement);
 
-      setTimeout(() => {
-        expect(announcement.parentNode).not.toBeNull();
-        announcement.remove();
-        done();
-      }, 100);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(announcement.parentNode).not.toBeNull();
+      announcement.remove();
     });
   });
 });
@@ -346,7 +343,7 @@ describe('Reduced Motion Support', () => {
   describe('getAnimationDuration', () => {
     test('should return normal duration when reduced motion not preferred', () => {
       // Mock matchMedia
-      window.matchMedia = jest.fn().mockImplementation((query) => ({
+      window.matchMedia = vi.fn().mockImplementation((query) => ({
         matches: query === '(prefers-reduced-motion: reduce)' ? false : false,
       }));
 
@@ -355,7 +352,7 @@ describe('Reduced Motion Support', () => {
     });
 
     test('should return reduced duration when motion is reduced', () => {
-      window.matchMedia = jest.fn().mockImplementation((query) => ({
+      window.matchMedia = vi.fn().mockImplementation((query) => ({
         matches: query === '(prefers-reduced-motion: reduce)' ? true : false,
       }));
 

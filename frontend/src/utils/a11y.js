@@ -57,8 +57,8 @@ export const getContrastRatio = (color1, color2) => {
  */
 export const meetsContrastStandard = (ratio, level = 'AAA', textSize = 'normal') => {
   const required = {
-    A: { normal: 4.5, large: 3 },
-    AA: { normal: 7, large: 4.5 },
+    A: { normal: 3, large: 3 },
+    AA: { normal: 4.5, large: 3 },
     AAA: { normal: 7, large: 4.5 },
   };
 
@@ -361,7 +361,7 @@ export const validateFormLabels = (container = document) => {
   inputs.forEach((input) => {
     const ariaLabel = input.getAttribute('aria-label');
     const ariaLabelledBy = input.getAttribute('aria-labelledby');
-    const label = document.querySelector(`label[for="${input.id}"]`);
+    const label = container.querySelector(`label[for="${input.id}"]`);
 
     const hasLabel = ariaLabel || ariaLabelledBy || label;
 
@@ -427,6 +427,9 @@ export const getEffectiveTextSize = (element) => {
  * @returns {boolean}
  */
 export const prefersReducedMotion = () => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 };
 

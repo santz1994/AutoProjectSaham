@@ -6,8 +6,17 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { getAPIBase } from '../utils/authService';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = `${getAPIBase()}/api`;
+
+const getWebSocketBase = () => {
+  const apiBase = getAPIBase();
+  if (apiBase.startsWith('https://')) {
+    return apiBase.replace('https://', 'wss://');
+  }
+  return apiBase.replace('http://', 'ws://');
+};
 
 export const useNotifications = (userId) => {
   const [notifications, setNotifications] = useState([]);
@@ -31,8 +40,7 @@ export const useNotifications = (userId) => {
   const connectWebSocket = useCallback(() => {
     if (!userId) return;
 
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/api/notifications/ws/${userId}`;
+    const wsUrl = `${getWebSocketBase()}/api/notifications/ws/${encodeURIComponent(userId)}`;
 
     try {
       const ws = new WebSocket(wsUrl);
@@ -139,10 +147,7 @@ export const useNotifications = (userId) => {
         `${API_BASE_URL}/notifications/history/${userId}?limit=${limit}&offset=${offset}`,
         {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-          },
+          credentials: 'include',
         }
       );
 
@@ -170,9 +175,7 @@ export const useNotifications = (userId) => {
         `${API_BASE_URL}/notifications/unread/${userId}`,
         {
           method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-          },
+          credentials: 'include',
         }
       );
 
@@ -190,14 +193,12 @@ export const useNotifications = (userId) => {
    */
   const markAsRead = useCallback(async (notificationId) => {
     try {
+      const query = userId ? `?user_id=${encodeURIComponent(userId)}` : '';
       const response = await fetch(
-        `${API_BASE_URL}/notifications/mark-read/${notificationId}`,
+        `${API_BASE_URL}/notifications/mark-read/${notificationId}${query}`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-          },
+          credentials: 'include',
         }
       );
 
@@ -227,7 +228,7 @@ export const useNotifications = (userId) => {
       console.error('[Notifications] Mark read error:', err);
       setError(err.message);
     }
-  }, []);
+  }, [userId]);
 
   /**
    * Mark all notifications as read
@@ -242,6 +243,13 @@ export const useNotifications = (userId) => {
   }, [notifications, markAsRead]);
 
   /**
+   * Remove a notification from local state
+   */
+  const deleteNotification = useCallback((notificationId) => {
+    setNotifications((prev) => prev.filter((notif) => notif.id !== notificationId));
+  }, []);
+
+  /**
    * Fetch user preferences
    */
   const fetchPreferences = useCallback(async () => {
@@ -252,9 +260,7 @@ export const useNotifications = (userId) => {
         `${API_BASE_URL}/notifications/preferences/${userId}`,
         {
           method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-          },
+          credentials: 'include',
         }
       );
 
@@ -283,8 +289,8 @@ export const useNotifications = (userId) => {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
           },
+          credentials: 'include',
           body: JSON.stringify(updates),
         }
       );
@@ -310,16 +316,14 @@ export const useNotifications = (userId) => {
         `${API_BASE_URL}/notifications/rules`,
         {
           method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-          },
+          credentials: 'include',
         }
       );
 
       if (!response.ok) throw new Error('Failed to fetch alert rules');
 
       const data = await response.json();
-      setAlertRules(data.rules || []);
+      setAlertRules(Array.isArray(data) ? data : (data.rules || []));
     } catch (err) {
       console.error('[Notifications] Alert rules error:', err);
       setError(err.message);
@@ -337,8 +341,8 @@ export const useNotifications = (userId) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
           },
+          credentials: 'include',
           body: JSON.stringify(rule),
         }
       );
@@ -346,8 +350,9 @@ export const useNotifications = (userId) => {
       if (!response.ok) throw new Error('Failed to create alert rule');
 
       const data = await response.json();
-      setAlertRules((prev) => [...prev, data.rule]);
-      return data.rule;
+      const createdRule = data.rule || rule;
+      setAlertRules((prev) => [...prev, createdRule]);
+      return createdRule;
     } catch (err) {
       console.error('[Notifications] Create rule error:', err);
       setError(err.message);
@@ -366,8 +371,8 @@ export const useNotifications = (userId) => {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
           },
+          credentials: 'include',
           body: JSON.stringify(updates),
         }
       );
@@ -395,9 +400,7 @@ export const useNotifications = (userId) => {
         `${API_BASE_URL}/notifications/rules/${ruleId}`,
         {
           method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-          },
+          credentials: 'include',
         }
       );
 
@@ -420,16 +423,14 @@ export const useNotifications = (userId) => {
         `${API_BASE_URL}/notifications/stats`,
         {
           method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-          },
+          credentials: 'include',
         }
       );
 
       if (!response.ok) throw new Error('Failed to fetch stats');
 
       const data = await response.json();
-      setStats(data);
+      setStats(data.stats || data);
     } catch (err) {
       console.error('[Notifications] Stats error:', err);
     }
@@ -505,6 +506,7 @@ export const useNotifications = (userId) => {
     fetchNotifications,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
 
     // Preference methods
     fetchPreferences,

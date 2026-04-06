@@ -41,11 +41,32 @@ if FASTAPI_AVAILABLE:
     from src.brokers.paper_adapter import PaperBrokerAdapter
     from src.api.auth import register_user, authenticate_user, get_user_from_token, invalidate_token
     from src.api.frontend_routes import router as frontend_router
+    from src.notifications.api_routes import setup_notification_routes
 
     app = FastAPI(title="AutoSaham API", version="0.1")
     
     # Register frontend API routes
     app.include_router(frontend_router)
+
+    # Register notification routes and delivery handlers
+    try:
+        smtp_config = None
+        if os.getenv("SMTP_HOST"):
+            smtp_config = {
+                "host": os.getenv("SMTP_HOST"),
+                "port": int(os.getenv("SMTP_PORT", "587")),
+                "user": os.getenv("SMTP_USER"),
+                "password": os.getenv("SMTP_PASS"),
+                "use_tls": True,
+            }
+
+        setup_notification_routes(
+            app,
+            smtp_config=smtp_config,
+            slack_webhook_url=os.getenv("SLACK_WEBHOOK_URL"),
+        )
+    except Exception as e:
+        print(f"[Startup] Warning: Notification routes initialization failed: {e}")
     
     # SECURITY FIX: Configure CORS to allow frontend on localhost:5173
     app.add_middleware(
@@ -54,7 +75,7 @@ if FASTAPI_AVAILABLE:
             "http://localhost:5173",      # Vite dev server
             "http://localhost:5174",      # Vite fallback port
             "http://127.0.0.1:5173",      # Loopback variant
-            "http:// 127.0.0.1:5174",      # Loopback variant
+            "http://127.0.0.1:5174",      # Loopback variant
             "http://localhost:8000",      # API server (for UI served from backend)
             "http://localhost:3000",      # Alternative dev port
         ],
@@ -170,7 +191,7 @@ if FASTAPI_AVAILABLE:
         if not token:
             raise HTTPException(status_code=401, detail="invalid_credentials")
         # SECURITY FIX: Set token as httpOnly cookie (not in response body)
-        response = Response(status_code=200)
+        response = JSONResponse(content={"status": "ok"}, status_code=200)
         # In development (HTTP), disable secure flag; in production (HTTPS), enable it
         is_secure = os.getenv("ENV", "").lower() in ("prod", "production") or os.getenv("HTTPS") == "on"
         response.set_cookie(
@@ -182,7 +203,7 @@ if FASTAPI_AVAILABLE:
             max_age=86400,  # 24 hours
             path="/"
         )
-        return {"status": "ok"}
+        return response
 
     @app.get("/auth/me")
     async def auth_me(request: Request):
@@ -198,12 +219,12 @@ if FASTAPI_AVAILABLE:
         return {"username": user}
 
     @app.post("/auth/logout")
-    async def auth_logout(request):
+    async def auth_logout(request: Request):
         """Clear the auth token cookie."""
         token = request.cookies.get("auth_token")
         if token:
             invalidate_token(token)
-        response = Response(status_code=200)
+        response = JSONResponse(content={"status": "ok"}, status_code=200)
         is_secure = os.getenv("ENV", "").lower() in ("prod", "production") or os.getenv("HTTPS") == "on"
         response.delete_cookie(
             key="auth_token",
@@ -212,7 +233,7 @@ if FASTAPI_AVAILABLE:
             secure=is_secure,
             samesite="lax"
         )
-        return {"status": "ok"}
+        return response
 
     @app.get("/api/training")
     async def api_training(limit: int = 50):
@@ -460,7 +481,7 @@ if FASTAPI_AVAILABLE:
         try:
             from src.api.auth import _load_users
             users = _load_users()
-            if not users:  # Only create test user if none exist
+            if "demo" not in users:  # Ensure demo account exists for local testing
                 register_user("demo", "demo123")
                 print("[Startup] Created test user: demo / demo123")
         except Exception as e:
@@ -574,8 +595,8 @@ else:
 if __name__ == "__main__":
     if FASTAPI_AVAILABLE:
         import uvicorn
-        # SECURITY FIX: Bind to localhost only (127.0.0.1) with restricted port
-        # Deploy behind a reverse proxy (nginx/caddy) in production for internet exposure
-        uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
+        host = os.getenv("API_HOST", "127.0.0.1")
+        port = int(os.getenv("API_PORT", "8000"))
+        uvicorn.run(app, host=host, port=port, log_level="info")
     else:
         raise RuntimeError("FastAPI is not installed. Install with: pip install fastapi[all]")

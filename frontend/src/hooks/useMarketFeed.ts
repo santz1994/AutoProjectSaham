@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import useWebSocket from './useWebSocket'
-import { useTradingStore } from '../store/useTradingStore'
+import { useTradingStore, type Marker } from '../store/useTradingStore'
 
 function toSec(t: any) {
   try {
@@ -63,7 +63,7 @@ export default function useMarketFeed() {
         const price = Number(trade.price || trade.p || 0)
         const side = (trade.side || trade.direction || '').toLowerCase()
         const ts = toSec(trade.time || trade.ts || trade.t || ev.time || ev.ts)
-        const m = {
+        const m: Marker = {
           time: ts,
           position: side === 'sell' ? 'aboveBar' : 'belowBar',
           color: side === 'sell' ? '#FF9800' : '#2196F3',
