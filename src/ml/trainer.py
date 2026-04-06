@@ -19,6 +19,10 @@ def train_model(
     n_trials: int = 20,
     purge_gap: int = 5,
     n_splits: int = 3,
+    enable_multimodal: bool = True,
+    price_dir: str = "data/prices",
+    etl_dir: str = "data",
+    horizon_bars: int = 5,
 ) -> Dict:
     """Train a binary classifier with optional Purged Time-Series CV + Optuna tuning.
 
@@ -28,6 +32,8 @@ def train_model(
     - Optionally runs a PurgedTimeSeriesSplit on the training portion to tune
       LightGBM hyperparameters via Optuna. If Optuna or LightGBM are unavailable
       the function falls back to a sensible default (RandomForest).
+        - Optionally augments input dataset with multimodal context (sentiment + COT)
+            and horizon tagging using available ETL and price artifacts.
     """
     import pandas as pd
     from sklearn.metrics import classification_report, roc_auc_score
@@ -41,6 +47,28 @@ def train_model(
     df = pd.read_csv(dataset_csv)
     if target_col not in df.columns:
         raise RuntimeError(f"{target_col} not in dataset")
+
+    required_multimodal_cols = {
+        "horizon_tag",
+        "horizon_bars",
+        "has_sentiment_features",
+        "has_cot_features",
+    }
+    needs_multimodal_augmentation = not required_multimodal_cols.issubset(df.columns)
+
+    if enable_multimodal and needs_multimodal_augmentation:
+        try:
+            from src.ml.feature_store import augment_dataset_with_multimodal
+
+            df = augment_dataset_with_multimodal(
+                df,
+                price_dir=price_dir,
+                etl_dir=etl_dir,
+                horizon_bars=horizon_bars,
+            )
+        except Exception:
+            # best-effort enrichment only
+            pass
 
     # optional: inject microstructure-derived features (best-effort)
     # This will attempt to add features like 'vwap', 'net_foreign',
@@ -64,6 +92,13 @@ def train_model(
     drop_cols = ["symbol", "t_index", "future_return"]
     X = df.drop(columns=[c for c in drop_cols if c in df.columns] + [target_col])
     y = df[target_col]
+
+    # Ensure model matrix is numeric (e.g., horizon_tag from multimodal features).
+    for col in X.columns:
+        if pd.api.types.is_bool_dtype(X[col]):
+            X[col] = X[col].astype(int)
+        elif not pd.api.types.is_numeric_dtype(X[col]):
+            X[col] = X[col].astype("category").cat.codes.astype(float)
 
     # prefer forward-fill / backfill for price-like features, then fall back to zero
     # (helps when a few leading rows have NaNs)
@@ -250,12 +285,12 @@ def train_model(
     try:
         from skl2onnx import convert_sklearn
         from skl2onnx.common.data_types import FloatTensorType
-        
-        onnx_path = model_out.replace('.joblib', '.onnx').replace('.pkl', '.onnx')
-        initial_type = [('float_input', FloatTensorType([None, len(X.columns)]))]
+
+        onnx_path = model_out.replace(".joblib", ".onnx").replace(".pkl", ".onnx")
+        initial_type = [("float_input", FloatTensorType([None, len(X.columns)]))]
         onnx_model = convert_sklearn(model, initial_types=initial_type)
-        
-        with open(onnx_path, 'wb') as f:
+
+        with open(onnx_path, "wb") as f:
             f.write(onnx_model.SerializeToString())
     except Exception:
         pass  # ONNX export is optional; continue if unavailable

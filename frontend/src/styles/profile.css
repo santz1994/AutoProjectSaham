@@ -1,0 +1,155 @@
+.profile-page {
+  padding: 2rem;
+  min-height: 100%;
+  background: var(--bg-primary);
+}
+
+.profile-header h1 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.profile-header p {
+  margin-top: 0.5rem;
+  color: var(--text-secondary);
+}
+
+.profile-layout {
+  margin-top: 1.5rem;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1rem;
+}
+
+.profile-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 1.2rem;
+  box-shadow: var(--shadow-md);
+}
+
+.identity-top {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.profile-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-blue);
+  background: var(--surface-elevated);
+}
+
+.identity-top h2 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.profile-meta {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+}
+
+.profile-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.profile-grid label span {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.profile-grid input,
+.profile-grid select {
+  padding: 0.72rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+}
+
+.toggle-field {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.account-card h2 {
+  margin-top: 0;
+  color: var(--text-primary);
+}
+
+.account-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.account-row span {
+  color: var(--text-secondary);
+}
+
+.account-row strong {
+  color: var(--text-primary);
+}
+
+.status-online {
+  color: #16a34a;
+}
+
+.status-offline {
+  color: #d97706;
+}
+
+.profile-quick-actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.account-note {
+  margin-top: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-size: 0.9rem;
+}
+
+.profile-actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.6rem;
+}
+
+@media (max-width: 1024px) {
+  .profile-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .profile-page {
+    padding: 1rem;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-actions {
+    flex-direction: column;
+  }
+}

@@ -38,6 +38,11 @@ class ApiService {
     }
   }
 
+  isNotFoundError(error) {
+    const message = String(error?.message || '');
+    return message.includes('404') || message.includes('Not Found');
+  }
+
   // ============ Portfolio API ============
   async getPortfolio() {
     return this.request('/api/portfolio');
@@ -192,6 +197,95 @@ class ApiService {
     return this.request('/api/broker/disconnect', {
       method: 'POST',
     });
+  }
+
+  async getBrokerFeatureFlags() {
+    return this.request('/api/brokers/feature-flags');
+  }
+
+  async updateBrokerFeatureFlag(providerId, payload) {
+    return this.request(`/api/brokers/feature-flags/${providerId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  // ============ AI Monitor API ============
+  async getAIOverview() {
+    try {
+      return await this.request('/api/ai/overview');
+    } catch (error) {
+      if (!this.isNotFoundError(error)) {
+        throw error;
+      }
+
+      const bot = await this.getBotStatus().catch(() => null);
+      const nowIso = new Date().toISOString();
+
+      return {
+        status: 'degraded',
+        source: 'fallback',
+        lastInferenceAt: bot?.lastTradeTime || nowIso,
+        model: {
+          artifact: null,
+          lastTrainedAt: null,
+          datasetRows: 0,
+          preferredUniverse: [],
+        },
+        learningPipeline: [
+          {
+            stage: 'AI endpoint',
+            status: 'degraded',
+            detail: 'Backend AI monitor endpoint is unavailable (404).',
+          },
+          {
+            stage: 'Fallback telemetry',
+            status: 'running',
+            detail: 'Using bot status endpoint until AI monitor API is enabled.',
+          },
+        ],
+        metrics: {
+          activeTrades: Number(bot?.activeTrades || 0),
+          winRate: Number(bot?.winRate || 0),
+          warningEvents: 0,
+          errorEvents: 0,
+          processedEvents: 0,
+        },
+      };
+    }
+  }
+
+  async getAILogs(limit = 100) {
+    try {
+      return await this.request(`/api/ai/logs?limit=${limit}`);
+    } catch (error) {
+      if (this.isNotFoundError(error)) {
+        return [];
+      }
+      throw error;
+    }
+  }
+
+  async createAILog(payload) {
+    try {
+      return await this.request('/api/ai/logs', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      if (this.isNotFoundError(error)) {
+        return {
+          id: `fallback-${Date.now()}`,
+          level: payload?.level || 'info',
+          eventType: payload?.eventType || 'manual',
+          message: payload?.message || 'Fallback log (endpoint unavailable)',
+          payload: payload?.payload || {},
+          timestamp: new Date().toISOString(),
+          source: 'fallback',
+        };
+      }
+      throw error;
+    }
   }
 
   // ============ Performance Reports API ============

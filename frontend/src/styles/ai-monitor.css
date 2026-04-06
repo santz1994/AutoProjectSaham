@@ -1,0 +1,239 @@
+.ai-monitor-page {
+  padding: 2rem;
+  min-height: 100%;
+  background: var(--bg-primary);
+}
+
+.ai-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.ai-header h1 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.ai-header p {
+  margin-top: 0.5rem;
+  color: var(--text-secondary);
+}
+
+.ai-header-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.ai-metrics-grid {
+  margin-top: 1.2rem;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.ai-metric-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.ai-metric-card h3 {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.ai-metric-card strong {
+  display: block;
+  margin-top: 0.45rem;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+}
+
+.ai-metric-card span {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.ai-card {
+  margin-top: 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.ai-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ai-card-header h2 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.ai-card-header span {
+  color: var(--text-muted);
+}
+
+.ai-timestamp {
+  font-size: 0.85rem;
+}
+
+.ai-pipeline-list {
+  margin-top: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.ai-pipeline-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.8rem;
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--card-border);
+}
+
+.ai-pipeline-item strong {
+  color: var(--text-primary);
+}
+
+.ai-pipeline-item p {
+  margin: 0.35rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.pipeline-status {
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+}
+
+.pipeline-status.running {
+  color: #dbeafe;
+  background: rgba(37, 99, 235, 0.76);
+}
+
+.pipeline-status.ready {
+  color: #ecfdf5;
+  background: rgba(22, 163, 74, 0.76);
+}
+
+.pipeline-status.warming_up {
+  color: #fef3c7;
+  background: rgba(217, 119, 6, 0.76);
+}
+
+.ai-log-list {
+  margin-top: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.ai-log-item {
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  padding: 0.75rem;
+}
+
+.ai-log-meta {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.log-level {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  min-width: 68px;
+  padding: 0.18rem 0.45rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  color: #f8fafc;
+}
+
+.log-level.info {
+  background: rgba(37, 99, 235, 0.78);
+}
+
+.log-level.warning {
+  background: rgba(217, 119, 6, 0.82);
+}
+
+.log-level.error {
+  background: rgba(220, 38, 38, 0.82);
+}
+
+.log-event,
+.log-time {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.log-message {
+  margin: 0.5rem 0 0;
+  color: var(--text-primary);
+}
+
+.log-payload {
+  margin: 0.6rem 0 0;
+  padding: 0.65rem;
+  background: rgba(15, 23, 42, 0.38);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  overflow-x: auto;
+}
+
+@media (max-width: 1100px) {
+  .ai-metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .ai-monitor-page {
+    padding: 1rem;
+  }
+
+  .ai-header {
+    flex-direction: column;
+  }
+
+  .ai-header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .ai-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-pipeline-item {
+    flex-direction: column;
+  }
+}

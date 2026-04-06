@@ -13,6 +13,7 @@ lightgbm
 joblib
 gymnasium
 python-dotenv
+cryptography>=42.0.0
 # ML Enhancement - Phase 1
 vaderSentiment>=3.3.2
 transformers>=4.30.0

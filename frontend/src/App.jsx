@@ -11,6 +11,8 @@ import MarketIntelligencePage from './components/MarketIntelligencePage'
 import StrategiesPage from './components/StrategiesPage'
 import TradeLogsPage from './components/TradeLogsPage'
 import SettingsPage from './components/SettingsPage'
+import ProfilePage from './components/ProfilePage'
+import AIMonitorPage from './components/AIMonitorPage'
 import Login from './components/Login'
 import Register from './components/Register'
 import ForgotPassword from './components/ForgotPassword'
@@ -30,6 +32,8 @@ import './styles/market.css'
 import './styles/strategies.css'
 import './styles/tradelogs.css'
 import './styles/settings.css'
+import './styles/profile.css'
+import './styles/ai-monitor.css'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -252,6 +256,10 @@ export default function App() {
         return <ErrorBoundary><StrategiesPage /></ErrorBoundary>
       case 'trades':
         return <ErrorBoundary><TradeLogsPage /></ErrorBoundary>
+      case 'profile':
+        return <ErrorBoundary><ProfilePage onNavigate={handleNavigate} /></ErrorBoundary>
+      case 'ai-monitor':
+        return <ErrorBoundary><AIMonitorPage /></ErrorBoundary>
       case 'settings':
         return (
           <ErrorBoundary>

@@ -11,22 +11,20 @@ from __future__ import annotations
 import glob
 import json
 import os
-from typing import Dict, List, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 import numpy as np
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 
 # Import microstructure features
 try:
-    from src.ml.microstructure import (
-        compute_microstructure_features,
-        MicrostructureAnalyzer
-    )
+    from src.ml.microstructure import compute_microstructure_features
+
     MICROSTRUCTURE_AVAILABLE = True
 except ImportError:
     MICROSTRUCTURE_AVAILABLE = False
-    compute_microstructure_features = None
-    MicrostructureAnalyzer = None
+    compute_microstructure_features = None  # type: ignore[assignment]
 
 
 def _safe_rolling(series: pd.Series, window: int):
@@ -145,7 +143,7 @@ def compute_latest_features(
         "bb_lower": float(bb_lower),
         "bb_width": float(bb_width),
     }
-    
+
     # Add microstructure features if available
     if include_microstructure and MICROSTRUCTURE_AVAILABLE and volumes is not None:
         try:
@@ -153,30 +151,306 @@ def compute_latest_features(
             # Estimate high/low from close (simplified)
             close_arr = np.array(prices)
             high_arr = close_arr * 1.005  # +0.5% estimate
-            low_arr = close_arr * 0.995   # -0.5% estimate
+            low_arr = close_arr * 0.995  # -0.5% estimate
             vol_arr = np.array(volumes)
-            
-            df_temp = pd.DataFrame({
-                'high': high_arr,
-                'low': low_arr,
-                'close': close_arr,
-                'volume': vol_arr
-            })
-            
+
+            df_temp = pd.DataFrame(
+                {
+                    "high": high_arr,
+                    "low": low_arr,
+                    "close": close_arr,
+                    "volume": vol_arr,
+                }
+            )
+
             # Compute microstructure features
+            if compute_microstructure_features is None:
+                return features
             df_micro = compute_microstructure_features(df_temp)
-            
+
             # Extract latest values
-            features['vwap'] = float(df_micro['vwap'].iloc[-1])
-            features['vwap_deviation'] = float(df_micro['vwap_deviation'].iloc[-1])
-            features['order_flow_imbalance'] = float(df_micro['order_flow_imbalance'].iloc[-1])
-            features['price_impact'] = float(df_micro['price_impact'].iloc[-1])
-            features['amihud_illiquidity'] = float(df_micro['amihud_illiquidity'].iloc[-1])
-        except Exception as e:
+            features["vwap"] = float(df_micro["vwap"].iloc[-1])
+            features["vwap_deviation"] = float(df_micro["vwap_deviation"].iloc[-1])
+            features["order_flow_imbalance"] = float(
+                df_micro["order_flow_imbalance"].iloc[-1]
+            )
+            features["price_impact"] = float(df_micro["price_impact"].iloc[-1])
+            features["amihud_illiquidity"] = float(
+                df_micro["amihud_illiquidity"].iloc[-1]
+            )
+        except Exception:
             # Silently skip microstructure if fails
             pass
-    
+
     return features
+
+
+def build_multimodal_feature_row(
+    symbol: str,
+    prices: List[float],
+    volumes: Optional[List[float]] = None,
+    *,
+    sentiment_features: Optional[Dict[str, Any]] = None,
+    cot_payload: Optional[Dict[str, Any]] = None,
+    horizon: str = "intraday",
+) -> Dict[str, Any]:
+    """Build a single multimodal feature row for model training/inference.
+
+    Combines:
+    - Base price/volume technical + microstructure features
+    - Optional sentiment features (precomputed from news pipeline)
+    - Optional COT macro features (weekly positioning)
+
+    The function is intentionally permissive and best-effort for optional
+    modalities to keep ETL robust under partial data availability.
+    """
+    base = compute_latest_features(
+        prices=prices,
+        volumes=volumes,
+        include_microstructure=True,
+    )
+    if not base:
+        return {}
+
+    row: Dict[str, Any] = {
+        "symbol": str(symbol),
+        "horizon": str(horizon),
+    }
+    row.update(base)
+
+    # Sentiment inputs are already feature-like, keep numeric fields only.
+    sentiment = sentiment_features or {}
+    for key, value in sentiment.items():
+        if isinstance(value, (int, float, np.number)):
+            row[str(key)] = float(value)
+    row["has_sentiment_features"] = int(any(k in row for k in sentiment.keys()))
+
+    # COT payload can be either a direct snapshot or ETL-style payload with
+    # nested latest record.
+    cot_snapshot: Dict[str, Any] = {}
+    if isinstance(cot_payload, dict):
+        if isinstance(cot_payload.get("latest"), dict):
+            cot_snapshot = cot_payload.get("latest", {}) or {}
+        else:
+            cot_snapshot = cot_payload
+
+    cot_fields = {
+        "cot_index_noncommercial": "cot_index_noncommercial",
+        "cot_index_commercial": "cot_index_commercial",
+        "noncommercial_net": "cot_noncommercial_net",
+        "commercial_net": "cot_commercial_net",
+    }
+
+    cot_present = False
+    for source_key, target_key in cot_fields.items():
+        value = cot_snapshot.get(source_key)
+        if isinstance(value, (int, float, np.number)):
+            row[target_key] = float(value)
+            cot_present = True
+
+    if (
+        "cot_index_noncommercial" in row
+        and "cot_index_commercial" in row
+    ):
+        row["cot_index_spread"] = (
+            row["cot_index_noncommercial"] - row["cot_index_commercial"]
+        )
+
+    row["has_cot_features"] = int(cot_present)
+
+    return row
+
+
+def infer_horizon_tag(horizon_bars: int) -> str:
+    """Convert numeric horizon bars into a coarse horizon category."""
+    bars = int(horizon_bars)
+    if bars <= 2:
+        return "ultra_short"
+    if bars <= 10:
+        return "short_term"
+    if bars <= 30:
+        return "medium_term"
+    return "long_term"
+
+
+def _load_latest_etl_context(etl_dir: str = "data") -> Dict[str, Any]:
+    """Load latest ETL artifact and return lightweight multimodal context."""
+    pattern = os.path.join(etl_dir, "etl_*.json")
+    files = glob.glob(pattern)
+    if not files:
+        return {"articles": [], "cot": {}}
+
+    latest_file = max(files, key=os.path.getmtime)
+    try:
+        with open(latest_file, "r", encoding="utf-8") as file:
+            payload = json.load(file)
+    except (OSError, json.JSONDecodeError):
+        return {"articles": [], "cot": {}}
+
+    data = payload.get("data", payload) if isinstance(payload, dict) else {}
+    if not isinstance(data, dict):
+        return {"articles": [], "cot": {}}
+
+    news_payload = data.get("news", {})
+    if isinstance(news_payload, dict):
+        articles = news_payload.get("articles", [])
+    else:
+        articles = []
+
+    cot_payload = data.get("cot", {})
+    if not isinstance(cot_payload, dict):
+        cot_payload = {}
+
+    return {
+        "articles": articles if isinstance(articles, list) else [],
+        "cot": cot_payload,
+    }
+
+
+def _compute_symbol_sentiment_features(
+    symbol: str,
+    articles: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Best-effort sentiment features for one symbol from news articles."""
+    if not articles:
+        return {}
+
+    try:
+        from src.ml.sentiment_features import NewsFeatureExtractor
+    except ImportError:
+        return {}
+
+    try:
+        extractor = NewsFeatureExtractor()
+    except (RuntimeError, ImportError):
+        return {}
+
+    base_symbol = str(symbol).upper().replace(".JK", "")
+    try:
+        return extractor.extract_features(
+            articles=articles,
+            symbol=base_symbol,
+            current_date=datetime.utcnow(),
+            windows=[1, 7, 30],
+        )
+    except (TypeError, ValueError):
+        return {}
+
+
+def _load_price_payload_by_symbol(
+    price_dir: str,
+    symbol: str,
+) -> Optional[Dict[str, Any]]:
+    """Resolve a symbol to a price JSON payload from `price_dir`."""
+    base = str(symbol).strip().upper().replace(".JK", "")
+    candidates = [
+        os.path.join(price_dir, f"{symbol}.json"),
+        os.path.join(price_dir, f"{base}.json"),
+        os.path.join(price_dir, f"{base}.JK.json"),
+    ]
+
+    for path in candidates:
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as file:
+                payload = json.load(file)
+        except (OSError, json.JSONDecodeError):
+            continue
+        if isinstance(payload, dict):
+            return payload
+
+    return None
+
+
+def augment_dataset_with_multimodal(
+    df: pd.DataFrame,
+    *,
+    price_dir: str = "data/prices",
+    etl_dir: str = "data",
+    horizon_bars: int = 5,
+) -> pd.DataFrame:
+    """Augment an existing labeled dataset with multimodal feature columns.
+
+    This function is safe-by-default and returns the original dataframe when
+    modality sources are missing.
+    """
+    if df is None or len(df) == 0 or "symbol" not in df.columns:
+        return df
+
+    out_df = df.copy()
+    horizon_tag = infer_horizon_tag(horizon_bars)
+    etl_context = _load_latest_etl_context(etl_dir=etl_dir)
+    articles = etl_context.get("articles", [])
+    cot_payload = etl_context.get("cot", {})
+
+    symbol_features: Dict[str, Dict[str, Any]] = {}
+    unique_symbols = [str(item) for item in out_df["symbol"].dropna().unique().tolist()]
+
+    for symbol in unique_symbols:
+        payload = _load_price_payload_by_symbol(price_dir=price_dir, symbol=symbol)
+        if not payload:
+            continue
+
+        prices = payload.get("prices") or payload.get("price") or []
+        volumes = payload.get("volumes") or payload.get("volume") or None
+        if not isinstance(prices, list) or len(prices) < 2:
+            continue
+        if volumes is not None and not isinstance(volumes, list):
+            volumes = None
+
+        sentiment_features = _compute_symbol_sentiment_features(
+            symbol=symbol,
+            articles=articles,
+        )
+        multimodal = build_multimodal_feature_row(
+            symbol=symbol,
+            prices=prices,
+            volumes=volumes,
+            sentiment_features=sentiment_features,
+            cot_payload=cot_payload,
+            horizon=horizon_tag,
+        )
+        if not multimodal:
+            continue
+
+        base_symbol = str(symbol).upper().replace(".JK", "")
+        symbol_features[base_symbol] = multimodal
+        symbol_features[f"{base_symbol}.JK"] = multimodal
+        symbol_features[str(symbol).upper()] = multimodal
+
+    if symbol_features:
+        per_row = []
+        for value in out_df["symbol"].tolist():
+            key = str(value).upper()
+            base = key.replace(".JK", "")
+            per_row.append(symbol_features.get(key) or symbol_features.get(base) or {})
+
+        features_df = pd.DataFrame(per_row, index=out_df.index)
+        if (
+            "horizon" in features_df.columns
+            and "horizon_tag" not in features_df.columns
+        ):
+            features_df = features_df.rename(columns={"horizon": "horizon_tag"})
+
+        for col in features_df.columns:
+            if col == "symbol":
+                continue
+            if col in out_df.columns:
+                if out_df[col].isna().any():
+                    out_df[col] = out_df[col].where(
+                        out_df[col].notna(),
+                        features_df[col],
+                    )
+                continue
+            out_df[col] = features_df[col]
+
+    if "horizon_tag" not in out_df.columns:
+        out_df["horizon_tag"] = horizon_tag
+    if "horizon_bars" not in out_df.columns:
+        out_df["horizon_bars"] = int(horizon_bars)
+
+    return out_df
 
 
 def build_feature_snapshot(

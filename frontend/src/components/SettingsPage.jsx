@@ -43,6 +43,7 @@ export default function SettingsPage({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [availableBrokers, setAvailableBrokers] = useState(fallbackBrokerProviders)
+  const [brokerFeatureFlags, setBrokerFeatureFlags] = useState({})
   const [brokerConnection, setBrokerConnection] = useState(null)
   const [connectingBroker, setConnectingBroker] = useState(false)
 
@@ -72,10 +73,11 @@ export default function SettingsPage({
     const loadSettings = async () => {
       setLoading(true)
       try {
-        const [remoteSettings, brokers, connection] = await Promise.all([
+        const [remoteSettings, brokers, connection, featureFlags] = await Promise.all([
           apiService.getUserSettings().catch(() => null),
           apiService.getAvailableBrokers().catch(() => []),
           apiService.getBrokerConnection().catch(() => null),
+          apiService.getBrokerFeatureFlags().catch(() => []),
         ])
 
         const merged = {
@@ -87,11 +89,20 @@ export default function SettingsPage({
         const safeBrokers = Array.isArray(brokers) && brokers.length > 0
           ? brokers
           : fallbackBrokerProviders
+        const flagsMap = Array.isArray(featureFlags)
+          ? featureFlags.reduce((acc, item) => {
+              if (item?.provider) {
+                acc[item.provider] = item
+              }
+              return acc
+            }, {})
+          : {}
 
         syncThemePreference(merged.theme)
         setSettings(merged)
         setInitialSettings(merged)
         setAvailableBrokers(safeBrokers)
+        setBrokerFeatureFlags(flagsMap)
         setBrokerConnection(connection)
       } catch (error) {
         const fallbackSettings = {
@@ -103,6 +114,7 @@ export default function SettingsPage({
         setSettings(fallbackSettings)
         setInitialSettings(fallbackSettings)
         setAvailableBrokers(fallbackBrokerProviders)
+        setBrokerFeatureFlags({})
         setBrokerConnection(null)
       } finally {
         setLoading(false)
@@ -213,13 +225,35 @@ export default function SettingsPage({
         ...prev,
         brokerName: nextConnection?.providerName || prev.brokerName,
         apiKey: nextConnection?.maskedApiKey || prev.apiKey,
+        tradingMode: nextConnection?.tradingMode || prev.tradingMode,
       }))
+
+      if (nextConnection?.fallbackReason) {
+        toast.warning(nextConnection.fallbackReason)
+      }
 
       toast.success(`${nextConnection?.providerName || 'Broker'} connected in ${nextConnection?.tradingMode || 'paper'} mode.`)
     } catch (error) {
       toast.error(`Failed to connect broker: ${error.message}`)
     } finally {
       setConnectingBroker(false)
+    }
+  }
+
+  const handleLiveFeatureFlagToggle = async (providerId, currentValue) => {
+    try {
+      const updated = await apiService.updateBrokerFeatureFlag(providerId, {
+        liveEnabled: !currentValue,
+      })
+
+      setBrokerFeatureFlags((prev) => ({
+        ...prev,
+        [providerId]: updated,
+      }))
+
+      toast.success(`Live feature flag ${updated.liveEnabled ? 'enabled' : 'disabled'} for ${providerId}.`)
+    } catch (error) {
+      toast.error(`Failed to update feature flag: ${error.message}`)
     }
   }
 
@@ -280,6 +314,12 @@ export default function SettingsPage({
       </div>
     )
   }
+
+  const selectedProviderMetadata = availableBrokers.find((item) => item.id === settings.brokerProvider)
+  const selectedProviderFlag = brokerFeatureFlags[settings.brokerProvider] || {}
+  const providerSupportsLive = Boolean(selectedProviderMetadata?.supportsLive)
+  const providerLiveFeatureEnabled = Boolean(selectedProviderFlag?.liveEnabled)
+  const providerIntegrationReady = selectedProviderFlag?.integrationReady ?? selectedProviderMetadata?.integrationReady
 
   return (
     <div className="settings-page">
@@ -490,7 +530,11 @@ export default function SettingsPage({
         <div className="setting-item">
           <div className="setting-label">
             <span>Trading Mode</span>
-            <small>Live mode is intentionally blocked until full broker certification is complete</small>
+            <small>
+              {providerLiveFeatureEnabled && providerIntegrationReady
+                ? 'Live mode is enabled by feature flag for this provider.'
+                : 'Live mode request will fallback to paper unless provider feature flag is enabled.'}
+            </small>
           </div>
           <select
             value={settings.tradingMode}
@@ -498,7 +542,11 @@ export default function SettingsPage({
             className="setting-input"
           >
             <option value="paper">Paper Trading (Recommended)</option>
-            <option value="live">Live Trading (Locked)</option>
+            <option value="live" disabled={!providerSupportsLive}>
+              {providerLiveFeatureEnabled && providerIntegrationReady
+                ? 'Live Trading (Feature Enabled)'
+                : 'Live Trading (Auto Fallback to Paper)'}
+            </option>
           </select>
         </div>
 
@@ -552,6 +600,42 @@ export default function SettingsPage({
                 Disconnect
               </button>
             </div>
+          </div>
+        </div>
+
+        <div className="setting-item">
+          <div className="setting-label">
+            <span>Broker Live Feature Flags (Beta)</span>
+            <small>Enable live trading capability per provider (Ajaib/MotionTrade).</small>
+          </div>
+          <div className="broker-feature-flags">
+            {availableBrokers
+              .filter((provider) => provider.supportsLive)
+              .map((provider) => {
+                const providerFlag = brokerFeatureFlags[provider.id] || {
+                  liveEnabled: false,
+                  integrationReady: provider.integrationReady,
+                }
+
+                return (
+                  <div className="broker-flag-row" key={provider.id}>
+                    <div>
+                      <strong>{provider.name}</strong>
+                      <p>
+                        Integration: {providerFlag.integrationReady ? 'Ready' : 'Not Ready'}
+                      </p>
+                    </div>
+                    <button
+                      className={`toggle-btn ${providerFlag.liveEnabled ? 'active' : ''}`}
+                      onClick={() => handleLiveFeatureFlagToggle(provider.id, providerFlag.liveEnabled)}
+                      disabled={saving || connectingBroker}
+                      title={`Toggle live feature flag for ${provider.name}`}
+                    >
+                      <span className="toggle-indicator"></span>
+                    </button>
+                  </div>
+                )
+              })}
           </div>
         </div>
       </div>

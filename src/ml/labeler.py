@@ -21,6 +21,7 @@ from src.ml.barriers import (
     get_sample_weights_time_decay,
     get_sample_weights_by_return,
 )
+from src.ml.feature_store import augment_dataset_with_multimodal
 
 
 def _compute_features_for_index(arr: np.ndarray, t: int, short: int, long: int):
@@ -64,6 +65,8 @@ def build_dataset(
     stop_loss: float = 0.02,
     use_sample_weights: bool = True,
     sample_weight_method: str = "time_decay",
+    include_multimodal: bool = True,
+    etl_dir: str = "data",
 ) -> str:
     """
     Build labeled dataset from price history.
@@ -81,6 +84,8 @@ def build_dataset(
         stop_loss: Stop-loss threshold for triple-barrier (e.g., 0.02 = 2%)
         use_sample_weights: If True, generate sample weights
         sample_weight_method: "time_decay" or "return_magnitude"
+        include_multimodal: If True, merge sentiment + COT + horizon features
+        etl_dir: Directory containing ETL artifacts (etl_*.json)
         
     Returns:
         Path to output CSV file
@@ -117,7 +122,10 @@ def build_dataset(
                     
                     # Merge features with barrier labels
                     for _, barrier_row in barrier_df.iterrows():
-                        t = barrier_row['t_index']
+                        try:
+                            t = int(barrier_row['t_index'])
+                        except (TypeError, ValueError):
+                            continue
                         feats = _compute_features_for_index(arr, t, short, long)
                         
                         row = {
@@ -168,6 +176,18 @@ def build_dataset(
         raise RuntimeError("No dataset rows produced (check price files)")
 
     df = pd.DataFrame(rows)
+
+    # Optional multimodal feature augmentation (sentiment + COT + horizon tag)
+    if include_multimodal:
+        try:
+            df = augment_dataset_with_multimodal(
+                df,
+                price_dir=price_dir,
+                etl_dir=etl_dir,
+                horizon_bars=horizon,
+            )
+        except Exception as e:
+            print(f"Warning: multimodal augmentation skipped: {e}")
     
     # Add sample weights if requested
     if use_sample_weights and len(df) > 0:
@@ -186,6 +206,17 @@ def build_dataset(
     print(f"\n=== Dataset Summary ===")
     print(f"Total samples: {len(df)}")
     print(f"Unique symbols: {df['symbol'].nunique()}")
+    if include_multimodal:
+        sentiment_cov = 0.0
+        cot_cov = 0.0
+        if 'has_sentiment_features' in df.columns:
+            sentiment_cov = float(df['has_sentiment_features'].mean() * 100)
+        if 'has_cot_features' in df.columns:
+            cot_cov = float(df['has_cot_features'].mean() * 100)
+        print(
+            "Multimodal coverage: "
+            f"sentiment={sentiment_cov:.1f}% | cot={cot_cov:.1f}%"
+        )
     if use_triple_barrier:
         print(f"\nLabel distribution (triple-barrier):")
         print(f"  Profit (1): {(df['label'] == 1).sum()} ({(df['label'] == 1).mean()*100:.1f}%)")

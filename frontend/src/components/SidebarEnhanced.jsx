@@ -11,7 +11,9 @@ const menuItems = [
   { id: 'market', label: 'Market Intelligence', icon: '📈', desc: 'Trends & Sentiment', shortcut: '2' },
   { id: 'strategies', label: 'Strategies', icon: '🎯', desc: 'Builder & Backtest', shortcut: '3' },
   { id: 'trades', label: 'Trade Logs', icon: '📝', desc: 'History & Analytics', shortcut: '4' },
-  { id: 'settings', label: 'Settings', icon: '⚙️', desc: 'Configuration', shortcut: '5' },
+  { id: 'ai-monitor', label: 'AI Monitor', icon: '🧠', desc: 'Learning & Logs', shortcut: '5' },
+  { id: 'profile', label: 'Profile', icon: '👤', desc: 'Identity & Account', shortcut: '6' },
+  { id: 'settings', label: 'Settings', icon: '⚙️', desc: 'Configuration', shortcut: '7' },
 ];
 
 export default function SidebarEnhanced({ currentPage, onNavigate }) {
@@ -23,7 +25,7 @@ export default function SidebarEnhanced({ currentPage, onNavigate }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
       // Ctrl/Cmd + number for navigation
-      if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '5') {
+      if ((e.ctrlKey || e.metaKey) && /^[1-9]$/.test(e.key)) {
         e.preventDefault();
         const item = menuItems.find((i) => i.shortcut === e.key);
         if (item) {

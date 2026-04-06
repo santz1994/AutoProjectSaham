@@ -132,14 +132,10 @@ export default function NavbarEnhanced({
 
   const openProfileFromMenu = () => {
     if (typeof onNavigate === 'function') {
-      onNavigate('settings');
+      onNavigate('profile');
     }
 
     setUserMenuOpen(false);
-
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('autosaham:open-profile'));
-    }
   };
 
   const handleThemeMenuClick = () => {
@@ -344,6 +340,20 @@ export default function NavbarEnhanced({
               >
                 <span className="menu-icon">🎨</span>
                 <span>Theme</span>
+              </div>
+              <div
+                className="menu-item"
+                role="menuitem"
+                tabIndex={0}
+                onClick={() => {
+                  if (typeof onNavigate === 'function') {
+                    onNavigate('ai-monitor');
+                  }
+                  setUserMenuOpen(false);
+                }}
+              >
+                <span className="menu-icon">🧠</span>
+                <span>AI Monitor</span>
               </div>
               <div className="menu-divider" role="separator"></div>
               <div
