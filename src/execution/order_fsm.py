@@ -59,10 +59,38 @@ class OrderStateMachine:
         OrderState.FAILED: [OrderState.PENDING],  # Can retry from failed
     }
     
-    def __init__(self, order_id: str, initial_state: OrderState = OrderState.PENDING):
+    def __init__(
+        self,
+        order_id: str,
+        initial_state: OrderState = OrderState.PENDING,
+        requested_qty: Optional[int] = None,
+    ):
         self.order_id = order_id
         self.current_state = initial_state
         self.history: List[OrderTransition] = []
+        parsed_qty = int(requested_qty) if requested_qty is not None else 0
+        self.requested_qty: Optional[int] = parsed_qty if parsed_qty > 0 else None
+        self.cumulative_filled_qty: int = 0
+        self.avg_fill_price: float = 0.0
+        self.remaining_qty: int = self.requested_qty or 0
+
+    def _apply_fill(self, filled_qty: int, filled_price: float) -> None:
+        if filled_qty <= 0:
+            return
+
+        safe_price = float(max(0.0, filled_price))
+        previous_notional = float(self.cumulative_filled_qty) * float(self.avg_fill_price)
+        incoming_notional = float(filled_qty) * safe_price
+        self.cumulative_filled_qty += int(filled_qty)
+
+        if self.cumulative_filled_qty > 0:
+            self.avg_fill_price = float(
+                (previous_notional + incoming_notional)
+                / float(self.cumulative_filled_qty)
+            )
+
+        if self.requested_qty is not None:
+            self.remaining_qty = max(0, int(self.requested_qty) - int(self.cumulative_filled_qty))
     
     def transition(
         self, 
@@ -81,13 +109,34 @@ class OrderStateMachine:
             raise ValueError(
                 f"Invalid transition: {self.current_state.value} → {next_state.value}"
             )
+
+        safe_fill_qty = int(filled_qty)
+        if safe_fill_qty < 0:
+            raise ValueError("filled_qty cannot be negative")
+
+        if next_state == OrderState.PARTIAL:
+            if self.requested_qty is not None and safe_fill_qty <= 0:
+                raise ValueError("PARTIAL transition requires filled_qty > 0 when requested_qty is set")
+            projected_filled = self.cumulative_filled_qty + max(0, safe_fill_qty)
+            if self.requested_qty is not None and projected_filled >= self.requested_qty:
+                raise ValueError("PARTIAL transition would complete the order; use FILLED")
+
+        if next_state == OrderState.FILLED and self.requested_qty is not None:
+            projected_filled = self.cumulative_filled_qty + max(0, safe_fill_qty)
+            if projected_filled != self.requested_qty:
+                raise ValueError(
+                    f"FILLED transition requires total filled qty == requested qty ({self.requested_qty})"
+                )
+
+        if next_state in (OrderState.PARTIAL, OrderState.FILLED):
+            self._apply_fill(safe_fill_qty, float(filled_price))
         
         trans = OrderTransition(
             order_id=self.order_id,
             prev_state=self.current_state,
             next_state=next_state,
             reason=reason,
-            filled_qty=filled_qty,
+            filled_qty=safe_fill_qty,
             filled_price=filled_price,
         )
         self.history.append(trans)

@@ -669,6 +669,11 @@ const ChartComponent = ({
 
           clearPing();
 
+          if (event.code === 4401 || event.code === 4403) {
+            setWsWarning('Session expired for live stream. Please login again.');
+            return;
+          }
+
           if (event.code === 1000 && (event.reason === 'switch-stream' || event.reason === 'stale-session')) {
             return;
           }

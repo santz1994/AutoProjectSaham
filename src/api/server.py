@@ -44,6 +44,30 @@ if FASTAPI_AVAILABLE:
     from src.notifications.api_routes import setup_notification_routes
 
     app = FastAPI(title="AutoSaham API", version="0.1")
+
+    def _extract_ws_auth_token(websocket: WebSocket) -> Optional[str]:
+        """Extract auth token from websocket query/cookie/header."""
+        query_token = str(websocket.query_params.get("token") or "").strip()
+        if query_token:
+            return query_token
+
+        cookie_token = str(websocket.cookies.get("auth_token") or "").strip()
+        if cookie_token:
+            return cookie_token
+
+        auth_header = str(websocket.headers.get("authorization") or "").strip()
+        if auth_header.lower().startswith("bearer "):
+            bearer_token = auth_header.split(" ", 1)[1].strip()
+            if bearer_token:
+                return bearer_token
+
+        return None
+
+    def _authenticate_ws_client(websocket: WebSocket) -> Optional[str]:
+        token = _extract_ws_auth_token(websocket)
+        if not token:
+            return None
+        return get_user_from_token(token)
     
     # Register frontend API routes
     app.include_router(frontend_router)
@@ -461,6 +485,18 @@ if FASTAPI_AVAILABLE:
         """WebSocket stream for chart updates used by frontend ChartComponent."""
         from src.data.idx_fetcher import fetch_candlesticks
 
+        ws_user = _authenticate_ws_client(ws)
+        if not ws_user:
+            try:
+                await ws.accept()
+            except Exception:
+                pass
+            try:
+                await ws.close(code=4401, reason="Unauthorized")
+            except Exception:
+                pass
+            return
+
         timeframe = ws.query_params.get("timeframe", "1d")
         try:
             limit = int(ws.query_params.get("limit", "100"))
@@ -518,9 +554,21 @@ if FASTAPI_AVAILABLE:
         This handler polls the event queue periodically and sends any accumulated
         events to the client. It gracefully closes if the client disconnects.
         """
+        ws_user = _authenticate_ws_client(ws)
+        if not ws_user:
+            try:
+                await ws.accept()
+            except Exception:
+                pass
+            try:
+                await ws.close(code=4401, reason="Unauthorized")
+            except Exception:
+                pass
+            return
+
         try:
             await ws.accept()
-            print("[WebSocket] Client connected to /ws/events")
+            print(f"[WebSocket] Client connected to /ws/events ({ws_user})")
         except Exception as e:
             print(f"[WebSocket] Failed to accept: {type(e).__name__}: {e}")
             return

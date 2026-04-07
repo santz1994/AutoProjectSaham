@@ -20,6 +20,7 @@ from .notification_service import (
 from .delivery_handlers import (
     NotificationChannelFactory, initialize_default_handlers
 )
+from src.api.auth import get_user_from_token
 
 logger = logging.getLogger(__name__)
 JAKARTA_TZ = pytz.timezone('Asia/Jakarta')
@@ -31,6 +32,31 @@ router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 def get_manager():
     """Get the global notification manager instance"""
     return get_notification_manager()
+
+
+def _extract_ws_auth_token(websocket: WebSocket) -> Optional[str]:
+    query_token = str(websocket.query_params.get("token") or "").strip()
+    if query_token:
+        return query_token
+
+    cookie_token = str(websocket.cookies.get("auth_token") or "").strip()
+    if cookie_token:
+        return cookie_token
+
+    auth_header = str(websocket.headers.get("authorization") or "").strip()
+    if auth_header.lower().startswith("bearer "):
+        bearer_token = auth_header.split(" ", 1)[1].strip()
+        if bearer_token:
+            return bearer_token
+
+    return None
+
+
+def _authenticate_ws_user(websocket: WebSocket) -> Optional[str]:
+    token = _extract_ws_auth_token(websocket)
+    if not token:
+        return None
+    return get_user_from_token(token)
 
 
 # ==================== Alert Rules Endpoints ====================
@@ -357,15 +383,26 @@ async def websocket_notifications(
     manager = Depends(get_manager)
 ):
     """WebSocket endpoint for real-time notifications"""
+    authenticated_user = _authenticate_ws_user(websocket)
+    if not authenticated_user:
+        await websocket.accept()
+        await websocket.close(code=4401, reason="Unauthorized")
+        return
+
+    if str(authenticated_user) != str(user_id):
+        await websocket.accept()
+        await websocket.close(code=4403, reason="Forbidden")
+        return
+
     await websocket.accept()
-    manager.register_websocket(user_id, websocket)
+    manager.register_websocket(authenticated_user, websocket)
     
     try:
         # Send initial connection message
         await websocket.send_json({
             "type": "connection",
             "status": "connected",
-            "user_id": user_id,
+            "user_id": authenticated_user,
             "timestamp": datetime.now(JAKARTA_TZ).isoformat()
         })
         
@@ -386,14 +423,14 @@ async def websocket_notifications(
                 elif message.get("type") == "mark_read":
                     notification_id = message.get("notification_id")
                     if notification_id:
-                        manager.mark_as_read(notification_id, user_id)
+                        manager.mark_as_read(notification_id, authenticated_user)
                         await websocket.send_json({
                             "type": "read_confirmed",
                             "notification_id": notification_id
                         })
                 
                 elif message.get("type") == "get_unread":
-                    count = manager.get_unread_count(user_id)
+                    count = manager.get_unread_count(authenticated_user)
                     await websocket.send_json({
                         "type": "unread_count",
                         "count": count
@@ -412,12 +449,12 @@ async def websocket_notifications(
                 })
     
     except WebSocketDisconnect:
-        manager.unregister_websocket(user_id, websocket)
-        logger.info(f"WebSocket disconnected: {user_id}")
+        manager.unregister_websocket(authenticated_user, websocket)
+        logger.info(f"WebSocket disconnected: {authenticated_user}")
     
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
-        manager.unregister_websocket(user_id, websocket)
+        manager.unregister_websocket(authenticated_user, websocket)
 
 
 # ==================== Health Check ====================

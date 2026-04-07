@@ -8,6 +8,54 @@ services:
     url: http://api:8001
 
 routes:
+  - name: auth-routes
+    service: fastapi-backend
+    paths:
+      - /auth/login
+      - /auth/register
+      - /auth/forgot-password
+    methods:
+      - POST
+    strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 20
+          hour: 300
+          policy: local
+          fault_tolerant: true
+
+  - name: ai-inference-routes
+    service: fastapi-backend
+    paths:
+      - /api/signals
+      - /api/ai/projection
+      - /api/ai/logs
+    strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          second: 5
+          minute: 120
+          policy: local
+          fault_tolerant: true
+
+  - name: execution-routes
+    service: fastapi-backend
+    paths:
+      - /api/broker/connect
+      - /api/broker/disconnect
+      - /api/strategies
+      - /api/trades
+    strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          second: 3
+          minute: 60
+          policy: local
+          fault_tolerant: true
+
   - name: api-routes
     service: fastapi-backend
     paths:
@@ -16,8 +64,8 @@ routes:
     plugins:
       - name: rate-limiting
         config:
-          minute: 100
-          policy: cluster
+          minute: 300
+          policy: local
           fault_tolerant: true
       - name: request-transformer
         config:
@@ -33,8 +81,8 @@ routes:
     plugins:
       - name: rate-limiting
         config:
-          minute: 1000
-          policy: cluster
+          minute: 240
+          policy: local
 
   - name: health-check
     service: fastapi-backend

@@ -216,7 +216,14 @@ export default function NavbarEnhanced({
         }
       };
 
-      socket.onclose = () => {
+      socket.onclose = (event) => {
+        const closeCode = Number(event?.code || 0);
+        if (closeCode === 4401 || closeCode === 4403) {
+          shouldReconnectRef.current = false;
+          setNotificationsError('Notification socket unauthorized. Please login again.');
+          return;
+        }
+
         if (!shouldReconnectRef.current) {
           return;
         }
