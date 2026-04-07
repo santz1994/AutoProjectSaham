@@ -205,3 +205,71 @@ def test_latest_model_artifact_prefers_transformer(monkeypatch):
     artifact = frontend_routes._get_latest_model_artifact()
     assert artifact["artifact"] == "models/transformers/fusion_baseline.pt"
     assert artifact["architecture"] == "fusion"
+
+
+def test_get_ai_projection_uses_anchor_and_timeframe(monkeypatch):
+    monkeypatch.setattr(
+        frontend_routes,
+        "_predict_projection_seed",
+        lambda symbol, market=None: {
+            "symbol": symbol,
+            "signal": "BUY",
+            "confidence": 0.72,
+            "expected_return": 0.08,
+            "predicted_move": "+8.00%",
+            "current_price": 95.0,
+            "target_price": 102.6,
+            "source": "transformer",
+            "architecture": "fusion",
+        },
+    )
+
+    async def _anchor(symbol, timeframe):
+        assert symbol == "AAA.JK"
+        assert timeframe == "1h"
+        return {"time": 1710000000.0, "price": 100.0}
+
+    monkeypatch.setattr(frontend_routes, "_resolve_latest_candle_anchor", _anchor)
+
+    payload = asyncio.run(frontend_routes.get_ai_projection("aaa", timeframe="1h", horizon=6))
+
+    assert payload.symbol == "AAA.JK"
+    assert payload.timeframe == "1h"
+    assert payload.horizon == 6
+    assert payload.source == "transformer"
+    assert payload.currentPrice == 100.0
+    assert len(payload.projection) == 6
+    assert payload.projection[0].time == 1710000000 + 3600
+    assert payload.projection[-1].time == 1710000000 + (6 * 3600)
+    assert payload.projection[-1].value > payload.currentPrice
+
+
+def test_get_ai_projection_validates_timeframe_and_clamps_horizon(monkeypatch):
+    monkeypatch.setattr(
+        frontend_routes,
+        "_predict_projection_seed",
+        lambda symbol, market=None: {
+            "symbol": symbol,
+            "signal": "HOLD",
+            "confidence": 0.5,
+            "expected_return": 0.0,
+            "predicted_move": "+0.00%",
+            "current_price": 100.0,
+            "target_price": 100.0,
+            "source": "fallback",
+            "architecture": None,
+        },
+    )
+
+    async def _no_anchor(symbol, timeframe):
+        return None
+
+    monkeypatch.setattr(frontend_routes, "_resolve_latest_candle_anchor", _no_anchor)
+
+    with pytest.raises(frontend_routes.HTTPException) as exc_info:
+        asyncio.run(frontend_routes.get_ai_projection("BBCA.JK", timeframe="10m", horizon=16))
+    assert exc_info.value.status_code == 400
+
+    payload = asyncio.run(frontend_routes.get_ai_projection("BBCA.JK", timeframe="1d", horizon=999))
+    assert payload.horizon == 120
+    assert len(payload.projection) == 120

@@ -13,6 +13,7 @@ import TradeLogsPage from './components/TradeLogsPage'
 import SettingsPage from './components/SettingsPage'
 import ProfilePage from './components/ProfilePage'
 import AIMonitorPage from './components/AIMonitorPage'
+import AIGraphPage from './components/AIGraphPage'
 import Login from './components/Login'
 import Register from './components/Register'
 import ForgotPassword from './components/ForgotPassword'
@@ -34,6 +35,7 @@ import './styles/tradelogs.css'
 import './styles/settings.css'
 import './styles/profile.css'
 import './styles/ai-monitor.css'
+import './styles/ai-graph.css'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -261,6 +263,8 @@ export default function App() {
         return <ErrorBoundary><ProfilePage onNavigate={handleNavigate} /></ErrorBoundary>
       case 'ai-monitor':
         return <ErrorBoundary><AIMonitorPage /></ErrorBoundary>
+      case 'ai-graph':
+        return <ErrorBoundary><AIGraphPage theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
       case 'settings':
         return (
           <ErrorBoundary>

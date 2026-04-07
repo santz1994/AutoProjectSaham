@@ -8,6 +8,7 @@ Author: AutoSaham Team
 Version: 1.0.0
 """
 
+import heapq
 import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
@@ -30,6 +31,37 @@ IDX_SYMBOLS = {
     'SMGR.JK': {'name': 'Semen Indonesia', 'sector': 'Mining'},
     'BMRI.JK': {'name': 'Bank Mandiri', 'sector': 'Financial Services'},
     'BBRI.JK': {'name': 'Bank Rakyat Indonesia', 'sector': 'Financial Services'},
+    'BBNI.JK': {'name': 'Bank Negara Indonesia', 'sector': 'Financial Services'},
+    'BBTN.JK': {'name': 'Bank Tabungan Negara', 'sector': 'Financial Services'},
+    'ADRO.JK': {'name': 'Adaro Energy', 'sector': 'Energy'},
+    'ANTM.JK': {'name': 'Aneka Tambang', 'sector': 'Mining'},
+    'BRIS.JK': {'name': 'Bank Syariah Indonesia', 'sector': 'Financial Services'},
+    'CPIN.JK': {'name': 'Charoen Pokphand Indonesia', 'sector': 'Consumer Goods'},
+    'EXCL.JK': {'name': 'XL Axiata', 'sector': 'Telecommunications'},
+    'ICBP.JK': {'name': 'Indofood CBP', 'sector': 'Consumer Goods'},
+    'INCO.JK': {'name': 'Vale Indonesia', 'sector': 'Mining'},
+    'INKP.JK': {'name': 'Indah Kiat Pulp & Paper', 'sector': 'Industrials'},
+    'ISAT.JK': {'name': 'Indosat Ooredoo Hutchison', 'sector': 'Telecommunications'},
+    'JSMR.JK': {'name': 'Jasa Marga', 'sector': 'Infrastructure'},
+    'MDKA.JK': {'name': 'Merdeka Copper Gold', 'sector': 'Mining'},
+    'MEDC.JK': {'name': 'Medco Energi', 'sector': 'Energy'},
+    'MNCN.JK': {'name': 'Media Nusantara Citra', 'sector': 'Media'},
+    'PTBA.JK': {'name': 'Bukit Asam', 'sector': 'Energy'},
+    'SCMA.JK': {'name': 'Surya Citra Media', 'sector': 'Media'},
+    'SIDO.JK': {'name': 'Industri Jamu Sido Muncul', 'sector': 'Healthcare'},
+    'TBIG.JK': {'name': 'Tower Bersama Infrastructure', 'sector': 'Infrastructure'},
+    'TPIA.JK': {'name': 'Chandra Asri Pacific', 'sector': 'Chemicals'},
+    'WIKA.JK': {'name': 'Wijaya Karya', 'sector': 'Infrastructure'},
+    'AMRT.JK': {'name': 'Sumber Alfaria Trijaya', 'sector': 'Consumer Goods'},
+    'AKRA.JK': {'name': 'AKR Corporindo', 'sector': 'Industrials'},
+    'ERAA.JK': {'name': 'Erajaya Swasembada', 'sector': 'Consumer Cyclical'},
+    'GOTO.JK': {'name': 'GoTo Gojek Tokopedia', 'sector': 'Technology'},
+    'HRUM.JK': {'name': 'Harum Energy', 'sector': 'Energy'},
+    'ITMG.JK': {'name': 'Indo Tambangraya Megah', 'sector': 'Energy'},
+    'MAPI.JK': {'name': 'Mitra Adiperkasa', 'sector': 'Consumer Cyclical'},
+    'PGEO.JK': {'name': 'Pertamina Geothermal Energy', 'sector': 'Energy'},
+    'SRTG.JK': {'name': 'Saratoga Investama Sedaya', 'sector': 'Financial Services'},
+    'UNTR.JK': {'name': 'United Tractors', 'sector': 'Industrials'},
 }
 
 # Timeframe mapping to yfinance periods
@@ -92,6 +124,10 @@ async def fetch_candlesticks(
         
         # Fetch historical data (note: remove progress parameter for compatibility)
         df = ticker.history(period=period, interval=yf_interval)
+
+        # yfinance allows 1m only on short windows; retry with 7d if provider returns empty.
+        if df.empty and timeframe == '1m':
+            df = ticker.history(period='7d', interval='1m')
         
         if df.empty:
             logger.warning(f"No data returned for {symbol}")
@@ -103,6 +139,10 @@ async def fetch_candlesticks(
             logger.error(f"Missing OHLC columns for {symbol}")
             return None
         
+        # Aggregate native 1h bars into true 4h bars.
+        if timeframe == '4h':
+            df = _aggregate_to_4h(df)
+
         # Convert to candlestick format
         candles = []
         for index, row in df.iterrows():
@@ -122,6 +162,8 @@ async def fetch_candlesticks(
                 candle["volume"] = int(row['Volume'])
             
             candles.append(candle)
+
+        candles = _adaptive_sort_candles_by_time(candles)
         
         # Limit to requested count
         candles = candles[-limit:] if len(candles) > limit else candles
@@ -133,7 +175,7 @@ async def fetch_candlesticks(
             "metadata": {
                 "total": len(candles),
                 "fetched_at": datetime.utcnow().isoformat() + "Z",
-                "exchange": "IDX",
+                "exchange": "IDX" if symbol.upper().endswith('.JK') else "GLOBAL",
                 "source": "yfinance"
             }
         }
@@ -165,14 +207,28 @@ async def fetch_symbol_metadata(symbol: str) -> Optional[Dict]:
         ticker = yf.Ticker(symbol)
         info = ticker.info if hasattr(ticker, 'info') else {}
         
+        upper_symbol = str(symbol or "").upper()
+        is_idx = upper_symbol.endswith('.JK')
+        is_forex = upper_symbol.endswith('=X')
+        is_crypto = '-USD' in upper_symbol
+
+        exchange = "IDX" if is_idx else "GLOBAL"
+        if is_forex:
+            exchange = "FOREX"
+        elif is_crypto:
+            exchange = "CRYPTO"
+
+        currency = "IDR" if is_idx else "USD"
+        timezone = "Asia/Jakarta" if is_idx else "UTC"
+
         return {
             "symbol": symbol,
             "name": metadata.get("name", info.get("longName", "Unknown")),
-            "exchange": "IDX",
-            "currency": "IDR",
-            "timezone": "Asia/Jakarta",
+            "exchange": exchange,
+            "currency": currency,
+            "timezone": timezone,
             "sector": metadata.get("sector", info.get("sector", "Unknown")),
-            "country": "Indonesia",
+            "country": "Indonesia" if is_idx else info.get("country", "Global"),
         }
         
     except Exception as e:
@@ -230,11 +286,15 @@ async def get_available_symbols() -> List[str]:
 
 def _calculate_period(timeframe: str, limit: int) -> str:
     """Calculate yfinance period string based on timeframe and limit."""
-    if timeframe in ['1m', '5m', '15m', '30m', '1h']:
-        # For intraday, fetch last 60 days (max yfinance returns)
+    if timeframe == '1m':
+        # yfinance supports 1m only for the latest 7 days.
+        return '7d'
+    elif timeframe in ['5m', '15m', '30m', '1h']:
+        # For intraday >1m, yfinance supports up to 60 days.
         return '60d'
     elif timeframe == '4h':
-        return '90d'
+        # Build 4h candles from 1h bars; fetch enough history for aggregation.
+        return '180d'
     elif timeframe == '1d':
         # For daily, fetch ~2 years worth
         days = min(limit * 1.5, 730)  # 2 years max
@@ -247,6 +307,63 @@ def _calculate_period(timeframe: str, limit: int) -> str:
         return f'{int(months)}mo'
     else:
         return '1y'
+
+
+def _aggregate_to_4h(df: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate OHLCV dataframe into 4-hour bars."""
+    if df.empty:
+        return df
+
+    agg_df = df.copy()
+    if agg_df.index.tz is None:
+        agg_df.index = agg_df.index.tz_localize('UTC')
+
+    # Align bars to Jakarta market sessions for consistent chart rendering.
+    agg_df.index = agg_df.index.tz_convert('Asia/Jakarta')
+
+    rule = '4h'
+    agg_map = {
+        'Open': 'first',
+        'High': 'max',
+        'Low': 'min',
+        'Close': 'last',
+        'Volume': 'sum',
+    }
+    existing = {k: v for k, v in agg_map.items() if k in agg_df.columns}
+    if not existing:
+        return agg_df
+
+    resampled = agg_df.resample(rule, label='right', closed='right').agg(existing).dropna()
+    return resampled
+
+
+def _adaptive_sort_candles_by_time(candles: List[Dict]) -> List[Dict]:
+    """Adaptive sort: bubble for tiny sets, heap-sort style for larger sets."""
+    n = len(candles)
+    if n <= 1:
+        return candles
+
+    if n <= 20:
+        # Bubble sort is acceptable and simple for tiny lists.
+        sorted_candles = list(candles)
+        for i in range(n):
+            swapped = False
+            for j in range(0, n - i - 1):
+                left = int(sorted_candles[j].get('time') or 0)
+                right = int(sorted_candles[j + 1].get('time') or 0)
+                if left > right:
+                    sorted_candles[j], sorted_candles[j + 1] = sorted_candles[j + 1], sorted_candles[j]
+                    swapped = True
+            if not swapped:
+                break
+        return sorted_candles
+
+    heap = [(int(item.get('time') or 0), idx, item) for idx, item in enumerate(candles)]
+    heapq.heapify(heap)
+    output: List[Dict] = []
+    while heap:
+        output.append(heapq.heappop(heap)[2])
+    return output
 
 
 def _get_next_market_open(current_time: datetime, jakarta_tz) -> datetime:

@@ -15,10 +15,12 @@ $env:API_PORT = "8000"
 $env:MARKET_SYMBOLS = "BBCA,USIM,KLBF,ASII,UNVR"
 $env:LOG_LEVEL = "info"
 $env:PYTHONUNBUFFERED = "1"
+$env:API_RELOAD = "1"
 
 Write-Host "✅ Environment configured:" -ForegroundColor Green
 Write-Host "   • API Host: $($env:API_HOST):$($env:API_PORT)" -ForegroundColor Green
 Write-Host "   • Market Symbols: $($env:MARKET_SYMBOLS)" -ForegroundColor Green
+Write-Host "   • API Reload: $($env:API_RELOAD)" -ForegroundColor Green
 Write-Host "`n"
 
 # Check if required modules are available
@@ -31,7 +33,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "`n"
 Write-Host "🌐 Starting AutoSaham API Server..." -ForegroundColor Cyan
 Write-Host "────────────────────────────────────────────────────────────" -ForegroundColor Cyan
-Write-Host "Web UI will be available at: http://localhost:8000/ui" -ForegroundColor Green
+Write-Host "Frontend UI (run separately): http://localhost:5173" -ForegroundColor Green
 Write-Host "API Health: http://localhost:8000/health" -ForegroundColor Green
 Write-Host "Metrics: http://localhost:8000/metrics" -ForegroundColor Green
 Write-Host "`n"

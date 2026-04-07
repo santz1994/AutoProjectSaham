@@ -12,8 +12,9 @@ const menuItems = [
   { id: 'strategies', label: 'Strategies', icon: '🎯', desc: 'Builder & Backtest', shortcut: '3' },
   { id: 'trades', label: 'Trade Logs', icon: '📝', desc: 'History & Analytics', shortcut: '4' },
   { id: 'ai-monitor', label: 'AI Monitor', icon: '🧠', desc: 'Learning & Logs', shortcut: '5' },
-  { id: 'profile', label: 'Profile', icon: '👤', desc: 'Identity & Account', shortcut: '6' },
-  { id: 'settings', label: 'Settings', icon: '⚙️', desc: 'Configuration', shortcut: '7' },
+  { id: 'ai-graph', label: 'AI Graph', icon: '🔮', desc: 'Live + Projection', shortcut: '6' },
+  { id: 'profile', label: 'Profile', icon: '👤', desc: 'Identity & Account', shortcut: '7' },
+  { id: 'settings', label: 'Settings', icon: '⚙️', desc: 'Configuration', shortcut: '8' },
 ];
 
 export default function SidebarEnhanced({ currentPage, onNavigate }) {

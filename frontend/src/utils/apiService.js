@@ -91,6 +91,12 @@ class ApiService {
     return this.request('/api/market/movers');
   }
 
+  async getMarketUniverse(limit = 80, market = 'stocks') {
+    const safeLimit = Math.max(10, Math.min(500, Number(limit) || 80));
+    const safeMarket = encodeURIComponent(String(market || 'stocks').trim().toLowerCase());
+    return this.request(`/api/market/universe?limit=${safeLimit}&market=${safeMarket}`);
+  }
+
   async getMarketNews(limit = 10) {
     return this.request(`/api/market/news?limit=${limit}`);
   }
@@ -106,6 +112,16 @@ class ApiService {
 
   async getTradingStatus() {
     return this.request('/api/charts/trading-status');
+  }
+
+  async getAIProjection(symbol, timeframe = '1d', horizon = 16, market = 'stocks') {
+    const safeSymbol = encodeURIComponent(symbol);
+    const safeTimeframe = encodeURIComponent(timeframe);
+    const safeHorizon = Number.isFinite(Number(horizon)) ? Number(horizon) : 16;
+    const safeMarket = encodeURIComponent(String(market || 'stocks').trim().toLowerCase());
+    return this.request(
+      `/api/ai/projection/${safeSymbol}?timeframe=${safeTimeframe}&horizon=${safeHorizon}&market=${safeMarket}`
+    );
   }
 
   // ============ Strategies API ============
@@ -153,16 +169,42 @@ class ApiService {
   }
 
   // ============ Notifications API ============
-  async getNotifications(unreadOnly = false) {
-    return this.request(`/api/notifications${unreadOnly ? '?unread=true' : ''}`);
+  async getNotifications(userId, limit = 30, offset = 0) {
+    const safeUser = encodeURIComponent(String(userId || '').trim());
+    if (!safeUser) {
+      throw new Error('userId is required for notification history');
+    }
+    const safeLimit = Math.max(1, Math.min(200, Number(limit) || 30));
+    const safeOffset = Math.max(0, Number(offset) || 0);
+    return this.request(`/api/notifications/history/${safeUser}?limit=${safeLimit}&offset=${safeOffset}`);
   }
 
-  async markNotificationRead(id) {
-    return this.request(`/api/notifications/${id}/read`, { method: 'POST' });
+  async getUnreadNotificationsCount(userId) {
+    const safeUser = encodeURIComponent(String(userId || '').trim());
+    if (!safeUser) {
+      throw new Error('userId is required for unread notification count');
+    }
+    return this.request(`/api/notifications/unread/${safeUser}`);
   }
 
-  async markAllNotificationsRead() {
-    return this.request('/api/notifications/read-all', { method: 'POST' });
+  async markNotificationRead(id, userId) {
+    const safeId = encodeURIComponent(String(id || '').trim());
+    if (!safeId) {
+      throw new Error('notification id is required');
+    }
+
+    const safeUser = encodeURIComponent(String(userId || '').trim());
+    const query = safeUser ? `?user_id=${safeUser}` : '';
+    return this.request(`/api/notifications/mark-read/${safeId}${query}`, { method: 'POST' });
+  }
+
+  async markAllNotificationsRead(userId) {
+    const history = await this.getNotifications(userId, 100, 0);
+    const notifications = Array.isArray(history?.notifications) ? history.notifications : [];
+    const unread = notifications.filter((item) => !item.read);
+
+    await Promise.all(unread.map((item) => this.markNotificationRead(item.id, userId)));
+    return { success: true, count: unread.length };
   }
 
   // ============ User Settings API ============

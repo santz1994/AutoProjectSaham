@@ -86,6 +86,13 @@ export default function SettingsPage({
           theme: currentThemePreference || remoteSettings?.theme || defaultSettings.theme,
         }
 
+        if (connection?.connected) {
+          merged.brokerName = connection.providerName || merged.brokerName
+          merged.brokerAccountId = connection.accountId || merged.brokerAccountId
+          merged.tradingMode = connection.tradingMode || merged.tradingMode
+          merged.apiKey = connection.maskedApiKey || merged.apiKey
+        }
+
         const safeBrokers = Array.isArray(brokers) && brokers.length > 0
           ? brokers
           : fallbackBrokerProviders
@@ -224,6 +231,7 @@ export default function SettingsPage({
       setSettings((prev) => ({
         ...prev,
         brokerName: nextConnection?.providerName || prev.brokerName,
+        brokerAccountId: nextConnection?.accountId || prev.brokerAccountId,
         apiKey: nextConnection?.maskedApiKey || prev.apiKey,
         tradingMode: nextConnection?.tradingMode || prev.tradingMode,
       }))
@@ -265,6 +273,7 @@ export default function SettingsPage({
 
       setSettings((prev) => ({
         ...prev,
+        brokerAccountId: '',
         apiKey: '****',
         tradingMode: 'paper',
       }))

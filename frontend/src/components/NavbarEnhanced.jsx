@@ -8,7 +8,77 @@ import useTradingStore from '../store/tradingStore';
 import Button from './Button';
 import toast from '../store/toastStore';
 import AuthService from '../utils/authService';
+import apiService from '../utils/apiService';
+import { getWebSocketBase } from '../utils/authService';
 import '../styles/navbar-enhanced.css';
+
+function toNotificationType(severity) {
+  const safeSeverity = String(severity || 'info').toLowerCase();
+  if (safeSeverity === 'warning') {
+    return 'warning';
+  }
+  if (safeSeverity === 'critical' || safeSeverity === 'urgent') {
+    return 'danger';
+  }
+  return 'info';
+}
+
+function formatNotificationTime(isoTime) {
+  if (!isoTime) {
+    return 'just now';
+  }
+
+  const ts = new Date(isoTime).getTime();
+  if (Number.isNaN(ts)) {
+    return 'just now';
+  }
+
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  if (diffSeconds < 60) {
+    return 'just now';
+  }
+  if (diffSeconds < 3600) {
+    return `${Math.floor(diffSeconds / 60)} min ago`;
+  }
+  if (diffSeconds < 86400) {
+    return `${Math.floor(diffSeconds / 3600)} hour${Math.floor(diffSeconds / 3600) > 1 ? 's' : ''} ago`;
+  }
+  return `${Math.floor(diffSeconds / 86400)} day${Math.floor(diffSeconds / 86400) > 1 ? 's' : ''} ago`;
+}
+
+function mapHistoryNotification(item) {
+  const createdAt = item?.created_at || item?.createdAt || new Date().toISOString();
+  const title = String(item?.title || 'Notification');
+  const body = String(item?.body || '').trim();
+  const message = body ? `${title}: ${body}` : title;
+
+  return {
+    id: String(item?.id || `${Date.now()}-${Math.random()}`),
+    type: toNotificationType(item?.severity),
+    title,
+    message,
+    createdAt,
+    time: formatNotificationTime(createdAt),
+    read: Boolean(item?.read),
+  };
+}
+
+function mapRealtimeNotification(payload) {
+  const createdAt = payload?.created_at || payload?.createdAt || new Date().toISOString();
+  const title = String(payload?.title || 'Notification');
+  const body = String(payload?.body || '').trim();
+  const message = body ? `${title}: ${body}` : title;
+
+  return {
+    id: String(payload?.id || `${Date.now()}-${Math.random()}`),
+    type: toNotificationType(payload?.severity),
+    title,
+    message,
+    createdAt,
+    time: formatNotificationTime(createdAt),
+    read: false,
+  };
+}
 
 export default function NavbarEnhanced({
   user = 'Trader',
@@ -25,15 +95,140 @@ export default function NavbarEnhanced({
   const [searchQuery, setSearchQuery] = useState('');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { id: 1, type: 'success', message: 'Trade executed: BBCA bought at 8,250', time: '2 min ago', read: false },
-    { id: 2, type: 'warning', message: 'Portfolio health score dropped to 72', time: '15 min ago', read: false },
-    { id: 3, type: 'info', message: 'New AI signal: BMRI strong buy', time: '1 hour ago', read: true },
-  ]);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCountHint, setUnreadCountHint] = useState(0);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState('');
 
   const searchRef = useRef(null);
   const notifRef = useRef(null);
   const userMenuRef = useRef(null);
+  const notifSocketRef = useRef(null);
+  const notifSocketReconnectRef = useRef(null);
+  const notifPingRef = useRef(null);
+  const shouldReconnectRef = useRef(true);
+  const notificationUserId = String(user || '').trim();
+
+  const refreshNotificationTimes = () => {
+    setNotifications((prev) => prev.map((item) => ({
+      ...item,
+      time: formatNotificationTime(item.createdAt),
+    })));
+  };
+
+  const loadNotifications = async () => {
+    if (!notificationUserId) {
+      setNotifications([]);
+      return;
+    }
+
+    setNotificationsLoading(true);
+    setNotificationsError('');
+
+    try {
+      const [historyRes, unreadRes] = await Promise.all([
+        apiService.getNotifications(notificationUserId, 40, 0),
+        apiService.getUnreadNotificationsCount(notificationUserId),
+      ]);
+
+      const list = Array.isArray(historyRes?.notifications)
+        ? historyRes.notifications.map(mapHistoryNotification)
+        : [];
+
+      setUnreadCountHint(Math.max(0, Number(unreadRes?.unread_count || 0)));
+      setNotifications(list);
+    } catch (error) {
+      setNotificationsError(error?.message || 'Failed to load notifications');
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
+  const clearNotificationSocket = () => {
+    if (notifPingRef.current) {
+      clearInterval(notifPingRef.current);
+      notifPingRef.current = null;
+    }
+
+    if (notifSocketReconnectRef.current) {
+      clearTimeout(notifSocketReconnectRef.current);
+      notifSocketReconnectRef.current = null;
+    }
+
+    if (notifSocketRef.current) {
+      try {
+        notifSocketRef.current.close();
+      } catch (error) {
+        // Ignore close errors during teardown.
+      }
+      notifSocketRef.current = null;
+    }
+  };
+
+  const connectNotificationSocket = () => {
+    if (!notificationUserId) {
+      return;
+    }
+
+    clearNotificationSocket();
+
+    try {
+      const wsBase = getWebSocketBase();
+      const safeUser = encodeURIComponent(notificationUserId);
+      const socket = new WebSocket(`${wsBase}/api/notifications/ws/${safeUser}`);
+      notifSocketRef.current = socket;
+
+      socket.onopen = () => {
+        notifPingRef.current = setInterval(() => {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 25000);
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data || '{}');
+
+          if (payload.type === 'notification') {
+            const incoming = mapRealtimeNotification(payload);
+            setNotifications((prev) => {
+              const withoutDuplicate = prev.filter((item) => item.id !== incoming.id);
+              return [incoming, ...withoutDuplicate].slice(0, 80);
+            });
+            setUnreadCountHint((prev) => prev + 1);
+
+            if (payload.severity === 'critical' || payload.severity === 'urgent') {
+              toast.error(incoming.message, { duration: 5000 });
+            }
+          }
+
+          if (payload.type === 'read_confirmed' && payload.notification_id) {
+            setNotifications((prev) => prev.map((item) => (
+              item.id === String(payload.notification_id)
+                ? { ...item, read: true }
+                : item
+            )));
+            setUnreadCountHint((prev) => Math.max(0, prev - 1));
+          }
+        } catch (error) {
+          // Ignore malformed websocket payloads.
+        }
+      };
+
+      socket.onclose = () => {
+        if (!shouldReconnectRef.current) {
+          return;
+        }
+
+        notifSocketReconnectRef.current = setTimeout(() => {
+          connectNotificationSocket();
+        }, 2500);
+      };
+    } catch (error) {
+      // Connection setup failure should not break the navbar.
+    }
+  };
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -87,7 +282,35 @@ export default function NavbarEnhanced({
     }
   };
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  useEffect(() => {
+    if (!notificationUserId) {
+      return undefined;
+    }
+
+    shouldReconnectRef.current = true;
+    loadNotifications();
+    connectNotificationSocket();
+
+    const refreshTimer = setInterval(() => {
+      refreshNotificationTimes();
+    }, 60000);
+
+    const syncTimer = setInterval(() => {
+      loadNotifications();
+    }, 90000);
+
+    return () => {
+      shouldReconnectRef.current = false;
+      clearInterval(refreshTimer);
+      clearInterval(syncTimer);
+      clearNotificationSocket();
+    };
+  }, [notificationUserId]);
+
+  const unreadCount = Math.max(
+    notifications.filter((n) => !n.read).length,
+    unreadCountHint,
+  );
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -100,8 +323,41 @@ export default function NavbarEnhanced({
   };
 
   const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    toast.success('All notifications marked as read', { duration: 2000 });
+    if (!notificationUserId) {
+      return;
+    }
+
+    apiService
+      .markAllNotificationsRead(notificationUserId)
+      .then((result) => {
+        const affected = Number(result?.count || 0);
+        if (affected > 0) {
+          setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+          setUnreadCountHint(0);
+          toast.success('All notifications marked as read', { duration: 2000 });
+        }
+      })
+      .catch((error) => {
+        toast.error(error?.message || 'Failed to mark all notifications as read');
+      });
+  };
+
+  const markNotificationAsRead = async (notification) => {
+    if (!notification || notification.read || !notificationUserId) {
+      return;
+    }
+
+    try {
+      await apiService.markNotificationRead(notification.id, notificationUserId);
+      setNotifications((prev) => prev.map((item) => (
+        item.id === notification.id
+          ? { ...item, read: true }
+          : item
+      )));
+      setUnreadCountHint((prev) => Math.max(0, prev - 1));
+    } catch (error) {
+      toast.error(error?.message || 'Failed to mark notification as read');
+    }
   };
 
   const handleLogout = async () => {
@@ -252,11 +508,33 @@ export default function NavbarEnhanced({
                 </button>
               </div>
               <div className="notifications-list">
-                {notifications.map((notif) => (
+                {notificationsLoading && (
+                  <div className="notification-item read" role="menuitem">
+                    <div className="notif-content">
+                      <p className="notif-message">Loading notifications...</p>
+                    </div>
+                  </div>
+                )}
+                {notificationsError && !notificationsLoading && (
+                  <div className="notification-item read" role="menuitem">
+                    <div className="notif-content">
+                      <p className="notif-message">{notificationsError}</p>
+                    </div>
+                  </div>
+                )}
+                {!notificationsLoading && !notificationsError && notifications.length === 0 && (
+                  <div className="notification-item read" role="menuitem">
+                    <div className="notif-content">
+                      <p className="notif-message">No notifications yet</p>
+                    </div>
+                  </div>
+                )}
+                {!notificationsLoading && !notificationsError && notifications.map((notif) => (
                   <div
                     key={notif.id}
                     className={`notification-item ${notif.type} ${notif.read ? 'read' : 'unread'}`}
                     role="menuitem"
+                    onClick={() => markNotificationAsRead(notif)}
                   >
                     <div className="notif-content">
                       <p className="notif-message">{notif.message}</p>
@@ -340,6 +618,20 @@ export default function NavbarEnhanced({
               >
                 <span className="menu-icon">🎨</span>
                 <span>Theme</span>
+              </div>
+              <div
+                className="menu-item"
+                role="menuitem"
+                tabIndex={0}
+                onClick={() => {
+                  if (typeof onNavigate === 'function') {
+                    onNavigate('ai-graph');
+                  }
+                  setUserMenuOpen(false);
+                }}
+              >
+                <span className="menu-icon">🔮</span>
+                <span>AI Graph</span>
               </div>
               <div
                 className="menu-item"

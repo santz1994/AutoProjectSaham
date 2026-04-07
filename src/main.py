@@ -29,12 +29,28 @@ def main():
     
     if args.api:
         # Start the API server with real broker/market data
-        from .api.server import app
         import uvicorn
         host = os.getenv("API_HOST", "127.0.0.1")
         port = int(os.getenv("API_PORT", "8000"))
-        print(f"🚀 Starting AutoSaham API with REAL DATA (host={host}, port={port})")
-        uvicorn.run(app, host=host, port=port, log_level="info")
+        reload_enabled = os.getenv("API_RELOAD", "1") == "1"
+
+        print(
+            f"🚀 Starting AutoSaham API with REAL DATA "
+            f"(host={host}, port={port}, reload={'on' if reload_enabled else 'off'})"
+        )
+
+        if reload_enabled:
+            uvicorn.run(
+                "src.api.server:app",
+                host=host,
+                port=port,
+                log_level="info",
+                reload=True,
+            )
+        else:
+            from .api.server import app
+
+            uvicorn.run(app, host=host, port=port, log_level="info")
         return
 
     if args.run_etl:

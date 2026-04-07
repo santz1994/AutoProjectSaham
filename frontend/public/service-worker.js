@@ -10,11 +10,12 @@
  * - Third-party: Stale-while-revalidate
  */
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const APP_CACHE = `autosaham-app-${CACHE_VERSION}`;
 const ASSETS_CACHE = `autosaham-assets-${CACHE_VERSION}`;
 const API_CACHE = `autosaham-api-${CACHE_VERSION}`;
 const IMAGE_CACHE = `autosaham-images-${CACHE_VERSION}`;
+const IS_LOCAL_DEV = ['localhost', '127.0.0.1'].includes(self.location.hostname);
 
 // Assets to cache on install (app shell)
 const PRECACHE_URLS = [
@@ -23,12 +24,26 @@ const PRECACHE_URLS = [
   '/manifest.json'
 ];
 
+async function clearAutoSahamCaches() {
+  const cacheNames = await caches.keys();
+  await Promise.all(
+    cacheNames
+      .filter((name) => name.includes('autosaham'))
+      .map((name) => caches.delete(name))
+  );
+}
+
 /**
  * Service Worker Installation
  * Pre-cache essential app shell and assets
  */
 self.addEventListener('install', (event) => {
   console.log('[SW] Service Worker installing...');
+
+  if (IS_LOCAL_DEV) {
+    self.skipWaiting();
+    return;
+  }
   
   event.waitUntil(
     caches.open(APP_CACHE).then((cache) => {
@@ -51,6 +66,16 @@ self.addEventListener('install', (event) => {
  */
 self.addEventListener('activate', (event) => {
   console.log('[SW] Service Worker activating...');
+
+  if (IS_LOCAL_DEV) {
+    event.waitUntil(
+      (async () => {
+        await clearAutoSahamCaches();
+        await self.registration.unregister();
+      })()
+    );
+    return;
+  }
   
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -87,6 +112,10 @@ self.addEventListener('activate', (event) => {
  * Implement intelligent caching strategies based on request type
  */
 self.addEventListener('fetch', (event) => {
+  if (IS_LOCAL_DEV) {
+    return;
+  }
+
   const { request } = event;
   const url = new URL(request.url);
   

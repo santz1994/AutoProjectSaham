@@ -31,6 +31,7 @@ const THEME_COLORS = {
     downColor: '#f23645',
     borderUpColor: '#26a69a',
     borderDownColor: '#f23645',
+    projectionColor: '#f59e0b',
   },
   light: {
     background: '#ffffff',
@@ -40,15 +41,24 @@ const THEME_COLORS = {
     downColor: '#f23645',
     borderUpColor: '#26a69a',
     borderDownColor: '#f23645',
+    projectionColor: '#b45309',
   },
 };
 
-const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChange, theme = 'dark' }) => {
+const ChartComponent = ({
+  symbol = 'BBCA.JK',
+  timeframe = '1d',
+  onTimeframeChange,
+  theme = 'dark',
+  projectionData = [],
+}) => {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
+  const projectionSeriesRef = useRef(null);
   const resizeObserverRef = useRef(null);
   const pendingCandlesRef = useRef(null);
+  const pendingProjectionRef = useRef([]);
   const latestCandleRef = useRef(null);
   const initialThemeRef = useRef(THEME_COLORS[theme] || THEME_COLORS.dark);
   const { isMobile, isTablet, viewport } = useResponsive();
@@ -166,12 +176,27 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
           wickDownColor: seedTheme.downColor,
         });
 
+        const projectionSeries = chart.addLineSeries({
+          color: seedTheme.projectionColor,
+          lineWidth: 2,
+          lineStyle: 0,
+          crosshairMarkerVisible: true,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          title: 'AI Projection',
+        });
+
         chartRef.current = chart;
         candleSeriesRef.current = candleSeries;
+        projectionSeriesRef.current = projectionSeries;
 
         if (Array.isArray(pendingCandlesRef.current) && pendingCandlesRef.current.length > 0) {
           candleSeriesRef.current.setData(pendingCandlesRef.current);
           chartRef.current.timeScale().fitContent();
+        }
+
+        if (Array.isArray(pendingProjectionRef.current) && pendingProjectionRef.current.length > 0) {
+          projectionSeriesRef.current.setData(pendingProjectionRef.current);
         }
 
         if (latestCandleRef.current) {
@@ -237,6 +262,7 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
         chartRef.current.remove();
         chartRef.current = null;
         candleSeriesRef.current = null;
+        projectionSeriesRef.current = null;
 
         if (typeof window !== 'undefined') {
           const currentCount = Number(window.__AUTOSAHAM_CHART_INSTANCE_COUNT || 1);
@@ -267,7 +293,27 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
       wickUpColor: chartColors.upColor,
       wickDownColor: chartColors.downColor,
     });
+
+    projectionSeriesRef.current?.applyOptions({
+      color: chartColors.projectionColor,
+    });
   }, [chartColors]);
+
+  useEffect(() => {
+    const normalizedProjection = Array.isArray(projectionData)
+      ? projectionData
+          .filter((item) => Number.isFinite(Number(item?.time)) && Number.isFinite(Number(item?.value)))
+          .map((item) => ({
+            time: Number(item.time),
+            value: Number(item.value),
+          }))
+      : [];
+
+    pendingProjectionRef.current = normalizedProjection;
+    if (projectionSeriesRef.current) {
+      projectionSeriesRef.current.setData(normalizedProjection);
+    }
+  }, [projectionData]);
 
   useEffect(() => {
     applyChartDimensions();
@@ -346,7 +392,7 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
   useEffect(() => {
     if (!symbol) return;
 
-    const wsUrl = `${getWebSocketBase()}/ws/charts/${symbol}`;
+    const wsUrl = `${getWebSocketBase()}/ws/charts/${symbol}?timeframe=${encodeURIComponent(timeframe)}`;
     let pingInterval = null;
     let isUnmounting = false;
 
@@ -449,7 +495,7 @@ const ChartComponent = ({ symbol = 'BBCA.JK', timeframe = '1d', onTimeframeChang
     } catch (err) {
       setWsWarning(`Live updates unavailable: ${err.message}`);
     }
-  }, [symbol]);
+  }, [symbol, timeframe]);
 
   const handleTimeframeChange = useCallback((newTimeframe) => {
     if (newTimeframe === timeframe) {
