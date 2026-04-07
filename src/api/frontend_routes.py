@@ -182,6 +182,12 @@ class UserSettings(BaseModel):
     takeProfitPercent: float = 10.0
     maxOpenPositions: int = 5
     preferredUniverse: List[str] = ["BBCA.JK", "USIM.JK", "KLBF.JK", "ASII.JK", "UNVR.JK"]
+    aiDefaultMarket: str = "stocks"
+    aiPredictionStyle: str = "daily_trader"
+    aiDefaultTimeframe: str = "15m"
+    aiProjectionHorizon: int = 16
+    aiPredictionLockEnabled: bool = True
+    aiMonitorRefreshSeconds: int = 20
 
 
 class BrokerProvider(BaseModel):
@@ -246,6 +252,12 @@ _default_user_settings: Dict[str, Any] = {
     "takeProfitPercent": 10.0,
     "maxOpenPositions": 5,
     "preferredUniverse": ["BBCA.JK", "USIM.JK", "KLBF.JK", "ASII.JK", "UNVR.JK"],
+    "aiDefaultMarket": "stocks",
+    "aiPredictionStyle": "daily_trader",
+    "aiDefaultTimeframe": "15m",
+    "aiProjectionHorizon": 16,
+    "aiPredictionLockEnabled": True,
+    "aiMonitorRefreshSeconds": 20,
     "updatedAt": datetime.now().isoformat(),
 }
 

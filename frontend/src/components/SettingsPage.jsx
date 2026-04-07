@@ -24,6 +24,12 @@ const defaultSettings = {
     tradingMode: 'paper',
     maxOpenPositions: 5,
     preferredUniverse: ['BBCA.JK', 'USIM.JK', 'KLBF.JK', 'ASII.JK', 'UNVR.JK'],
+    aiDefaultMarket: 'stocks',
+    aiPredictionStyle: 'daily_trader',
+    aiDefaultTimeframe: '15m',
+    aiProjectionHorizon: 16,
+    aiPredictionLockEnabled: true,
+    aiMonitorRefreshSeconds: 20,
 }
 
 const fallbackBrokerProviders = [
@@ -32,6 +38,22 @@ const fallbackBrokerProviders = [
   { id: 'motiontrade', name: 'MotionTrade (MNC Sekuritas)' },
   { id: 'indopremier', name: 'Indo Premier' },
 ]
+const AI_MARKET_OPTIONS = [
+  { value: 'stocks', label: 'Saham (IDX)' },
+  { value: 'forex', label: 'Forex' },
+  { value: 'crypto', label: 'Blockchain/Crypto' },
+  { value: 'index', label: 'Global Index' },
+  { value: 'all', label: 'All Markets' },
+]
+
+const AI_PREDICTION_STYLE_OPTIONS = [
+  { value: 'scalping', label: 'Scalping' },
+  { value: 'daily_trader', label: 'Daily Trader' },
+  { value: 'trader', label: 'Trader' },
+]
+
+const AI_TIMEFRAME_OPTIONS = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w', '1mo']
+const AI_HORIZON_OPTIONS = [8, 12, 16, 24, 32]
 
 export default function SettingsPage({
   onLogout,
@@ -690,6 +712,117 @@ export default function SettingsPage({
           >
             <span className="toggle-indicator"></span>
           </button>
+        </div>
+      </div>
+
+      {/* AI Monitoring & Prediction Settings */}
+      <div className="settings-section">
+        <h2>🤖 AI Monitoring & Prediction</h2>
+
+        <div className="setting-item">
+          <div className="setting-label">
+            <span>Default AI Market</span>
+            <small>Market yang otomatis dibuka saat masuk ke AI Graph</small>
+          </div>
+          <select
+            value={settings.aiDefaultMarket || 'stocks'}
+            onChange={(e) => handleChange('aiDefaultMarket', e.target.value)}
+            className="setting-input"
+          >
+            {AI_MARKET_OPTIONS.map((market) => (
+              <option key={market.value} value={market.value}>
+                {market.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="setting-item">
+          <div className="setting-label">
+            <span>Prediction Style</span>
+            <small>Preset default saat AI Graph dibuka</small>
+          </div>
+          <select
+            value={settings.aiPredictionStyle || 'daily_trader'}
+            onChange={(e) => handleChange('aiPredictionStyle', e.target.value)}
+            className="setting-input"
+          >
+            {AI_PREDICTION_STYLE_OPTIONS.map((style) => (
+              <option key={style.value} value={style.value}>
+                {style.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="setting-item">
+          <div className="setting-label">
+            <span>Default Timeframe</span>
+            <small>Dipakai ketika preset style tidak mengoverride timeframe</small>
+          </div>
+          <select
+            value={settings.aiDefaultTimeframe || '15m'}
+            onChange={(e) => handleChange('aiDefaultTimeframe', e.target.value)}
+            className="setting-input"
+          >
+            {AI_TIMEFRAME_OPTIONS.map((timeframe) => (
+              <option key={timeframe} value={timeframe}>
+                {timeframe}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="setting-item">
+          <div className="setting-label">
+            <span>Projection Horizon (steps)</span>
+            <small>Panjang horizon prediksi default</small>
+          </div>
+          <select
+            value={settings.aiProjectionHorizon || 16}
+            onChange={(e) => handleChange('aiProjectionHorizon', parseInt(e.target.value, 10))}
+            className="setting-input"
+          >
+            {AI_HORIZON_OPTIONS.map((step) => (
+              <option key={step} value={step}>
+                {step} steps
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="setting-item toggle">
+          <div className="setting-label">
+            <span>Prediction Lock Enabled</span>
+            <small>Lock update Current vs Target sesuai window timeframe</small>
+          </div>
+          <button
+            className={`toggle-btn ${settings.aiPredictionLockEnabled ? 'active' : ''}`}
+            onClick={() => handleToggle('aiPredictionLockEnabled')}
+          >
+            <span className="toggle-indicator"></span>
+          </button>
+        </div>
+
+        <div className="setting-item">
+          <div className="setting-label">
+            <span>AI Monitor Refresh Interval (seconds)</span>
+            <small>Auto-refresh interval untuk halaman AI Monitor (5-300 detik)</small>
+          </div>
+          <input
+            type="number"
+            min="5"
+            max="300"
+            value={settings.aiMonitorRefreshSeconds || 20}
+            onChange={(e) => {
+              const parsed = parseInt(e.target.value || '20', 10)
+              const bounded = Number.isFinite(parsed)
+                ? Math.max(5, Math.min(300, parsed))
+                : 20
+              handleChange('aiMonitorRefreshSeconds', bounded)
+            }}
+            className="setting-input"
+          />
         </div>
       </div>
 

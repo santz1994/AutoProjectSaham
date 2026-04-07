@@ -262,7 +262,7 @@ export default function App() {
       case 'profile':
         return <ErrorBoundary><ProfilePage onNavigate={handleNavigate} /></ErrorBoundary>
       case 'ai-monitor':
-        return <ErrorBoundary><AIMonitorPage /></ErrorBoundary>
+        return <ErrorBoundary><AIMonitorPage onNavigate={handleNavigate} /></ErrorBoundary>
       case 'ai-graph':
         return <ErrorBoundary><AIGraphPage theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
       case 'settings':

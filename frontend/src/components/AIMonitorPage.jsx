@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from '../store/toastStore';
 import apiService from '../utils/apiService';
 import '../styles/ai-monitor.css';
@@ -9,11 +9,12 @@ const levelClassName = {
   error: 'error',
 };
 
-export default function AIMonitorPage() {
+export default function AIMonitorPage({ onNavigate }) {
   const [overview, setOverview] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [autoRefreshSeconds, setAutoRefreshSeconds] = useState(20);
 
   const latestTimestamp = useMemo(() => {
     if (!logs.length) return '-';
@@ -23,7 +24,7 @@ export default function AIMonitorPage() {
     });
   }, [logs]);
 
-  const loadMonitorData = async (silent = false) => {
+  const loadMonitorData = useCallback(async (silent = false) => {
     if (!silent) {
       setLoading(true);
     }
@@ -50,27 +51,44 @@ export default function AIMonitorPage() {
         setLoading(false);
       }
     }
-  };
+  }, []);
 
   useEffect(() => {
     let active = true;
 
     const bootstrap = async () => {
+      try {
+        const settings = await apiService.getUserSettings();
+        if (active) {
+          const requestedRefresh = Number(settings?.aiMonitorRefreshSeconds);
+          if (Number.isFinite(requestedRefresh)) {
+            setAutoRefreshSeconds(Math.max(5, Math.min(300, Math.round(requestedRefresh))));
+          }
+        }
+      } catch (_) {
+        // Keep default refresh interval when settings endpoint is unavailable.
+      }
+
       await loadMonitorData(false);
       if (!active) return;
     };
 
     bootstrap();
 
-    const timer = setInterval(() => {
-      loadMonitorData(true);
-    }, 20000);
-
     return () => {
       active = false;
+    };
+  }, [loadMonitorData]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      loadMonitorData(true);
+    }, autoRefreshSeconds * 1000);
+
+    return () => {
       clearInterval(timer);
     };
-  }, []);
+  }, [autoRefreshSeconds, loadMonitorData]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -118,9 +136,15 @@ export default function AIMonitorPage() {
       <div className="ai-header">
         <div>
           <h1>🧠 AI Monitor</h1>
-          <p>Observe AI scoring pipeline, machine learning lifecycle, and event logs in real time.</p>
+          <p>
+            Observe AI scoring pipeline, machine learning lifecycle, and event logs in real time.
+            {` Auto refresh: ${autoRefreshSeconds}s.`}
+          </p>
         </div>
         <div className="ai-header-actions">
+          <button type="button" className="btn-secondary" onClick={() => onNavigate?.('settings')}>
+            AI Settings
+          </button>
           <button type="button" className="btn-secondary" onClick={handleCreateCheckpoint}>
             Add Checkpoint Log
           </button>

@@ -237,6 +237,51 @@ export default function AIGraphPage({ theme = 'dark' }) {
     setProjectionHorizon(selectedPreset.horizon);
   }, [predictionStyle]);
 
+  useEffect(() => {
+    let active = true;
+
+    const loadPreferredAISettings = async () => {
+      try {
+        const userSettings = await apiService.getUserSettings();
+        if (!active || !userSettings) {
+          return;
+        }
+
+        const preferredMarket = String(userSettings.aiDefaultMarket || '').toLowerCase();
+        if (MARKET_OPTIONS.some((item) => item.value === preferredMarket)) {
+          setSelectedMarket(preferredMarket);
+        }
+
+        if (typeof userSettings.aiPredictionLockEnabled === 'boolean') {
+          setPredictionLockEnabled(Boolean(userSettings.aiPredictionLockEnabled));
+        }
+
+        const preferredStyle = String(userSettings.aiPredictionStyle || '');
+        if (PREDICTION_STYLE_OPTIONS.some((item) => item.value === preferredStyle)) {
+          setPredictionStyle(preferredStyle);
+        } else {
+          const preferredTimeframe = String(userSettings.aiDefaultTimeframe || '').toLowerCase();
+          if (TIMEFRAME_OPTIONS.includes(preferredTimeframe)) {
+            setSelectedTimeframe(preferredTimeframe);
+          }
+
+          const preferredHorizon = Number(userSettings.aiProjectionHorizon);
+          if (HORIZON_OPTIONS.includes(preferredHorizon)) {
+            setProjectionHorizon(preferredHorizon);
+          }
+        }
+      } catch (_) {
+        // Keep local defaults when user settings are unavailable.
+      }
+    };
+
+    loadPreferredAISettings();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const predictionWindowMs = useMemo(
     () => resolvePredictionWindowMs(selectedTimeframe),
     [selectedTimeframe]
@@ -309,7 +354,7 @@ export default function AIGraphPage({ theme = 'dark' }) {
 
         setProjectionMeta(payload);
         setProjectionData(mapProjectionSeries(payload));
-  const nextRefreshAt = Date.now() + effectiveRefreshWindowMs;
+          const nextRefreshAt = Date.now() + effectiveRefreshWindowMs;
         nextAutoRefreshAtRef.current = nextRefreshAt;
         setNextAutoRefreshAt(nextRefreshAt);
         setError(null);
