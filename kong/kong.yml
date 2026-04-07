@@ -5,7 +5,7 @@ _format_version: "3.0"
 
 services:
   - name: fastapi-backend
-    url: http://api:8001
+    url: http://api:8000
 
 routes:
   - name: auth-routes
@@ -14,7 +14,11 @@ routes:
       - /auth/login
       - /auth/register
       - /auth/forgot-password
+      - /auth/reset-password
+      - /auth/logout
+      - /auth/me
     methods:
+      - GET
       - POST
     strip_path: false
     plugins:

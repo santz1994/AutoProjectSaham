@@ -454,3 +454,27 @@ def test_list_ai_logs_prefers_postgres_and_fallbacks_to_sqlite(tmp_path):
 
     fallback_logs = fallback_store.list_ai_logs(limit=10)
     assert any(item["message"] == "sqlite history" for item in fallback_logs)
+
+
+def test_ai_logs_postgres_can_be_disabled_by_env(tmp_path, monkeypatch):
+    db_path = tmp_path / "app_state.db"
+    key_path = tmp_path / ".app_state.key"
+    fake_postgres = FakePostgresClient()
+    monkeypatch.setenv("AUTOSAHAM_STATE_POSTGRES_AI_LOGS_ENABLED", "0")
+
+    store = SecureAppStateStore(
+        db_path=str(db_path),
+        key_path=str(key_path),
+        postgres_client=fake_postgres,
+    )
+
+    store.append_ai_log(
+        level="info",
+        event_type="phase3",
+        message="disabled by env",
+        payload={"enabled": False},
+        created_at="2026-04-07T10:05:00+00:00",
+    )
+
+    assert len(fake_postgres.logs) == 0
+    assert _sqlite_ai_logs_count(db_path) == 1

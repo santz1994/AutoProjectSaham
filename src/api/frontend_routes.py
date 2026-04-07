@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from datetime import datetime, timedelta
 
 from src.api.state_store import SecureAppStateStore
+from src.brokers.paper_adapter import PaperBrokerAdapter
 
 router = APIRouter(prefix="/api", tags=["frontend"])
 
@@ -2533,67 +2534,176 @@ async def _resolve_latest_candle_anchor(symbol: str, timeframe: str) -> Optional
     except Exception:
         return None
 
-# ============== Temporary Data (Replace with real DB queries) ==============
+def _parse_iso_datetime(value: Optional[str]) -> Optional[datetime]:
+    raw_value = str(value or "").strip()
+    if not raw_value:
+        return None
 
-def get_mock_portfolio():
-    """Temporary mock data - Replace with actual broker API call"""
-    return Portfolio(
-        totalValue=125000000,
-        totalP_L=8750000,
-        percentP_L=7.5,
-        cash=45000000,
-        purchasingPower=112500000,
-        lastUpdate=datetime.now().isoformat(),
-        positions=[
-            PortfolioPosition(
-                symbol="BBCA.JK",
-                name="Bank Central Asia",
-                quantity=100,
-                entryPrice=45000,
-                currentPrice=46500,
-                totalValue=4650000,
-                p_l=150000,
-                percentP_L=3.3,
-                sector="Financial Services",
-                riskScore="Low"
-            ),
-            PortfolioPosition(
-                symbol="TLKM.JK",
-                name="Telekomunikasi Indonesia",
-                quantity=200,
-                entryPrice=3400,
-                currentPrice=3550,
-                totalValue=710000,
-                p_l=30000,
-                percentP_L=4.4,
-                sector="Telecommunications",
-                riskScore="Low"
-            ),
-        ]
+    candidate = raw_value
+    if candidate.endswith("Z"):
+        candidate = candidate[:-1] + "+00:00"
+
+    try:
+        return datetime.fromisoformat(candidate)
+    except Exception:
+        return None
+
+
+def _format_runtime_uptime(total_seconds: int) -> str:
+    safe_seconds = max(0, int(total_seconds))
+    hours = safe_seconds // 3600
+    minutes = (safe_seconds % 3600) // 60
+    if hours > 0:
+        return f"{hours}h {minutes}m"
+    return f"{minutes}m"
+
+
+async def _resolve_runtime_portfolio_snapshot() -> Portfolio:
+    starting_cash = float(
+        _safe_float(os.getenv("PAPER_STARTING_CASH"), default=100_000_000.0)
+        or 100_000_000.0
     )
 
-def get_mock_bot_status():
-    """Temporary mock data - Replace with actual bot state"""
+    adapter = PaperBrokerAdapter(starting_cash=starting_cash)
+    positions_map: Dict[str, Any] = {}
+    cash = starting_cash
+    balance = starting_cash
+
+    try:
+        adapter.connect()
+        snapshot = adapter.reconcile() or {}
+        positions_map = snapshot.get("positions") or {}
+        cash = float(_safe_float(snapshot.get("cash"), default=starting_cash) or starting_cash)
+        balance = float(_safe_float(snapshot.get("balance"), default=cash) or cash)
+    except Exception:
+        positions_map = {}
+        cash = starting_cash
+        balance = starting_cash
+    finally:
+        try:
+            adapter.disconnect()
+        except Exception:
+            pass
+
+    positions: List[PortfolioPosition] = []
+    market_value = 0.0
+
+    for raw_symbol, raw_quantity in positions_map.items():
+        symbol = _normalize_symbol_input(str(raw_symbol), market="stocks")
+        quantity = int(_safe_float(raw_quantity, default=0.0) or 0.0)
+        if quantity <= 0:
+            continue
+
+        anchor = await _resolve_latest_candle_anchor(symbol, timeframe="1d")
+        current_price = float((anchor or {}).get("price") or 0.0)
+        entry_price = current_price
+        total_value = float(quantity * current_price)
+        market_value += total_value
+
+        positions.append(
+            PortfolioPosition(
+                symbol=symbol,
+                name=_symbol_name(symbol),
+                quantity=quantity,
+                entryPrice=entry_price,
+                currentPrice=current_price,
+                totalValue=total_value,
+                p_l=0.0,
+                percentP_L=0.0,
+                sector=_symbol_sector(symbol),
+                riskScore="Moderate",
+            )
+        )
+
+    total_value = float(_safe_float(balance, default=(cash + market_value)) or (cash + market_value))
+    total_p_l = float(total_value - starting_cash)
+    percent_p_l = float((total_p_l / starting_cash) * 100.0) if starting_cash > 0 else 0.0
+
+    return Portfolio(
+        totalValue=round(total_value, 2),
+        totalP_L=round(total_p_l, 2),
+        percentP_L=round(percent_p_l, 4),
+        cash=round(cash, 2),
+        purchasingPower=round(cash, 2),
+        lastUpdate=datetime.now().isoformat(),
+        positions=positions,
+    )
+
+
+def _resolve_runtime_bot_status() -> BotStatus:
+    logs = _state_store.list_ai_logs(limit=250)
+    settings = _state_store.get_user_settings(_default_user_settings)
+    broker = _state_store.get_broker_connection(_default_broker_connection)
+
+    trade_like_events = {
+        "trade_execution",
+        "trade_reconcile",
+        "strategy_deploy",
+        "strategy_backtest",
+    }
+
+    now = datetime.now()
+    parsed_timestamps = [
+        _parse_iso_datetime(item.get("timestamp"))
+        for item in logs
+    ]
+    parsed_timestamps = [item for item in parsed_timestamps if item is not None]
+
+    earliest = min(parsed_timestamps) if parsed_timestamps else None
+    uptime = _format_runtime_uptime(int((now - earliest).total_seconds())) if earliest else None
+
+    today = now.date()
+    total_trades_today = 0
+    successful_trades = 0
+    failed_trades = 0
+    last_trade_time = None
+
+    for item in logs:
+        event_type = str(item.get("eventType") or "").strip().lower()
+        level = str(item.get("level") or "").strip().lower()
+        timestamp = _parse_iso_datetime(item.get("timestamp"))
+
+        is_trade_like = event_type in trade_like_events or event_type.startswith("trade")
+        if not is_trade_like:
+            continue
+
+        if timestamp and timestamp.date() == today:
+            total_trades_today += 1
+            if level == "error":
+                failed_trades += 1
+            elif level in {"info", "success"}:
+                successful_trades += 1
+
+        if timestamp and (last_trade_time is None or timestamp > last_trade_time):
+            last_trade_time = timestamp
+
+    resolved_total = successful_trades + failed_trades
+    win_rate = float(successful_trades / resolved_total) if resolved_total > 0 else 0.0
+
+    refresh_seconds = int(
+        _safe_float(settings.get("aiMonitorRefreshSeconds"), default=20.0) or 20.0
+    )
+    refresh_seconds = max(5, min(refresh_seconds, 300))
+
     return BotStatus(
-        status="running",
-        uptime="14h 32m",
-        activeTrades=4,
-        totalTradesToday=12,
-        successfulTrades=9,
-        failedTrades=3,
-        winRate=0.75,
-        lastTradeTime=(datetime.now() - timedelta(minutes=15)).isoformat(),
-        nextAnalysisIn="3m 45s",
-        performanceToday={"totalP_L": 875000, "percentP_L": 0.7}
+        status="running" if bool(broker.get("connected")) else "standby",
+        uptime=uptime,
+        activeTrades=0,
+        totalTradesToday=total_trades_today,
+        successfulTrades=successful_trades,
+        failedTrades=failed_trades,
+        winRate=round(win_rate, 4),
+        lastTradeTime=last_trade_time.isoformat() if last_trade_time else None,
+        nextAnalysisIn=f"{refresh_seconds}s",
+        performanceToday={"totalP_L": 0.0, "percentP_L": 0.0},
     )
 
 # ============== Routes ==============
 
 @router.get("/portfolio", response_model=Portfolio)
 async def get_portfolio():
-    """Get current portfolio data from broker"""
-    # TODO: Replace with actual broker API call
-    return get_mock_portfolio()
+    """Get current portfolio data from runtime broker reconciliation snapshot."""
+    return await _resolve_runtime_portfolio_snapshot()
 
 @router.post("/portfolio/refresh")
 async def refresh_portfolio():
@@ -2603,9 +2713,8 @@ async def refresh_portfolio():
 
 @router.get("/bot/status", response_model=BotStatus)
 async def get_bot_status():
-    """Get current bot status and performance"""
-    # TODO: Replace with actual bot status from trading engine
-    return get_mock_bot_status()
+    """Get runtime bot status from AI activity logs and broker connection state."""
+    return _resolve_runtime_bot_status()
 
 @router.post("/bot/start")
 async def start_bot():
@@ -3503,7 +3612,7 @@ async def get_ai_overview():
     if os.path.exists(dataset_path):
         dataset_updated_at = datetime.fromtimestamp(os.path.getmtime(dataset_path)).isoformat()
     recent_logs = _state_store.list_ai_logs(limit=50)
-    bot_status = get_mock_bot_status()
+    bot_status = _resolve_runtime_bot_status()
 
     warning_count = sum(1 for item in recent_logs if item.get("level") == "warning")
     error_count = sum(1 for item in recent_logs if item.get("level") == "error")

@@ -50,7 +50,7 @@ export default function Register({ onSuccess, onSwitchToLogin }) {
 
     try {
       setLoading(true);
-      const result = await AuthService.register(username, password);
+      const result = await AuthService.register(username, password, email);
 
       if (!result.ok) {
         toast.error(result.error || 'Registration failed');

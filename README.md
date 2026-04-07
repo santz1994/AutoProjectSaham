@@ -301,6 +301,13 @@ Variabel penting:
 - Market/news: NEWSAPI_KEY, ALPHAVANTAGE_API_KEY
 - Broker: BROKER_API_KEY, BROKER_API_SECRET
 - Notifications: SLACK_WEBHOOK_URL, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
+- State store migration:
+  - AUTOSAHAM_STATE_REDIS_URL
+  - AUTOSAHAM_STATE_REDIS_PRIMARY_NAMESPACES (default: ai_regime_state,broker_connection,user_settings)
+  - AUTOSAHAM_STATE_REDIS_PRIMARY_SHADOW_SQLITE (default: 1)
+  - AUTOSAHAM_STATE_POSTGRES_URL (fallback ke DATABASE_URL bila kosong)
+  - AUTOSAHAM_STATE_POSTGRES_AI_LOGS_ENABLED (default: 1)
+  - AUTOSAHAM_STATE_POSTGRES_AI_LOGS_SHADOW_SQLITE (default: 1)
 
 ## Docker and Observability
 

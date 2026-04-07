@@ -1,7 +1,8 @@
-"""Persistent encrypted state storage for frontend settings and broker metadata.
+"""Persistent encrypted state storage for frontend and runtime metadata.
 
-This module stores settings and broker connection snapshots in SQLite while
-encrypting secure payloads before they are written to disk.
+This module uses SQLite as durable fallback storage, with optional Redis
+primary routing for selected secure namespaces and optional PostgreSQL primary
+routing for AI activity logs.
 """
 
 from __future__ import annotations

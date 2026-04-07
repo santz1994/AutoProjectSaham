@@ -39,7 +39,14 @@ if FASTAPI_AVAILABLE:
     from src.pipeline.runner import AutonomousPipeline
     from src.pipeline.scheduler import PipelineScheduler
     from src.brokers.paper_adapter import PaperBrokerAdapter
-    from src.api.auth import register_user, authenticate_user, get_user_from_token, invalidate_token
+    from src.api.auth import (
+        register_user,
+        authenticate_user,
+        get_user_from_token,
+        invalidate_token,
+        request_password_reset,
+        reset_password,
+    )
     from src.api.frontend_routes import router as frontend_router
     from src.notifications.api_routes import setup_notification_routes
 
@@ -101,6 +108,7 @@ if FASTAPI_AVAILABLE:
             "http://127.0.0.1:5173",      # Loopback variant
             "http://127.0.0.1:5174",      # Loopback variant
             "http://localhost:8000",      # API server (for UI served from backend)
+            "http://localhost:8001",      # API direct port via docker-compose
             "http://localhost:3000",      # Alternative dev port
         ],
         allow_credentials=True,                    # Allow httpOnly cookies
@@ -202,13 +210,26 @@ if FASTAPI_AVAILABLE:
         username: str
         password: str
 
+    class RegisterPayload(BaseModel):
+        username: str
+        password: str
+        email: Optional[str] = None
+
     class ForgotPasswordPayload(BaseModel):
         email: str
 
+    class ResetPasswordPayload(BaseModel):
+        token: str
+        newPassword: str
+
     @app.post("/auth/register")
-    async def auth_register(payload: UserPayload):
+    async def auth_register(payload: RegisterPayload):
         try:
-            register_user(payload.username, payload.password)
+            register_user(
+                payload.username,
+                payload.password,
+                email=payload.email,
+            )
             return {"status": "ok"}
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
@@ -265,18 +286,38 @@ if FASTAPI_AVAILABLE:
 
     @app.post("/auth/forgot-password")
     async def auth_forgot_password(payload: ForgotPasswordPayload):
-        """Demo-safe forgot password endpoint.
-
-        Production implementations should issue secure reset tokens and send
-        transactional emails through a trusted provider.
-        """
+        """Issue a password reset token without leaking account existence."""
         if not payload.email or "@" not in payload.email:
             raise HTTPException(status_code=400, detail="invalid_email")
 
+        reset_token = request_password_reset(payload.email)
+
         # Do not reveal whether email exists to avoid account enumeration.
-        return {
+        response_payload = {
             "status": "ok",
             "message": "If the email exists, reset instructions have been sent.",
+        }
+
+        # Optional debug helper for local/docker smoke tests.
+        expose_token = os.getenv("AUTH_EXPOSE_RESET_TOKEN", "0") == "1"
+        if expose_token and reset_token:
+            response_payload["resetToken"] = reset_token
+
+        return response_payload
+
+    @app.post("/auth/reset-password")
+    async def auth_reset_password(payload: ResetPasswordPayload):
+        if not payload.token or len(payload.token) < 10:
+            raise HTTPException(status_code=400, detail="invalid_token")
+        if not payload.newPassword or len(payload.newPassword) < 6:
+            raise HTTPException(status_code=400, detail="invalid_password")
+
+        if not reset_password(payload.token, payload.newPassword):
+            raise HTTPException(status_code=400, detail="reset_failed")
+
+        return {
+            "status": "ok",
+            "message": "Password updated successfully.",
         }
 
     @app.get("/api/training")

@@ -54,6 +54,8 @@ System & Architecture
 - [x] Phase 2 namespace runtime kritikal (ai_regime_state, broker_connection, user_settings) sudah Redis-primary dengan fallback SQLite + opsi shadow-write.
 - [x] Hardening phase 2: default shadow-write SQLite untuk namespace Redis-primary diaktifkan agar migrasi tetap non-breaking (dapat di-disable via env).
 - [x] Phase 3 pilot non-breaking: ai_activity_logs mendukung PostgreSQL sebagai primary backend opsional, dengan SQLite shadow-write/fallback.
+- [x] Operational readiness phase 3: env flags state-store didokumentasikan dan dependency PostgreSQL client (psycopg) ditambahkan.
+- [x] Operational readiness phase 3: default env migration state-store sudah diset pada service API di docker-compose untuk rollout bertahap.
 - [ ] Migrasi state management penuh dari file-based (SQLite/local key) ke Redis + PostgreSQL/TimescaleDB. (PARTIAL: sebagian namespace runtime sudah Redis-primary, tetapi persistence utama lintas domain dan historical state belum dipindahkan penuh)
 - [ ] Pisahkan workload ML/RL berat ke task queue terpisah (Celery + broker) untuk menjaga API responsif. (PARTIAL: beberapa workload sudah dijalankan di executor/background, belum full queue orchestration)
 

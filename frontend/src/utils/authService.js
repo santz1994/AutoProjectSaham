@@ -12,9 +12,15 @@
 // Helper: Get API base URL (dev vs prod)
 export function getAPIBase() {
   if (typeof window === 'undefined') return ''
+  const configuredBase = String(import.meta?.env?.VITE_API_BASE_URL || '').trim()
+  if (configuredBase) {
+    return configuredBase.replace(/\/$/, '')
+  }
   // In development on localhost, always use backend at :8000
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:8000'
+    const configuredPort = String(import.meta?.env?.VITE_API_PORT || '').trim()
+    const apiPort = configuredPort || (window.location.port === '5173' ? '8001' : '8000')
+    return `${window.location.protocol}//${window.location.hostname}:${apiPort}`
   }
   // In production (same origin)
   return window.location.origin
@@ -35,12 +41,12 @@ class AuthService {
    * @param {string} password 
    * @returns {Promise<{ok: boolean, error?: string}>}
    */
-  static async register(username, password) {
+  static async register(username, password, email = null) {
     try {
       const res = await fetch(`${getAPIBase()}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, email }),
         credentials: 'include', // Include cookies
       })
       if (!res.ok) {
