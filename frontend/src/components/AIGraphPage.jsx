@@ -301,6 +301,7 @@ export default function AIGraphPage({ theme = 'dark' }) {
           onTimeframeChange={setSelectedTimeframe}
           theme={theme}
           projectionData={projectionData}
+          showTimeframeControls={false}
         />
       </section>
 

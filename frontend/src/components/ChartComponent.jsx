@@ -51,6 +51,7 @@ const ChartComponent = ({
   onTimeframeChange,
   theme = 'dark',
   projectionData = [],
+  showTimeframeControls = true,
 }) => {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
@@ -536,20 +537,22 @@ const ChartComponent = ({
           )}
         </div>
 
-        <div className="chart-controls">
-          <div className={`timeframe-buttons ${isMobile ? 'mobile' : ''}`}>
-            {timeframes.map((tf) => (
-              <button
-                key={tf}
-                className={`timeframe-btn ${timeframe === tf ? 'active' : ''}`}
-                onClick={() => handleTimeframeChange(tf)}
-                title={`${tf} timeframe`}
-              >
-                {tf}
-              </button>
-            ))}
+        {showTimeframeControls && (
+          <div className="chart-controls">
+            <div className={`timeframe-buttons ${isMobile ? 'mobile' : ''}`}>
+              {timeframes.map((tf) => (
+                <button
+                  key={tf}
+                  className={`timeframe-btn ${timeframe === tf ? 'active' : ''}`}
+                  onClick={() => handleTimeframeChange(tf)}
+                  title={`${tf} timeframe`}
+                >
+                  {tf}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {loading && <div className="loading">Loading chart...</div>}
