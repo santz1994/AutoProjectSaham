@@ -21,6 +21,50 @@ import { getAPIBase, getWebSocketBase } from '../utils/authService';
 import './ChartComponent.css';
 
 const DEFAULT_TIMEFRAMES = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w', '1mo'];
+const TIMEFRAME_FETCH_LIMITS = {
+  '1m': 360,
+  '5m': 360,
+  '15m': 300,
+  '30m': 240,
+  '1h': 240,
+  '4h': 220,
+  '1d': 260,
+  '1w': 260,
+  '1mo': 180,
+};
+
+function resolveFetchLimit(timeframe = '1d') {
+  const normalized = String(timeframe || '1d').toLowerCase();
+  return TIMEFRAME_FETCH_LIMITS[normalized] || 200;
+}
+
+function isIntradayTimeframe(timeframe = '1d') {
+  return ['1m', '5m', '15m', '30m', '1h', '4h'].includes(String(timeframe || '').toLowerCase());
+}
+
+function resolvePricePrecision(symbol = '') {
+  const upper = String(symbol || '').toUpperCase();
+
+  if (upper.endsWith('.JK')) return 0;
+
+  if (upper.endsWith('=X')) {
+    const pair = upper.replace('=X', '').replace('/', '');
+    if (pair.length === 6) {
+      const quote = pair.slice(3);
+      if (quote === 'JPY') return 3;
+      if (quote === 'IDR') return 0;
+    }
+    return 5;
+  }
+
+  if (upper.includes('-')) {
+    const quote = upper.split('-').pop();
+    if (quote === 'IDR') return 0;
+    return 2;
+  }
+
+  return 2;
+}
 
 const THEME_COLORS = {
   dark: {
@@ -61,6 +105,9 @@ const ChartComponent = ({
   const pendingCandlesRef = useRef(null);
   const pendingProjectionRef = useRef([]);
   const latestCandleRef = useRef(null);
+  const wsRef = useRef(null);
+  const wsConnectTimeoutRef = useRef(null);
+  const wsSessionRef = useRef(0);
   const initialThemeRef = useRef(THEME_COLORS[theme] || THEME_COLORS.dark);
   const { isMobile, isTablet, viewport } = useResponsive();
   const [loading, setLoading] = useState(true);
@@ -70,6 +117,9 @@ const ChartComponent = ({
   const [isTrading, setIsTrading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [wsWarning, setWsWarning] = useState(null);
+  const pricePrecision = useMemo(() => resolvePricePrecision(symbol), [symbol]);
+  const priceMinMove = useMemo(() => Number((10 ** (-pricePrecision)).toFixed(Math.max(0, pricePrecision))), [pricePrecision]);
+  const fetchLimit = useMemo(() => resolveFetchLimit(timeframe), [timeframe]);
 
   const chartColors = useMemo(() => THEME_COLORS[theme] || THEME_COLORS.dark, [theme]);
 
@@ -95,6 +145,41 @@ const ChartComponent = ({
     return 600;
   }, []);
 
+  const buildAxisTimeFormatter = useCallback((activeTimeframe, compactView) => {
+    const normalized = String(activeTimeframe || '1d').toLowerCase();
+    const intraday = isIntradayTimeframe(normalized);
+    const higherFrame = normalized === '1w' || normalized === '1mo';
+
+    return (timestamp) => {
+      const date = new Date(Number(timestamp) * 1000);
+
+      if (intraday) {
+        return date.toLocaleString('id-ID', {
+          timeZone: 'Asia/Jakarta',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      }
+
+      if (higherFrame) {
+        return date.toLocaleDateString('id-ID', {
+          timeZone: 'Asia/Jakarta',
+          year: compactView ? undefined : 'numeric',
+          month: compactView ? '2-digit' : 'short',
+          day: '2-digit',
+        });
+      }
+
+      return date.toLocaleDateString('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        month: '2-digit',
+        day: '2-digit',
+      });
+    };
+  }, []);
+
   const applyChartDimensions = useCallback(() => {
     if (!chartRef.current || !containerRef.current) {
       return;
@@ -111,8 +196,6 @@ const ChartComponent = ({
       width,
       height: calculateChartHeight(),
       timeScale: {
-        timeVisible: true,
-        secondsVisible: !compactView,
         rightOffset: compactView ? 10 : 40,
       },
     });
@@ -138,6 +221,7 @@ const ChartComponent = ({
       }
 
       const compactView = (typeof window !== 'undefined' ? window.innerWidth : 1024) < 768;
+      const showSecondsOnAxis = ['1m', '5m'].includes(String(timeframe || '').toLowerCase());
       const seedTheme = initialThemeRef.current;
 
       try {
@@ -150,21 +234,12 @@ const ChartComponent = ({
           height: calculateChartHeight(),
           timeScale: {
             timeVisible: true,
-            secondsVisible: !compactView,
+            secondsVisible: !compactView && showSecondsOnAxis,
             rightOffset: compactView ? 10 : 40,
           },
           localization: {
             locale: 'id-ID',
-            timeFormatter: (timestamp) => {
-              const date = new Date(timestamp * 1000);
-              return date.toLocaleString('id-ID', {
-                timeZone: 'Asia/Jakarta',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: compactView ? undefined : '2-digit',
-              });
-            },
+            timeFormatter: buildAxisTimeFormatter(timeframe, compactView),
           },
         });
 
@@ -175,6 +250,11 @@ const ChartComponent = ({
           borderDownColor: seedTheme.borderDownColor,
           wickUpColor: seedTheme.upColor,
           wickDownColor: seedTheme.downColor,
+          priceFormat: {
+            type: 'price',
+            precision: pricePrecision,
+            minMove: priceMinMove,
+          },
         });
 
         const projectionSeries = chart.addLineSeries({
@@ -185,6 +265,11 @@ const ChartComponent = ({
           priceLineVisible: false,
           lastValueVisible: true,
           title: 'AI Projection',
+          priceFormat: {
+            type: 'price',
+            precision: pricePrecision,
+            minMove: priceMinMove,
+          },
         });
 
         chartRef.current = chart;
@@ -271,7 +356,7 @@ const ChartComponent = ({
         }
       }
     };
-  }, [applyChartDimensions, calculateChartHeight]);
+  }, [applyChartDimensions, buildAxisTimeFormatter, calculateChartHeight]);
 
   // Apply theme updates without re-creating chart instance.
   useEffect(() => {
@@ -293,12 +378,22 @@ const ChartComponent = ({
       borderDownColor: chartColors.borderDownColor,
       wickUpColor: chartColors.upColor,
       wickDownColor: chartColors.downColor,
+      priceFormat: {
+        type: 'price',
+        precision: pricePrecision,
+        minMove: priceMinMove,
+      },
     });
 
     projectionSeriesRef.current?.applyOptions({
       color: chartColors.projectionColor,
+      priceFormat: {
+        type: 'price',
+        precision: pricePrecision,
+        minMove: priceMinMove,
+      },
     });
-  }, [chartColors]);
+  }, [chartColors, priceMinMove, pricePrecision]);
 
   useEffect(() => {
     const normalizedProjection = Array.isArray(projectionData)
@@ -319,6 +414,27 @@ const ChartComponent = ({
   useEffect(() => {
     applyChartDimensions();
   }, [applyChartDimensions, isMobile, isTablet, viewport.height, viewport.width]);
+
+  useEffect(() => {
+    if (!chartRef.current) {
+      return;
+    }
+
+    const compactView = (typeof window !== 'undefined' ? window.innerWidth : 1024) < 768;
+    const showSecondsOnAxis = ['1m', '5m'].includes(String(timeframe || '').toLowerCase());
+
+    chartRef.current.applyOptions({
+      localization: {
+        locale: 'id-ID',
+        timeFormatter: buildAxisTimeFormatter(timeframe, compactView),
+      },
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: !compactView && showSecondsOnAxis,
+        rightOffset: compactView ? 10 : 40,
+      },
+    });
+  }, [buildAxisTimeFormatter, timeframe]);
 
   useEffect(() => {
     const fetchSupportedTimeframes = async () => {
@@ -357,7 +473,7 @@ const ChartComponent = ({
 
         // Get candles
         const candlesRes = await fetch(
-          `${getAPIBase()}/api/charts/candles/${symbol}?timeframe=${timeframe}&limit=100`
+          `${getAPIBase()}/api/charts/candles/${symbol}?timeframe=${timeframe}&limit=${fetchLimit}`
         );
         if (!candlesRes.ok) {
           throw new Error(`Failed to fetch candles: ${candlesRes.statusText}`);
@@ -387,116 +503,191 @@ const ChartComponent = ({
     };
 
     fetchChartData();
-  }, [symbol, timeframe]);
+  }, [fetchLimit, symbol, timeframe]);
 
   // WebSocket connection for real-time updates
   useEffect(() => {
     if (!symbol) return;
 
-    const wsUrl = `${getWebSocketBase()}/ws/charts/${symbol}?timeframe=${encodeURIComponent(timeframe)}`;
+    const wsUrl = `${getWebSocketBase()}/ws/charts/${symbol}?timeframe=${encodeURIComponent(timeframe)}&limit=${fetchLimit}`;
     let pingInterval = null;
-    let isUnmounting = false;
+    let disposed = false;
+    const sessionId = wsSessionRef.current + 1;
+    wsSessionRef.current = sessionId;
 
-    try {
-      const ws = new WebSocket(wsUrl);
+    const clearPing = () => {
+      if (pingInterval) {
+        clearInterval(pingInterval);
+        pingInterval = null;
+      }
+    };
 
-      ws.onopen = () => {
-        console.log(`WebSocket connected for ${symbol}`);
-        setWsWarning(null);
+    const clearPendingConnect = () => {
+      if (wsConnectTimeoutRef.current) {
+        clearTimeout(wsConnectTimeoutRef.current);
+        wsConnectTimeoutRef.current = null;
+      }
+    };
 
-        // Send keep-alive ping every 30 seconds
-        pingInterval = setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send('ping');
-          }
-        }, 30000);
-      };
+    const isStaleSession = () => disposed || sessionId !== wsSessionRef.current;
 
-      ws.onmessage = (event) => {
+    const disposeSocket = () => {
+      const ws = wsRef.current;
+      if (!ws) {
+        return;
+      }
+
+      wsRef.current = null;
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onerror = null;
+      ws.onclose = null;
+
+      if (ws.readyState === WebSocket.OPEN) {
         try {
-          const rawPayload = String(event.data ?? '').trim();
-          if (!rawPayload) {
+          ws.close(1000, 'switch-stream');
+        } catch {
+          // Ignore socket close errors during rapid timeframe/symbol switches.
+        }
+        return;
+      }
+
+      if (ws.readyState === WebSocket.CONNECTING) {
+        ws.addEventListener('open', () => {
+          try {
+            ws.close(1000, 'switch-stream');
+          } catch {
+            // Ignore socket close errors during rapid timeframe/symbol switches.
+          }
+        }, { once: true });
+      }
+    };
+
+    clearPendingConnect();
+    clearPing();
+    disposeSocket();
+
+    wsConnectTimeoutRef.current = setTimeout(() => {
+      if (isStaleSession()) {
+        return;
+      }
+
+      try {
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          if (isStaleSession()) {
+            try {
+              ws.close(1000, 'stale-session');
+            } catch {
+              // Ignore socket close errors during rapid timeframe/symbol switches.
+            }
             return;
           }
 
-          const normalizedPayload = rawPayload.toLowerCase();
-          if (
-            normalizedPayload === 'pong' ||
-            normalizedPayload === '"pong"' ||
-            normalizedPayload.includes('"type":"pong"') ||
-            normalizedPayload.includes('"event":"pong"')
-          ) {
+          console.log(`WebSocket connected for ${symbol}`);
+          setWsWarning(null);
+
+          // Send keep-alive ping every 30 seconds
+          pingInterval = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send('ping');
+            }
+          }, 30000);
+        };
+
+        ws.onmessage = (event) => {
+          if (isStaleSession()) {
             return;
           }
 
-          if (!(rawPayload.startsWith('{') || rawPayload.startsWith('['))) {
-            return;
-          }
+          try {
+            const rawPayload = String(event.data ?? '').trim();
+            if (!rawPayload) {
+              return;
+            }
 
-          const data = JSON.parse(rawPayload);
-          if (data?.type === 'pong' || data?.event === 'pong') {
-            return;
-          }
+            const normalizedPayload = rawPayload.toLowerCase();
+            if (
+              normalizedPayload === 'pong' ||
+              normalizedPayload === '"pong"' ||
+              normalizedPayload.includes('"type":"pong"') ||
+              normalizedPayload.includes('"event":"pong"')
+            ) {
+              return;
+            }
 
-          if (data.type === 'candle_update') {
-            // Update with new candle
-            if (candleSeriesRef.current) {
-              candleSeriesRef.current.update(data.candle);
+            if (!(rawPayload.startsWith('{') || rawPayload.startsWith('['))) {
+              return;
+            }
+
+            const data = JSON.parse(rawPayload);
+            if (data?.type === 'pong' || data?.event === 'pong') {
+              return;
+            }
+
+            if (data.type === 'candle_update') {
+              // Update with new candle
+              if (candleSeriesRef.current) {
+                candleSeriesRef.current.update(data.candle);
+              } else {
+                latestCandleRef.current = data.candle;
+              }
+              setLastUpdate(new Date());
             } else {
-              latestCandleRef.current = data.candle;
-            }
-            setLastUpdate(new Date());
-          } else {
-            // Initial data
-            const normalizedCandles = Array.isArray(data.candles) ? data.candles : [];
-            pendingCandlesRef.current = normalizedCandles;
+              // Initial data
+              const normalizedCandles = Array.isArray(data.candles) ? data.candles : [];
+              pendingCandlesRef.current = normalizedCandles;
 
-            if (candleSeriesRef.current) {
-              candleSeriesRef.current.setData(normalizedCandles);
-              chartRef.current?.timeScale().fitContent();
+              if (candleSeriesRef.current) {
+                candleSeriesRef.current.setData(normalizedCandles);
+                chartRef.current?.timeScale().fitContent();
+              }
             }
+          } catch (err) {
+            // Ignore malformed keep-alive payloads and non-JSON messages.
+            if (String(event.data ?? '').toLowerCase().includes('pong')) {
+              return;
+            }
+            console.error('Error processing WebSocket message:', err);
           }
-        } catch (err) {
-          // Ignore malformed keep-alive payloads and non-JSON messages.
-          if (String(event.data ?? '').toLowerCase().includes('pong')) {
+        };
+
+        ws.onerror = (err) => {
+          if (isStaleSession()) {
             return;
           }
-          console.error('Error processing WebSocket message:', err);
-        }
-      };
+          console.warn('WebSocket transient error:', err);
+          setWsWarning('Live updates unavailable. Showing latest fetched data.');
+        };
 
-      ws.onerror = (err) => {
-        if (isUnmounting) {
-          return;
-        }
-        console.error('WebSocket error:', err);
-        setWsWarning('Live updates unavailable. Showing latest fetched data.');
-      };
+        ws.onclose = (event) => {
+          if (isStaleSession()) {
+            return;
+          }
 
-      ws.onclose = () => {
-        if (isUnmounting) {
-          return;
-        }
-        console.log(`WebSocket disconnected for ${symbol}`);
-        setWsWarning('Live updates disconnected. Reconnect by refreshing the page.');
-        if (pingInterval) {
-          clearInterval(pingInterval);
-        }
-      };
+          clearPing();
 
-      return () => {
-        isUnmounting = true;
-        if (pingInterval) {
-          clearInterval(pingInterval);
-        }
-        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-          ws.close();
-        }
-      };
-    } catch (err) {
-      setWsWarning(`Live updates unavailable: ${err.message}`);
-    }
-  }, [symbol, timeframe]);
+          if (event.code === 1000 && (event.reason === 'switch-stream' || event.reason === 'stale-session')) {
+            return;
+          }
+
+          console.log(`WebSocket disconnected for ${symbol}`);
+          setWsWarning('Live updates disconnected. Reconnect by refreshing the page.');
+        };
+      } catch (err) {
+        setWsWarning(`Live updates unavailable: ${err.message}`);
+      }
+    }, 180);
+
+    return () => {
+      disposed = true;
+      clearPendingConnect();
+      clearPing();
+      disposeSocket();
+    };
+  }, [fetchLimit, symbol, timeframe]);
 
   const handleTimeframeChange = useCallback((newTimeframe) => {
     if (newTimeframe === timeframe) {

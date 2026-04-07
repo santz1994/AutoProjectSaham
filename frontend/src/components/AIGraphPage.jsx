@@ -5,18 +5,39 @@ import apiService from '../utils/apiService';
 import toast from '../store/toastStore';
 import '../styles/ai-graph.css';
 
-const DEFAULT_SYMBOLS = [
-  'BBCA.JK',
-  'BMRI.JK',
-  'BBRI.JK',
-  'TLKM.JK',
-  'KLBF.JK',
-  'ASII.JK',
-  'UNVR.JK',
-  'INDF.JK',
-  'PGAS.JK',
-  'GGRM.JK',
-];
+const FALLBACK_SYMBOLS_BY_MARKET = {
+  stocks: [
+    'BBCA.JK', 'BMRI.JK', 'BBRI.JK', 'BBNI.JK', 'BBTN.JK',
+    'TLKM.JK', 'ASII.JK', 'UNVR.JK', 'INDF.JK', 'ICBP.JK',
+    'KLBF.JK', 'ADRO.JK', 'ANTM.JK', 'PGAS.JK', 'SMGR.JK',
+    'CPIN.JK', 'EXCL.JK', 'MDKA.JK', 'MEDC.JK', 'UNTR.JK',
+  ],
+  forex: [
+    'EURUSD=X', 'GBPUSD=X', 'USDJPY=X', 'AUDUSD=X',
+    'USDCHF=X', 'USDCAD=X', 'NZDUSD=X', 'EURJPY=X', 'USDIDR=X',
+  ],
+  crypto: [
+    'BTC-USD', 'ETH-USD', 'SOL-USD', 'BNB-USD', 'XRP-USD', 'ADA-USD', 'DOGE-USD',
+  ],
+  index: [
+    '^GSPC', '^IXIC', '^DJI', '^HSI', '^N225',
+  ],
+};
+
+const DEFAULT_SYMBOLS = FALLBACK_SYMBOLS_BY_MARKET.stocks;
+
+function getFallbackSymbols(market = 'stocks') {
+  const normalizedMarket = String(market || 'stocks').toLowerCase();
+  if (normalizedMarket === 'all') {
+    return [...new Set([
+      ...FALLBACK_SYMBOLS_BY_MARKET.stocks,
+      ...FALLBACK_SYMBOLS_BY_MARKET.forex,
+      ...FALLBACK_SYMBOLS_BY_MARKET.crypto,
+      ...FALLBACK_SYMBOLS_BY_MARKET.index,
+    ])];
+  }
+  return FALLBACK_SYMBOLS_BY_MARKET[normalizedMarket] || DEFAULT_SYMBOLS;
+}
 const MARKET_OPTIONS = [
   { value: 'stocks', label: 'Saham (IDX)' },
   { value: 'forex', label: 'Forex' },
@@ -35,7 +56,36 @@ const SIGNAL_CLASS = {
   STRONG_SELL: 'bearish',
 };
 
-function formatPrice(value, currency = 'IDR') {
+function inferCurrencyProfile(symbol = '', market = 'stocks') {
+  const upper = String(symbol || '').toUpperCase();
+
+  if (upper.endsWith('.JK') || market === 'stocks') {
+    return { currency: 'IDR', digits: 0 };
+  }
+
+  if (upper.endsWith('=X') || market === 'forex') {
+    const pair = upper.replace('=X', '').replace('/', '');
+    if (pair.length === 6) {
+      const quote = pair.slice(3);
+      if (quote === 'JPY') return { currency: 'JPY', digits: 3 };
+      if (quote === 'IDR') return { currency: 'IDR', digits: 0 };
+      return { currency: quote, digits: 5 };
+    }
+    return { currency: 'USD', digits: 5 };
+  }
+
+  if (upper.includes('-')) {
+    const quote = upper.split('-').pop();
+    if (quote === 'IDR') return { currency: 'IDR', digits: 0 };
+    if (/^[A-Z]{3}$/.test(quote || '')) {
+      return { currency: quote, digits: 2 };
+    }
+  }
+
+  return { currency: 'USD', digits: 2 };
+}
+
+function formatPrice(value, currency = 'IDR', digits = 2) {
   const safe = Number(value);
   if (!Number.isFinite(safe)) {
     return '-';
@@ -43,7 +93,8 @@ function formatPrice(value, currency = 'IDR') {
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
   }).format(safe);
 }
 
@@ -57,8 +108,8 @@ function formatPercent(value) {
 
 export default function AIGraphPage({ theme = 'dark' }) {
   const [selectedMarket, setSelectedMarket] = useState('stocks');
-  const [symbolOptions, setSymbolOptions] = useState(DEFAULT_SYMBOLS);
-  const [selectedSymbol, setSelectedSymbol] = useState('BBCA.JK');
+  const [symbolOptions, setSymbolOptions] = useState(() => getFallbackSymbols('stocks'));
+  const [selectedSymbol, setSelectedSymbol] = useState(() => getFallbackSymbols('stocks')[0] || 'BBCA.JK');
   const [selectedTimeframe, setSelectedTimeframe] = useState('1d');
   const [projectionHorizon, setProjectionHorizon] = useState(16);
 
@@ -83,16 +134,24 @@ export default function AIGraphPage({ theme = 'dark' }) {
           ? payload.symbols.filter((item) => typeof item === 'string' && item.trim())
           : [];
 
-        if (!active || symbols.length === 0) {
+        if (!active) {
           return;
         }
 
-        setSymbolOptions(symbols);
-        setSelectedSymbol((current) => (symbols.includes(current) ? current : symbols[0]));
+        if (symbols.length > 0) {
+          setSymbolOptions(symbols);
+          setSelectedSymbol((current) => (symbols.includes(current) ? current : symbols[0]));
+          return;
+        }
+
+        const fallback = getFallbackSymbols(selectedMarket);
+        setSymbolOptions(fallback);
+        setSelectedSymbol((current) => (fallback.includes(current) ? current : fallback[0]));
       } catch (error) {
         if (active) {
-          setSymbolOptions(DEFAULT_SYMBOLS);
-          setSelectedSymbol(DEFAULT_SYMBOLS[0]);
+          const fallback = getFallbackSymbols(selectedMarket);
+          setSymbolOptions(fallback);
+          setSelectedSymbol((current) => (fallback.includes(current) ? current : fallback[0]));
         }
       }
     };
@@ -178,7 +237,9 @@ export default function AIGraphPage({ theme = 'dark' }) {
   const predictedMove = Number(projectionMeta?.expectedReturn || 0) * 100;
   const confidenceLabel = String(projectionMeta?.confidenceLabel || 'medium').replace('_', ' ');
   const modelConfidencePercent = Number(projectionMeta?.modelConfidence) * 100;
-  const displayCurrency = selectedSymbol?.toUpperCase().endsWith('.JK') ? 'IDR' : 'USD';
+  const currencyProfile = inferCurrencyProfile(selectedSymbol, selectedMarket);
+  const displayCurrency = currencyProfile.currency;
+  const displayDigits = currencyProfile.digits;
   const projectionPoints = Array.isArray(projectionMeta?.projection) ? projectionMeta.projection : [];
   const horizonEndTime = projectionPoints.length > 0
     ? Number(projectionPoints[projectionPoints.length - 1]?.time || 0)
@@ -324,8 +385,8 @@ export default function AIGraphPage({ theme = 'dark' }) {
 
         <article className="ai-graph-card insight-card">
           <h3>Current vs Target</h3>
-          <strong>{formatPrice(projectionMeta?.currentPrice, displayCurrency)}</strong>
-          <span>Target: {formatPrice(projectionMeta?.targetPrice, displayCurrency)}</span>
+          <strong>{formatPrice(projectionMeta?.currentPrice, displayCurrency, displayDigits)}</strong>
+          <span>Target: {formatPrice(projectionMeta?.targetPrice, displayCurrency, displayDigits)}</span>
         </article>
 
         <article className="ai-graph-card insight-card">

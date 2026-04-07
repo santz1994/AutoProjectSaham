@@ -113,6 +113,7 @@ frontend/.vite/
 data/temp/
 data/cache/
 *.ohlcv_cache
+data/projection_learning_state.json
 
 # Temporary files
 *.tmp

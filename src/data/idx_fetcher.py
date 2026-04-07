@@ -10,8 +10,9 @@ Version: 1.0.0
 
 import heapq
 import logging
+import re
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Tuple
 import yfinance as yf
 import pandas as pd
 
@@ -122,12 +123,13 @@ async def fetch_candlesticks(
         logger.debug(f"Fetching {symbol} {timeframe} ({period})")
         ticker = yf.Ticker(symbol)
         
-        # Fetch historical data (note: remove progress parameter for compatibility)
-        df = ticker.history(period=period, interval=yf_interval)
-
-        # yfinance allows 1m only on short windows; retry with 7d if provider returns empty.
-        if df.empty and timeframe == '1m':
-            df = ticker.history(period='7d', interval='1m')
+        # Fetch historical data with retries for timeframe-specific period constraints.
+        df = _fetch_history_with_fallback(
+            ticker=ticker,
+            timeframe=timeframe,
+            period=period,
+            interval=yf_interval,
+        )
         
         if df.empty:
             logger.warning(f"No data returned for {symbol}")
@@ -168,6 +170,9 @@ async def fetch_candlesticks(
         # Limit to requested count
         candles = candles[-limit:] if len(candles) > limit else candles
         
+        upper_symbol = str(symbol or "").upper()
+        currency, _ = _resolve_currency_profile(upper_symbol, info_currency=None)
+
         return {
             "symbol": symbol,
             "timeframe": timeframe,
@@ -176,6 +181,7 @@ async def fetch_candlesticks(
                 "total": len(candles),
                 "fetched_at": datetime.utcnow().isoformat() + "Z",
                 "exchange": "IDX" if symbol.upper().endswith('.JK') else "GLOBAL",
+                "currency": currency,
                 "source": "yfinance"
             }
         }
@@ -218,7 +224,8 @@ async def fetch_symbol_metadata(symbol: str) -> Optional[Dict]:
         elif is_crypto:
             exchange = "CRYPTO"
 
-        currency = "IDR" if is_idx else "USD"
+        info_currency = str(info.get("currency") or "").upper() or None
+        currency, decimal_places = _resolve_currency_profile(upper_symbol, info_currency)
         timezone = "Asia/Jakarta" if is_idx else "UTC"
 
         return {
@@ -226,6 +233,7 @@ async def fetch_symbol_metadata(symbol: str) -> Optional[Dict]:
             "name": metadata.get("name", info.get("longName", "Unknown")),
             "exchange": exchange,
             "currency": currency,
+            "decimalPlaces": decimal_places,
             "timezone": timezone,
             "sector": metadata.get("sector", info.get("sector", "Unknown")),
             "country": "Indonesia" if is_idx else info.get("country", "Global"),
@@ -300,13 +308,100 @@ def _calculate_period(timeframe: str, limit: int) -> str:
         days = min(limit * 1.5, 730)  # 2 years max
         return f'{int(days)}d'
     elif timeframe == '1w':
-        weeks = min(limit * 1.5, 520)  # 10 years max
-        return f'{int(weeks)}w'
+        # yfinance weekly supports fixed period buckets only.
+        if limit <= 8:
+            return '3mo'
+        if limit <= 16:
+            return '6mo'
+        if limit <= 52:
+            return '1y'
+        if limit <= 104:
+            return '2y'
+        if limit <= 260:
+            return '5y'
+        return '10y'
     elif timeframe == '1mo':
-        months = min(limit * 1.5, 240)  # 20 years max
-        return f'{int(months)}mo'
+        # yfinance monthly supports fixed period buckets only.
+        if limit <= 6:
+            return '1y'
+        if limit <= 12:
+            return '2y'
+        if limit <= 36:
+            return '5y'
+        return '10y'
     else:
         return '1y'
+
+
+def _fetch_history_with_fallback(
+    ticker,
+    timeframe: str,
+    period: str,
+    interval: str,
+) -> pd.DataFrame:
+    """Fetch history with period fallbacks for provider-specific constraints."""
+    candidates = [period]
+
+    if timeframe == '1m':
+        candidates.extend(['7d', '5d', '1d'])
+    elif timeframe == '1w':
+        candidates.extend(['1y', '2y', '5y'])
+    elif timeframe == '1mo':
+        candidates.extend(['2y', '5y', '10y'])
+
+    seen = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        try:
+            df = ticker.history(
+                period=candidate,
+                interval=interval,
+                auto_adjust=False,
+                actions=False,
+            )
+        except Exception as exc:
+            logger.warning("History fetch failed for period %s: %s", candidate, exc)
+            continue
+
+        if not df.empty:
+            return df
+
+    return pd.DataFrame()
+
+
+def _resolve_currency_profile(symbol: str, info_currency: Optional[str]) -> Tuple[str, int]:
+    """Infer currency code and preferred decimal precision from symbol format."""
+    upper = str(symbol or '').upper()
+
+    if upper.endswith('.JK'):
+        return 'IDR', 0
+
+    if upper.endswith('=X'):
+        pair = upper[:-2]
+        if len(pair) == 6 and pair.isalpha():
+            quote = pair[3:]
+            if quote == 'JPY':
+                return quote, 3
+            if quote == 'IDR':
+                return quote, 0
+            return quote, 5
+        return info_currency or 'USD', 5
+
+    if '-' in upper:
+        quote = upper.split('-')[-1]
+        if re.fullmatch(r'[A-Z]{3}', quote):
+            if quote == 'IDR':
+                return quote, 0
+            return quote, 2
+
+    if info_currency and re.fullmatch(r'[A-Z]{3}', info_currency):
+        if info_currency == 'IDR':
+            return info_currency, 0
+        return info_currency, 2
+
+    return 'USD', 2
 
 
 def _aggregate_to_4h(df: pd.DataFrame) -> pd.DataFrame:

@@ -147,10 +147,11 @@ if FASTAPI_AVAILABLE:
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-    @app.get("/api/portfolio")
-    async def api_portfolio(authorization: Optional[str] = Header(None)):
+    @app.get("/api/portfolio/reconcile")
+    async def api_portfolio_reconcile(authorization: Optional[str] = Header(None)):
         """Return a broker reconciliation snapshot.
 
+        This diagnostic endpoint is separate from frontend portfolio routes.
         If the request includes a valid `Authorization: Bearer <token>` header
         that maps to a registered user, this could return a user-specific
         portfolio (when adapters are implemented). For now, we return a demo
@@ -461,6 +462,11 @@ if FASTAPI_AVAILABLE:
         from src.data.idx_fetcher import fetch_candlesticks
 
         timeframe = ws.query_params.get("timeframe", "1d")
+        try:
+            limit = int(ws.query_params.get("limit", "100"))
+        except Exception:
+            limit = 100
+        limit = max(50, min(limit, 1000))
 
         try:
             await ws.accept()
@@ -469,7 +475,7 @@ if FASTAPI_AVAILABLE:
             return
 
         try:
-            initial = await fetch_candlesticks(symbol, timeframe=timeframe, limit=100)
+            initial = await fetch_candlesticks(symbol, timeframe=timeframe, limit=limit)
             await ws.send_json({
                 "symbol": symbol,
                 "timeframe": timeframe,

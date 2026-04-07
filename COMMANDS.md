@@ -77,6 +77,12 @@ QUICK TEST COMMANDS (while running)
 Check backend health:
   curl http://localhost:8000/health
 
+Run one-command quick regression (API + projection + strategy actions):
+  .\scripts\quick_regression.ps1
+
+Run quick regression without mutating actions (read-only):
+  .\scripts\quick_regression.ps1 -SkipMutatingActions
+
 Get portfolio (real market data):
   curl http://localhost:8000/api/portfolio
 
