@@ -10,6 +10,20 @@ function isEndpointUnavailable(error) {
   return message.includes('404') || message.includes('not found')
 }
 
+const AI_PROFILE_OPTIONS = [
+  { value: 'auto', label: 'Auto (Regime Router)' },
+  { value: 'mean_reversion_swing', label: 'Manual: Mean Reversion Swing' },
+  { value: 'momentum_breakout', label: 'Manual: Momentum Breakout' },
+  { value: 'defensive_rotation', label: 'Manual: Defensive Rotation' },
+]
+
+const AI_PROFILE_LABELS = {
+  auto: 'Auto (Regime Router)',
+  mean_reversion_swing: 'Mean Reversion Swing',
+  momentum_breakout: 'Momentum Breakout',
+  defensive_rotation: 'Defensive Rotation',
+}
+
 export default function StrategiesPage() {
   const [selectedStrategy, setSelectedStrategy] = useState(null)
   const [strategies, setStrategies] = useState([])
@@ -17,13 +31,22 @@ export default function StrategiesPage() {
   const [error, setError] = useState(null)
   const [deployingId, setDeployingId] = useState(null)
   const [backtestingId, setBacktestingId] = useState(null)
+  const [aiProfileModeValue, setAiProfileModeValue] = useState('auto')
+  const [regimeSnapshot, setRegimeSnapshot] = useState(null)
+  const [syncingProfileMode, setSyncingProfileMode] = useState(false)
 
   const loadStrategies = async () => {
     setLoading(true)
     setError(null)
     try {
-      const data = await apiService.getStrategies()
+      const [data, userSettings, regime] = await Promise.all([
+        apiService.getStrategies(),
+        apiService.getUserSettings().catch(() => null),
+        apiService.getAIRegimeStatus().catch(() => null),
+      ])
       setStrategies(data)
+      setAiProfileModeValue(String(userSettings?.aiManualStrategyProfile || 'auto').toLowerCase())
+      setRegimeSnapshot(regime || null)
     } catch (err) {
       const errorMsg = err.message || 'Failed to load strategies'
       setError(errorMsg)
@@ -40,8 +63,14 @@ export default function StrategiesPage() {
   const handleDeployStrategy = async (strategy) => {
     try {
       setDeployingId(strategy.id)
-      await apiService.deployStrategy(strategy.id)
+      const deployResult = await apiService.deployStrategy(strategy.id)
       setSelectedStrategy(strategy)
+      if (deployResult?.activeProfile) {
+        setAiProfileModeValue(String(deployResult.activeProfile).toLowerCase())
+      }
+      if (deployResult?.regime) {
+        setRegimeSnapshot(deployResult.regime)
+      }
       toast.success(`${strategy.name} strategy deployed successfully!`)
     } catch (err) {
       if (isEndpointUnavailable(err)) {
@@ -52,6 +81,47 @@ export default function StrategiesPage() {
       toast.error(`Failed to deploy strategy: ${err.message}`)
     } finally {
       setDeployingId(null)
+    }
+  }
+
+  const handleProfileModeChange = async (nextValue) => {
+    const targetValue = String(nextValue || 'auto').toLowerCase()
+    setSyncingProfileMode(true)
+    try {
+      const saved = await apiService.updateAIProfileMode(targetValue)
+      const normalized = String(saved?.aiManualStrategyProfile || targetValue).toLowerCase()
+      setAiProfileModeValue(normalized)
+
+      const syncedRegime = await apiService.getAIRegimeStatus().catch(() => null)
+      if (syncedRegime) {
+        setRegimeSnapshot(syncedRegime)
+      }
+
+      if (normalized === 'auto') {
+        toast.info('AI profile mode switched to Auto regime routing.')
+      } else {
+        toast.success(`AI profile locked to ${AI_PROFILE_LABELS[normalized] || normalized}.`)
+      }
+    } catch (err) {
+      toast.error(`Failed to update AI profile mode: ${err.message}`)
+    } finally {
+      setSyncingProfileMode(false)
+    }
+  }
+
+  const handleResetProfileMode = async () => {
+    setSyncingProfileMode(true)
+    try {
+      const payload = await apiService.resetAIProfileOverride()
+      setAiProfileModeValue('auto')
+      if (payload?.regime) {
+        setRegimeSnapshot(payload.regime)
+      }
+      toast.success('AI profile mode reset to Auto regime router.')
+    } catch (err) {
+      toast.error(`Failed to reset AI profile mode: ${err.message}`)
+    } finally {
+      setSyncingProfileMode(false)
     }
   }
 
@@ -129,9 +199,54 @@ export default function StrategiesPage() {
     )
   }
 
+  const activeMode = aiProfileModeValue === 'auto' ? 'auto' : 'manual'
+  const activeProfileLabel = AI_PROFILE_LABELS[aiProfileModeValue] || aiProfileModeValue
+  const regimeLabel = String(regimeSnapshot?.regime || 'UNKNOWN').toUpperCase()
+  const regimeProfile = String(regimeSnapshot?.strategyProfile || aiProfileModeValue || 'auto').toLowerCase()
+  const regimeProfileLabel = AI_PROFILE_LABELS[regimeProfile] || regimeProfile
+
   return (
     <div className="strategies-page">
       <h1>Strategy Builder</h1>
+
+      <section className="strategy-profile-panel">
+        <div className="strategy-profile-main">
+          <h2>AI Profile Mode</h2>
+          <p>
+            {activeMode === 'auto'
+              ? 'Router otomatis memilih profile dari kondisi market terbaru.'
+              : `Profile manual aktif: ${activeProfileLabel}.`}
+          </p>
+          <div className="strategy-profile-meta">
+            <span className={`profile-mode-chip ${activeMode}`}>{activeMode.toUpperCase()}</span>
+            <span className="profile-regime-chip">{`Regime ${regimeLabel}`}</span>
+            <span className="profile-value-chip">{`Profile ${regimeProfileLabel}`}</span>
+          </div>
+        </div>
+
+        <div className="strategy-profile-actions">
+          <select
+            value={aiProfileModeValue}
+            onChange={(e) => handleProfileModeChange(e.target.value)}
+            className="strategy-profile-select"
+            disabled={syncingProfileMode}
+          >
+            {AI_PROFILE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={handleResetProfileMode}
+            disabled={syncingProfileMode || activeMode === 'auto'}
+          >
+            {syncingProfileMode ? 'Syncing...' : 'Reset Auto Router'}
+          </button>
+        </div>
+      </section>
 
       <div className="strategies-grid">
         {strategies.map((strategy) => (

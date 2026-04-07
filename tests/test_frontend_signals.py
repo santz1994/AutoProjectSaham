@@ -276,6 +276,43 @@ def test_get_ai_projection_validates_timeframe_and_clamps_horizon(monkeypatch):
     assert len(payload.projection) == 120
 
 
+def test_get_ai_projection_includes_regime_snapshot(monkeypatch):
+    monkeypatch.setattr(
+        frontend_routes,
+        "_predict_projection_seed",
+        lambda symbol, market=None: {
+            "symbol": symbol,
+            "signal": "HOLD",
+            "confidence": 0.6,
+            "expected_return": 0.01,
+            "predicted_move": "+1.00%",
+            "current_price": 100.0,
+            "target_price": 101.0,
+            "source": "fallback",
+            "architecture": None,
+        },
+    )
+
+    async def _anchor(symbol, timeframe):
+        return {"time": 1710000000.0, "price": 100.0}
+
+    monkeypatch.setattr(frontend_routes, "_resolve_latest_candle_anchor", _anchor)
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "get_regime_state",
+        lambda defaults: {
+            "regime": "SIDEWAYS",
+            "confidence": 0.71,
+            "primaryAgent": "scalper_agent",
+            "strategyProfile": "mean_reversion_swing",
+        },
+    )
+
+    payload = asyncio.run(frontend_routes.get_ai_projection("BBCA.JK", timeframe="1h", horizon=8))
+    assert payload.regime["regime"] == "SIDEWAYS"
+    assert payload.regime["primaryAgent"] == "scalper_agent"
+
+
 def test_get_ai_regime_status_returns_persisted_snapshot(monkeypatch):
     snapshot = {
         "regime": "BULL",
@@ -299,6 +336,12 @@ def test_get_ai_regime_status_returns_persisted_snapshot(monkeypatch):
 
 def test_resolve_regime_route_persists_transition_log(monkeypatch):
     captured = {"state": None, "logs": []}
+
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "get_user_settings",
+        lambda defaults: {"aiManualStrategyProfile": "auto"},
+    )
 
     monkeypatch.setattr(
         frontend_routes._state_store,
@@ -331,4 +374,199 @@ def test_resolve_regime_route_persists_transition_log(monkeypatch):
     assert captured["state"] is not None
     assert captured["state"]["regime"] == "BULL"
     assert len(captured["logs"]) == 1
-    assert captured["logs"][0]["event_type"] == "regime_transition"
+    assert captured["logs"][0]["event_type"] == "regime_transition_major"
+
+
+def test_deploy_strategy_persists_manual_profile_override(monkeypatch):
+    captured = {"settings": None, "regime": None, "logs": []}
+
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "get_user_settings",
+        lambda defaults: {"theme": "auto", "aiManualStrategyProfile": "auto"},
+    )
+
+    def _fake_set_user_settings(payload):
+        captured["settings"] = dict(payload)
+        return dict(payload)
+
+    monkeypatch.setattr(frontend_routes._state_store, "set_user_settings", _fake_set_user_settings)
+
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "get_regime_state",
+        lambda defaults: {
+            "regime": "BEAR",
+            "confidence": 0.72,
+            "primaryAgent": "bear_agent",
+            "strategyProfile": "defensive_rotation",
+            "riskMultiplier": 0.55,
+        },
+    )
+
+    def _fake_set_regime_state(payload):
+        captured["regime"] = dict(payload)
+        return dict(payload)
+
+    monkeypatch.setattr(frontend_routes._state_store, "set_regime_state", _fake_set_regime_state)
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "append_ai_log",
+        lambda **kwargs: captured["logs"].append(kwargs),
+    )
+
+    response = asyncio.run(frontend_routes.deploy_strategy(2))
+
+    assert response["activeProfile"] == "mean_reversion_swing"
+    assert response["manualOverride"] is True
+    assert captured["settings"]["aiManualStrategyProfile"] == "mean_reversion_swing"
+    assert captured["regime"]["strategyProfile"] == "mean_reversion_swing"
+    assert captured["regime"]["manualProfileOverride"] is True
+    assert captured["regime"]["profileSource"] == "manual_override"
+    assert len(captured["logs"]) == 1
+
+
+def test_resolve_regime_route_honors_manual_profile_override(monkeypatch):
+    captured = {"state": None}
+
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "get_user_settings",
+        lambda defaults: {"aiManualStrategyProfile": "mean_reversion_swing"},
+    )
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "get_regime_state",
+        lambda defaults: {"regime": "SIDEWAYS"},
+    )
+
+    def _fake_set_regime_state(payload):
+        captured["state"] = dict(payload)
+        return dict(payload)
+
+    monkeypatch.setattr(frontend_routes._state_store, "set_regime_state", _fake_set_regime_state)
+    monkeypatch.setattr(frontend_routes._state_store, "append_ai_log", lambda **kwargs: None)
+
+    prices = np.linspace(220.0, 120.0, 64)
+    df = pd.DataFrame(
+        {
+            "symbol": ["AAA.JK"] * len(prices),
+            "last_price": prices,
+        }
+    )
+
+    route = frontend_routes._resolve_regime_route(df, ["AAA.JK"])
+
+    assert route is not None
+    assert route.regime == "BEAR"
+    assert route.strategy_profile == "mean_reversion_swing"
+    assert route.primary_agent == "scalper_agent"
+    assert captured["state"] is not None
+    assert captured["state"]["strategyProfile"] == "mean_reversion_swing"
+    assert captured["state"]["manualProfileOverride"] is True
+    assert captured["state"]["profileSource"] == "manual_override"
+
+
+def test_update_user_settings_syncs_ai_profile_override(monkeypatch):
+    captured = {"settings": None, "regime": None, "logs": []}
+
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "get_user_settings",
+        lambda defaults: {
+            "theme": "auto",
+            "riskLevel": "moderate",
+            "aiManualStrategyProfile": "auto",
+        },
+    )
+
+    def _fake_set_user_settings(payload):
+        captured["settings"] = dict(payload)
+        return dict(payload)
+
+    monkeypatch.setattr(frontend_routes._state_store, "set_user_settings", _fake_set_user_settings)
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "get_regime_state",
+        lambda defaults: {
+            "regime": "BULL",
+            "primaryAgent": "bull_agent",
+            "strategyProfile": "momentum_breakout",
+            "riskMultiplier": 1.0,
+        },
+    )
+
+    def _fake_set_regime_state(payload):
+        captured["regime"] = dict(payload)
+        return dict(payload)
+
+    monkeypatch.setattr(frontend_routes._state_store, "set_regime_state", _fake_set_regime_state)
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "append_ai_log",
+        lambda **kwargs: captured["logs"].append(kwargs),
+    )
+
+    saved = asyncio.run(
+        frontend_routes.update_user_settings(
+            {"aiManualStrategyProfile": "defensive_rotation"}
+        )
+    )
+
+    assert saved["aiManualStrategyProfile"] == "defensive_rotation"
+    assert captured["settings"]["aiManualStrategyProfile"] == "defensive_rotation"
+    assert captured["regime"]["strategyProfile"] == "defensive_rotation"
+    assert captured["regime"]["manualProfileOverride"] is True
+    assert captured["regime"]["profileSource"] == "manual_override"
+    assert any(item.get("event_type") == "ai_profile_override" for item in captured["logs"])
+
+
+def test_reset_ai_profile_override_switches_back_to_auto(monkeypatch):
+    captured = {"settings": None, "regime": None, "logs": []}
+
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "get_user_settings",
+        lambda defaults: {
+            "theme": "auto",
+            "riskLevel": "moderate",
+            "aiManualStrategyProfile": "defensive_rotation",
+        },
+    )
+
+    def _fake_set_user_settings(payload):
+        captured["settings"] = dict(payload)
+        return dict(payload)
+
+    monkeypatch.setattr(frontend_routes._state_store, "set_user_settings", _fake_set_user_settings)
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "get_regime_state",
+        lambda defaults: {
+            "regime": "BEAR",
+            "primaryAgent": "bear_agent",
+            "strategyProfile": "defensive_rotation",
+            "riskMultiplier": 0.55,
+            "manualProfileOverride": True,
+        },
+    )
+
+    def _fake_set_regime_state(payload):
+        captured["regime"] = dict(payload)
+        return dict(payload)
+
+    monkeypatch.setattr(frontend_routes._state_store, "set_regime_state", _fake_set_regime_state)
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "append_ai_log",
+        lambda **kwargs: captured["logs"].append(kwargs),
+    )
+
+    payload = asyncio.run(frontend_routes.reset_ai_profile_override())
+
+    assert payload["success"] is True
+    assert payload["mode"] == "auto"
+    assert captured["settings"]["aiManualStrategyProfile"] == "auto"
+    assert captured["regime"]["manualProfileOverride"] is False
+    assert captured["regime"]["profileSource"] == "regime_router"
+    assert any(item.get("event_type") == "ai_profile_reset" for item in captured["logs"])

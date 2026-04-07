@@ -104,9 +104,44 @@
   margin-bottom: 0.75rem;
 }
 
+.ai-title-chip-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .ai-graph-chart-title-row h2 {
   margin: 0;
   font-size: 1.05rem;
+}
+
+.ai-regime-chip {
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 700;
+}
+
+.ai-regime-chip.bull {
+  background: rgba(22, 163, 74, 0.18);
+  color: #22c55e;
+}
+
+.ai-regime-chip.bear {
+  background: rgba(220, 38, 38, 0.2);
+  color: #ef4444;
+}
+
+.ai-regime-chip.sideways {
+  background: rgba(79, 70, 229, 0.16);
+  color: #818cf8;
+}
+
+.ai-regime-chip.unknown {
+  background: rgba(148, 163, 184, 0.2);
+  color: var(--text-secondary);
 }
 
 .ai-signal-chip {

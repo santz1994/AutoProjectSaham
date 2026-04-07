@@ -308,6 +308,17 @@ class ApiService {
     }
   }
 
+  async updateAIProfileMode(profile = 'auto') {
+    const normalized = String(profile || 'auto').trim().toLowerCase();
+    return this.updateUserSettings({ aiManualStrategyProfile: normalized || 'auto' });
+  }
+
+  async resetAIProfileOverride() {
+    return this.request('/api/ai/profile/reset', {
+      method: 'POST',
+    });
+  }
+
   async getAILogs(limit = 100) {
     try {
       return await this.request(`/api/ai/logs?limit=${limit}`);

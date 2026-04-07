@@ -11,6 +11,84 @@
   color: var(--text-primary);
 }
 
+.strategy-profile-panel {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-xl);
+  padding: 1rem 1.2rem;
+  box-shadow: var(--shadow-md);
+}
+
+.strategy-profile-main h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+}
+
+.strategy-profile-main p {
+  margin: 0.35rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.strategy-profile-meta {
+  margin-top: 0.65rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.profile-mode-chip,
+.profile-regime-chip,
+.profile-value-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.35px;
+}
+
+.profile-mode-chip.auto {
+  color: #dbeafe;
+  background: rgba(37, 99, 235, 0.34);
+}
+
+.profile-mode-chip.manual {
+  color: #fef3c7;
+  background: rgba(217, 119, 6, 0.38);
+}
+
+.profile-regime-chip {
+  color: #dcfce7;
+  background: rgba(22, 163, 74, 0.3);
+}
+
+.profile-value-chip {
+  color: var(--text-secondary);
+  background: var(--surface-elevated);
+}
+
+.strategy-profile-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.strategy-profile-select {
+  min-width: 250px;
+  padding: 0.65rem 0.8rem;
+  background: var(--surface-elevated);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+}
+
 /* Strategy Cards Grid */
 .strategies-grid {
   display: grid;
@@ -211,6 +289,21 @@
 @media (max-width: 768px) {
   .strategies-page {
     padding: 1rem;
+  }
+
+  .strategy-profile-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .strategy-profile-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .strategy-profile-select {
+    min-width: 0;
+    width: 100%;
   }
 
   .strategies-grid {

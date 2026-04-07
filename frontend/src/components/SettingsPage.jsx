@@ -30,6 +30,7 @@ const defaultSettings = {
     aiProjectionHorizon: 16,
     aiPredictionLockEnabled: true,
     aiMonitorRefreshSeconds: 20,
+    aiManualStrategyProfile: 'auto',
 }
 
 const fallbackBrokerProviders = [
@@ -54,6 +55,12 @@ const AI_PREDICTION_STYLE_OPTIONS = [
 
 const AI_TIMEFRAME_OPTIONS = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w', '1mo']
 const AI_HORIZON_OPTIONS = [8, 12, 16, 24, 32]
+const AI_PROFILE_MODE_OPTIONS = [
+  { value: 'auto', label: 'Auto (Regime Router)' },
+  { value: 'mean_reversion_swing', label: 'Manual: Mean Reversion Swing' },
+  { value: 'momentum_breakout', label: 'Manual: Momentum Breakout' },
+  { value: 'defensive_rotation', label: 'Manual: Defensive Rotation' },
+]
 
 export default function SettingsPage({
   onLogout,
@@ -68,6 +75,7 @@ export default function SettingsPage({
   const [brokerFeatureFlags, setBrokerFeatureFlags] = useState({})
   const [brokerConnection, setBrokerConnection] = useState(null)
   const [connectingBroker, setConnectingBroker] = useState(false)
+  const [syncingAiProfileMode, setSyncingAiProfileMode] = useState(false)
 
   const [showApiKey, setShowApiKey] = useState(false)
   const profileSectionRef = useRef(null)
@@ -318,6 +326,26 @@ export default function SettingsPage({
     toast.success('New API key generated. Save changes to apply it.')
   }
 
+  const handleResetAIProfileToAuto = async () => {
+    setSyncingAiProfileMode(true)
+    try {
+      await apiService.resetAIProfileOverride()
+      setSettings((prev) => ({
+        ...prev,
+        aiManualStrategyProfile: 'auto',
+      }))
+      setInitialSettings((prev) => ({
+        ...prev,
+        aiManualStrategyProfile: 'auto',
+      }))
+      toast.success('AI profile mode reset ke Auto (regime router).')
+    } catch (error) {
+      toast.error(`Failed to reset AI profile mode: ${error.message}`)
+    } finally {
+      setSyncingAiProfileMode(false)
+    }
+  }
+
   const handleLogout = async () => {
     try {
       const res = await AuthService.logout()
@@ -351,6 +379,10 @@ export default function SettingsPage({
   const providerSupportsLive = Boolean(selectedProviderMetadata?.supportsLive)
   const providerLiveFeatureEnabled = Boolean(selectedProviderFlag?.liveEnabled)
   const providerIntegrationReady = selectedProviderFlag?.integrationReady ?? selectedProviderMetadata?.integrationReady
+  const activeAiProfileMode = String(settings.aiManualStrategyProfile || 'auto').toLowerCase()
+  const aiProfileModeLabel = activeAiProfileMode === 'auto'
+    ? 'Automatic (Regime Router)'
+    : `Manual (${activeAiProfileMode})`
 
   return (
     <div className="settings-page">
@@ -718,6 +750,45 @@ export default function SettingsPage({
       {/* AI Monitoring & Prediction Settings */}
       <div className="settings-section">
         <h2>🤖 AI Monitoring & Prediction</h2>
+
+        <div className="setting-item">
+          <div className="setting-label">
+            <span>AI Strategy Profile Mode</span>
+            <small>
+              Auto mengikuti regime router. Manual akan mengunci profile sampai diubah/reset.
+            </small>
+          </div>
+          <select
+            value={settings.aiManualStrategyProfile || 'auto'}
+            onChange={(e) => handleChange('aiManualStrategyProfile', e.target.value)}
+            className="setting-input"
+          >
+            {AI_PROFILE_MODE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="setting-item">
+          <div className="setting-label">
+            <span>Current AI Profile Source</span>
+            <small>Mode aktif saat ini: {aiProfileModeLabel}</small>
+          </div>
+          <div className="setting-inline-actions">
+            <span className={`settings-mode-pill ${activeAiProfileMode === 'auto' ? 'auto' : 'manual'}`}>
+              {activeAiProfileMode === 'auto' ? 'AUTO' : 'MANUAL'}
+            </span>
+            <button
+              className="btn-secondary"
+              onClick={handleResetAIProfileToAuto}
+              disabled={saving || syncingAiProfileMode || activeAiProfileMode === 'auto'}
+            >
+              {syncingAiProfileMode ? 'Resetting...' : 'Reset to Auto Now'}
+            </button>
+          </div>
+        </div>
 
         <div className="setting-item">
           <div className="setting-label">

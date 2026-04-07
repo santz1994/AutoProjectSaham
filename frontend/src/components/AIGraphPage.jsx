@@ -177,6 +177,7 @@ export default function AIGraphPage({ theme = 'dark' }) {
   const [projectionHorizon, setProjectionHorizon] = useState(16);
 
   const [projectionMeta, setProjectionMeta] = useState(null);
+  const [regimeSnapshot, setRegimeSnapshot] = useState(null);
   const [projectionData, setProjectionData] = useState([]);
   const [loadingProjection, setLoadingProjection] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -188,6 +189,21 @@ export default function AIGraphPage({ theme = 'dark' }) {
     const signal = String(projectionMeta?.signal || 'HOLD').toUpperCase();
     return SIGNAL_CLASS[signal] || 'neutral';
   }, [projectionMeta]);
+
+  const activeRegime = useMemo(
+    () => projectionMeta?.regime || regimeSnapshot || null,
+    [projectionMeta, regimeSnapshot]
+  );
+
+  const regimeLabel = useMemo(
+    () => String(activeRegime?.regime || 'UNKNOWN').toUpperCase(),
+    [activeRegime]
+  );
+
+  const regimeClassName = useMemo(
+    () => String(regimeLabel).toLowerCase(),
+    [regimeLabel]
+  );
 
   useEffect(() => {
     let active = true;
@@ -282,6 +298,26 @@ export default function AIGraphPage({ theme = 'dark' }) {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+
+    const loadRegimeSnapshot = async () => {
+      try {
+        const payload = await apiService.getAIRegimeStatus();
+        if (active && payload) {
+          setRegimeSnapshot(payload);
+        }
+      } catch (_) {
+        // Keep UI responsive even when regime endpoint is unavailable.
+      }
+    };
+
+    loadRegimeSnapshot();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const predictionWindowMs = useMemo(
     () => resolvePredictionWindowMs(selectedTimeframe),
     [selectedTimeframe]
@@ -353,6 +389,9 @@ export default function AIGraphPage({ theme = 'dark' }) {
         );
 
         setProjectionMeta(payload);
+        if (payload?.regime) {
+          setRegimeSnapshot(payload.regime);
+        }
         setProjectionData(mapProjectionSeries(payload));
           const nextRefreshAt = Date.now() + effectiveRefreshWindowMs;
         nextAutoRefreshAtRef.current = nextRefreshAt;
@@ -424,6 +463,9 @@ export default function AIGraphPage({ theme = 'dark' }) {
   const newsContext = Array.isArray(projectionMeta?.newsContext)
     ? projectionMeta.newsContext.slice(0, 3)
     : [];
+  const regimeConfidencePercent = Number(activeRegime?.confidence || 0) * 100;
+  const regimeAgent = String(activeRegime?.primaryAgent || 'scalper_agent');
+  const regimeProfile = String(activeRegime?.strategyProfile || 'mean_reversion_swing');
 
   return (
     <div className="ai-graph-page">
@@ -548,9 +590,14 @@ export default function AIGraphPage({ theme = 'dark' }) {
       <section className="ai-graph-card ai-graph-chart-wrap">
         <div className="ai-graph-chart-title-row">
           <h2>Live + Projection Overlay</h2>
-          <span className={`ai-signal-chip ${signalClassName}`}>
-            {projectionMeta?.signal || 'HOLD'}
-          </span>
+          <div className="ai-title-chip-group">
+            <span className={`ai-regime-chip ${regimeClassName}`}>
+              {`Regime ${regimeLabel}`}
+            </span>
+            <span className={`ai-signal-chip ${signalClassName}`}>
+              {projectionMeta?.signal || 'HOLD'}
+            </span>
+          </div>
         </div>
 
         <div className="ai-graph-legend">
@@ -626,6 +673,15 @@ export default function AIGraphPage({ theme = 'dark' }) {
               : '-'}
           </strong>
           <span>{`Projection horizon: ${projectionMeta?.horizon || projectionHorizon} step(s)`}</span>
+        </article>
+
+        <article className="ai-graph-card insight-card">
+          <h3>Regime Router</h3>
+          <strong>{regimeLabel}</strong>
+          <span>{`Agent: ${regimeAgent} | Profile: ${regimeProfile}`}</span>
+          <span>
+            {`Confidence ${Number.isFinite(regimeConfidencePercent) ? regimeConfidencePercent.toFixed(1) : '0.0'}%`}
+          </span>
         </article>
       </section>
 

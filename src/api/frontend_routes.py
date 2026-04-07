@@ -3,10 +3,12 @@ Additional API routes for AutoSaham frontend integration.
 Contains endpoints for portfolio, bot status, signals, strategies, trades, and market data.
 """
 
+import asyncio
 import csv
 import json
 import math
 import os
+from types import SimpleNamespace
 from threading import Lock
 from fastapi import APIRouter, HTTPException
 from typing import Optional, List, Dict, Any, Tuple
@@ -90,6 +92,7 @@ class AIProjectionResponse(BaseModel):
     targetPrice: float
     baseTime: int
     projection: List[AIProjectionPoint]
+    regime: Dict[str, Any] = {}
     rationale: List[str] = []
     newsContext: List[Dict[str, Any]] = []
 
@@ -188,6 +191,7 @@ class UserSettings(BaseModel):
     aiProjectionHorizon: int = 16
     aiPredictionLockEnabled: bool = True
     aiMonitorRefreshSeconds: int = 20
+    aiManualStrategyProfile: str = "auto"
 
 
 class BrokerProvider(BaseModel):
@@ -258,6 +262,7 @@ _default_user_settings: Dict[str, Any] = {
     "aiProjectionHorizon": 16,
     "aiPredictionLockEnabled": True,
     "aiMonitorRefreshSeconds": 20,
+    "aiManualStrategyProfile": "auto",
     "updatedAt": datetime.now().isoformat(),
 }
 
@@ -330,6 +335,8 @@ _default_regime_state: Dict[str, Any] = {
     "confidence": 0.0,
     "primaryAgent": "scalper_agent",
     "strategyProfile": "mean_reversion_swing",
+    "manualProfileOverride": False,
+    "profileSource": "regime_router",
     "riskMultiplier": 0.75,
     "trendReturn": 0.0,
     "volatility": 0.0,
@@ -337,6 +344,27 @@ _default_regime_state: Dict[str, Any] = {
     "symbols": [],
     "pricePoints": 0,
     "asOf": None,
+}
+
+_STRATEGY_PROFILE_BY_TYPE: Dict[str, str] = {
+    "momentum": "momentum_breakout",
+    "mean_reversion": "mean_reversion_swing",
+    "rotation": "defensive_rotation",
+}
+
+_PROFILE_ROUTE_PRESETS: Dict[str, Dict[str, Any]] = {
+    "momentum_breakout": {
+        "primaryAgent": "bull_agent",
+        "riskMultiplier": 1.0,
+    },
+    "mean_reversion_swing": {
+        "primaryAgent": "scalper_agent",
+        "riskMultiplier": 0.75,
+    },
+    "defensive_rotation": {
+        "primaryAgent": "bear_agent",
+        "riskMultiplier": 0.55,
+    },
 }
 
 _default_broker_feature_flags = [
@@ -409,6 +437,7 @@ _TIMEFRAME_SECONDS: Dict[str, int] = {
 }
 
 _projection_notification_state: Dict[Tuple[str, str], str] = {}
+_regime_notification_state: Dict[str, str] = {}
 
 _MARKET_NEWS_FALLBACK = [
     "BBCA.JK",
@@ -1224,6 +1253,59 @@ async def _emit_projection_notification(seed: Dict[str, Any], timeframe: str) ->
         return
 
 
+async def _emit_regime_transition_notification(
+    previous_regime: str,
+    current_regime: str,
+    regime_state: Dict[str, Any],
+) -> None:
+    try:
+        from src.notifications.notification_service import (
+            get_notification_manager,
+            Notification,
+            NotificationChannel,
+            AlertSeverity,
+            TradeSignalType,
+        )
+
+        manager = get_notification_manager()
+        if not manager.websocket_connections:
+            return
+
+        transition_key = f"{previous_regime}->{current_regime}:{regime_state.get('asOf')}"
+        if _regime_notification_state.get("major_transition") == transition_key:
+            return
+        _regime_notification_state["major_transition"] = transition_key
+
+        severity = AlertSeverity.WARNING if current_regime == "BEAR" else AlertSeverity.INFO
+        confidence = float(max(0.0, min(1.0, regime_state.get("confidence") or 0.0)))
+        agent_name = str(regime_state.get("primaryAgent") or "scalper_agent")
+
+        connected_users = list(manager.websocket_connections.keys())
+        for user_id in connected_users:
+            notification = Notification(
+                rule_id=f"regime-transition-{previous_regime.lower()}-{current_regime.lower()}",
+                user_id=user_id,
+                title=f"Major Regime Shift {previous_regime} -> {current_regime}",
+                body=(
+                    f"Regime router pindah ke {current_regime} dengan confidence "
+                    f"{confidence * 100:.1f}%. Active agent: {agent_name}."
+                ),
+                data={
+                    "from": previous_regime,
+                    "to": current_regime,
+                    "confidence": confidence,
+                    "primaryAgent": agent_name,
+                    "riskMultiplier": regime_state.get("riskMultiplier"),
+                },
+                signal_type=TradeSignalType.TREND_CHANGE,
+                severity=severity,
+                channels=[NotificationChannel.WEBSOCKET],
+            )
+            await manager.send_notification(notification, user_id=user_id)
+    except Exception:
+        return
+
+
 def _is_within_path(candidate_path: str, root_path: str) -> bool:
     try:
         candidate_abs = os.path.abspath(candidate_path)
@@ -1827,17 +1909,124 @@ def _extract_price_series_for_regime(
     return []
 
 
+def _normalize_strategy_profile_key(value: Any) -> Optional[str]:
+    parsed = str(value or "").strip().lower()
+    if not parsed:
+        return None
+
+    normalized = parsed.replace("-", "_").replace(" ", "_")
+    alias_map = {
+        "auto": None,
+        "automatic": None,
+        "none": None,
+        "regime_router": None,
+        "momentum": "momentum_breakout",
+        "mean_reversion": "mean_reversion_swing",
+        "mean_reversion_swing": "mean_reversion_swing",
+        "rotation": "defensive_rotation",
+        "defensive_rotation": "defensive_rotation",
+        "momentum_breakout": "momentum_breakout",
+    }
+    resolved = alias_map.get(normalized, normalized)
+    if resolved is None:
+        return None
+    if resolved not in _PROFILE_ROUTE_PRESETS:
+        return None
+    return str(resolved)
+
+
+def _resolve_manual_strategy_profile() -> Optional[str]:
+    try:
+        settings = _state_store.get_user_settings(_default_user_settings)
+    except Exception:
+        return None
+    return _normalize_strategy_profile_key(settings.get("aiManualStrategyProfile"))
+
+
+def _apply_strategy_profile_override_to_route(
+    route: Any,
+    manual_profile: Optional[str] = None,
+) -> Tuple[Any, Optional[str]]:
+    profile = _normalize_strategy_profile_key(manual_profile)
+    if profile is None:
+        profile = _resolve_manual_strategy_profile()
+
+    if profile is None:
+        return route, None
+
+    preset = _PROFILE_ROUTE_PRESETS.get(profile) or {}
+    return (
+        SimpleNamespace(
+            regime=str(getattr(route, "regime", "UNKNOWN")),
+            confidence=float(max(0.0, min(1.0, getattr(route, "confidence", 0.0)))),
+            primary_agent=str(preset.get("primaryAgent") or getattr(route, "primary_agent", "scalper_agent")),
+            strategy_profile=str(profile),
+            risk_multiplier=float(preset.get("riskMultiplier", getattr(route, "risk_multiplier", 0.75))),
+            trend_return=float(getattr(route, "trend_return", 0.0)),
+            volatility=float(max(0.0, getattr(route, "volatility", 0.0))),
+            up_move_ratio=float(max(0.0, min(1.0, getattr(route, "up_move_ratio", 0.5)))),
+        ),
+        profile,
+    )
+
+
+def _sync_regime_profile_override(manual_profile_value: Any) -> Dict[str, Any]:
+    active_profile = _normalize_strategy_profile_key(manual_profile_value)
+    current_regime = _state_store.get_regime_state(_default_regime_state)
+
+    if active_profile is None:
+        return _state_store.set_regime_state(
+            {
+                **current_regime,
+                "manualProfileOverride": False,
+                "profileSource": "regime_router",
+                "asOf": datetime.now().isoformat(),
+            }
+        )
+
+    profile_preset = _PROFILE_ROUTE_PRESETS.get(active_profile) or {}
+    return _state_store.set_regime_state(
+        {
+            **current_regime,
+            "strategyProfile": active_profile,
+            "primaryAgent": str(
+                profile_preset.get("primaryAgent")
+                or current_regime.get("primaryAgent")
+                or "scalper_agent"
+            ),
+            "riskMultiplier": float(
+                profile_preset.get("riskMultiplier", current_regime.get("riskMultiplier") or 0.75)
+            ),
+            "manualProfileOverride": True,
+            "profileSource": "manual_override",
+            "asOf": datetime.now().isoformat(),
+        }
+    )
+
+
 def _build_regime_state_payload(
     route: Any,
     symbols: Optional[List[str]],
     price_points: int,
+    manual_profile_override: Optional[str] = None,
 ) -> Dict[str, Any]:
+    active_manual_profile = _normalize_strategy_profile_key(manual_profile_override)
+    active_profile = str(getattr(route, "strategy_profile", "mean_reversion_swing"))
+    if active_manual_profile is not None:
+        active_profile = active_manual_profile
+
+    profile_preset = _PROFILE_ROUTE_PRESETS.get(active_profile) or {}
+    primary_agent = str(profile_preset.get("primaryAgent") or getattr(route, "primary_agent", "scalper_agent"))
+    risk_multiplier = float(profile_preset.get("riskMultiplier", getattr(route, "risk_multiplier", 0.75)))
+
     return {
         "regime": str(getattr(route, "regime", "UNKNOWN")),
         "confidence": float(max(0.0, min(1.0, getattr(route, "confidence", 0.0)))),
-        "primaryAgent": str(getattr(route, "primary_agent", "scalper_agent")),
-        "strategyProfile": str(getattr(route, "strategy_profile", "mean_reversion_swing")),
-        "riskMultiplier": float(getattr(route, "risk_multiplier", 0.75)),
+        "primaryAgent": primary_agent,
+        "strategyProfile": active_profile,
+        "manualProfileOverride": active_manual_profile is not None,
+        "profileSource": "manual_override" if active_manual_profile is not None else "regime_router",
+        "riskMultiplier": risk_multiplier,
         "trendReturn": float(getattr(route, "trend_return", 0.0)),
         "volatility": float(max(0.0, getattr(route, "volatility", 0.0))),
         "upMoveRatio": float(max(0.0, min(1.0, getattr(route, "up_move_ratio", 0.5)))),
@@ -1847,10 +2036,20 @@ def _build_regime_state_payload(
     }
 
 
-def _persist_regime_route(route: Any, symbols: Optional[List[str]], price_points: int) -> None:
+def _persist_regime_route(
+    route: Any,
+    symbols: Optional[List[str]],
+    price_points: int,
+    manual_profile_override: Optional[str] = None,
+) -> None:
     try:
         previous_state = _state_store.get_regime_state(_default_regime_state)
-        next_state = _build_regime_state_payload(route, symbols, price_points)
+        next_state = _build_regime_state_payload(
+            route,
+            symbols,
+            price_points,
+            manual_profile_override=manual_profile_override,
+        )
         saved_state = _state_store.set_regime_state(next_state)
 
         previous_regime = str(previous_state.get("regime") or "UNKNOWN").upper()
@@ -1860,17 +2059,36 @@ def _persist_regime_route(route: Any, symbols: Optional[List[str]], price_points
             and current_regime not in {"", "UNKNOWN"}
             and previous_regime != current_regime
         ):
+            is_major_transition = {previous_regime, current_regime} == {"BULL", "BEAR"}
             _state_store.append_ai_log(
-                level="info",
-                event_type="regime_transition",
-                message=f"Regime transition: {previous_regime} -> {current_regime}",
+                level="warning" if is_major_transition else "info",
+                event_type="regime_transition_major" if is_major_transition else "regime_transition",
+                message=(
+                    f"Major regime transition: {previous_regime} -> {current_regime}"
+                    if is_major_transition
+                    else f"Regime transition: {previous_regime} -> {current_regime}"
+                ),
                 payload={
                     "from": previous_regime,
                     "to": current_regime,
+                    "majorTransition": is_major_transition,
                     "confidence": saved_state.get("confidence"),
                     "primaryAgent": saved_state.get("primaryAgent"),
                 },
             )
+
+            if is_major_transition:
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(
+                        _emit_regime_transition_notification(
+                            previous_regime,
+                            current_regime,
+                            saved_state,
+                        )
+                    )
+                except Exception:
+                    pass
     except Exception:
         pass
 
@@ -1883,7 +2101,13 @@ def _resolve_regime_route(df: Any, symbols: Optional[List[str]]) -> Optional[Any
         if not price_series:
             return None
         route = classify_market_regime(price_series)
-        _persist_regime_route(route, symbols=symbols, price_points=len(price_series))
+        route, active_manual_profile = _apply_strategy_profile_override_to_route(route)
+        _persist_regime_route(
+            route,
+            symbols=symbols,
+            price_points=len(price_series),
+            manual_profile_override=active_manual_profile,
+        )
         return route
     except Exception:
         return None
@@ -2645,14 +2869,32 @@ async def deploy_strategy(strategy_id: int):
     if strategy is None:
         raise HTTPException(status_code=404, detail="Strategy not found")
 
+    active_profile = _normalize_strategy_profile_key(
+        _STRATEGY_PROFILE_BY_TYPE.get(str(strategy.type or "").strip().lower())
+    ) or "mean_reversion_swing"
+
+    current_settings = _state_store.get_user_settings(_default_user_settings)
+    _state_store.set_user_settings(
+        {
+            **current_settings,
+            "aiManualStrategyProfile": active_profile,
+        }
+    )
+
+    synced_regime = _sync_regime_profile_override(active_profile)
+
     _state_store.append_ai_log(
         level="info",
         event_type="strategy_deploy",
-        message=f"Strategy '{strategy.name}' deployed for live monitoring.",
+        message=(
+            f"Strategy '{strategy.name}' deployed and locked as AI profile '{active_profile}'."
+        ),
         payload={
             "strategyId": strategy.id,
             "strategyName": strategy.name,
             "strategyType": strategy.type,
+            "strategyProfile": active_profile,
+            "manualOverride": True,
         },
     )
 
@@ -2660,6 +2902,9 @@ async def deploy_strategy(strategy_id: int):
         "success": True,
         "status": "deployed",
         "strategy": strategy,
+        "activeProfile": active_profile,
+        "manualOverride": True,
+        "regime": synced_regime,
         "deployedAt": datetime.now().isoformat(),
     }
 
@@ -2763,11 +3008,31 @@ async def update_user_settings(payload: Dict[str, Any]):
         if key in allowed_keys
     }
 
+    if "aiManualStrategyProfile" in sanitized_payload:
+        sanitized_payload["aiManualStrategyProfile"] = (
+            _normalize_strategy_profile_key(sanitized_payload.get("aiManualStrategyProfile"))
+            or "auto"
+        )
+
     next_settings = {
         **current_settings,
         **sanitized_payload,
     }
     saved = _state_store.set_user_settings(next_settings)
+
+    if "aiManualStrategyProfile" in sanitized_payload:
+        synced_regime = _sync_regime_profile_override(saved.get("aiManualStrategyProfile"))
+        profile_mode = "manual" if synced_regime.get("manualProfileOverride") else "auto"
+        _state_store.append_ai_log(
+            level="info",
+            event_type="ai_profile_override",
+            message=f"AI profile mode updated to {profile_mode}.",
+            payload={
+                "mode": profile_mode,
+                "strategyProfile": synced_regime.get("strategyProfile"),
+                "profileSource": synced_regime.get("profileSource"),
+            },
+        )
 
     _state_store.append_ai_log(
         level="info",
@@ -2776,6 +3041,38 @@ async def update_user_settings(payload: Dict[str, Any]):
         payload={"theme": saved.get("theme"), "riskLevel": saved.get("riskLevel")},
     )
     return saved
+
+
+@router.post("/ai/profile/reset")
+async def reset_ai_profile_override():
+    """Reset AI strategy profile mode back to automatic regime routing."""
+    current_settings = _state_store.get_user_settings(_default_user_settings)
+    saved_settings = _state_store.set_user_settings(
+        {
+            **current_settings,
+            "aiManualStrategyProfile": "auto",
+        }
+    )
+    synced_regime = _sync_regime_profile_override("auto")
+
+    _state_store.append_ai_log(
+        level="info",
+        event_type="ai_profile_reset",
+        message="AI profile override reset to automatic regime router.",
+        payload={
+            "mode": "auto",
+            "strategyProfile": synced_regime.get("strategyProfile"),
+            "profileSource": synced_regime.get("profileSource"),
+        },
+    )
+
+    return {
+        "success": True,
+        "mode": "auto",
+        "settings": saved_settings,
+        "regime": synced_regime,
+        "updatedAt": datetime.now().isoformat(),
+    }
 
 
 @router.get("/brokers/available", response_model=List[BrokerProvider])
@@ -3167,6 +3464,8 @@ async def get_ai_projection(
         timeframe=normalized_timeframe,
     )
 
+    regime_state = _state_store.get_regime_state(_default_regime_state)
+
     return AIProjectionResponse(
         symbol=normalized_symbol,
         timeframe=normalized_timeframe,
@@ -3185,6 +3484,7 @@ async def get_ai_projection(
         targetPrice=target_price,
         baseTime=anchor_time,
         projection=projection,
+        regime=regime_state,
         rationale=rationale,
         newsContext=news_context,
     )
