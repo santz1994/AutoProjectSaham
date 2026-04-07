@@ -1,576 +1,362 @@
-# 📈 AutoSaham - Autonomous Trading Toolkit for Indonesia Stock Exchange (IDX)
+# AutoSaham
 
-## 📝 Deskripsi Proyek
+AutoSaham adalah platform trading automation dan AI monitoring untuk workflow market Indonesia (WIB-centric), dengan frontend React + Vite dan backend FastAPI.
 
-**AutoSaham** adalah toolkit perdagangan otomatis dan pembelajaran mesin yang dirancang khusus untuk **Bursa Efek Indonesia (BEI) / Indonesia Stock Exchange (IDX)**. Platform ini mengintegrasikan pemrosesan data real-time, rekayasa fitur canggih, pelatihan model ML (supervised + reinforcement learning), dan eksekusi perdagangan yang aman dengan kepatuhan penuh terhadap regulasi IDX.
+README ini sudah disesuaikan dengan kondisi kode saat ini: fitur frontend, kemampuan backend, daftar endpoint aktif, cara menjalankan, validasi, dan rencana next updates.
 
-**Fokus Utama:**
-- 🇮🇩 **Indonesia-First**: Timezone Jakarta (WIB: UTC+7), mata uang IDR, simbol IDX (*.JK), aturan BEI (jam trading 09:30-16:00 WIB)
-- 🤖 **Machine Learning**: Ensemble models, online learning, meta-learning, anomaly detection, RL trading agents
-- 📊 **Real-Time Data**: Integrasi resmi BEI API (RTI), WebSocket streaming, penghitungan OHLCV real-time
-- 📈 **Production-Ready**: CI/CD otomatis, monitoring Prometheus+Grafana, load testing, broker integration
-- 🎨 **Modern UI/UX**: TradingView charts, dashboard explainability, responsive design, PWA support
-- 🔒 **Safe Execution**: Validasi order IDX, manajemen risiko, tracking settlement T+2, logging komprehensif
+## Status Saat Ini
 
----
+- Progress proyek: 20/20 task selesai (mengacu ke PROGRESS.md)
+- Frontend: React 18 + Vite + lightweight-charts
+- Backend: FastAPI + pipeline data/ML + WebSocket realtime
+- Timezone utama: Asia/Jakarta (WIB, UTC+7)
+- Market scope di UI AI Graph: Stocks (IDX), Forex, Crypto, Global Index
 
-## ⭐ Fitur Utama
+## Arsitektur Singkat
 
-### Phase 1: Foundation (✅ COMPLETE)
-- ✅ Triple-barrier labeling untuk kualitas label yang lebih baik
-- ✅ News sentiment integration (VADER + FinBERT)
-- ✅ Market microstructure features
-- ✅ Interactive setup wizard untuk kemudahan onboarding
-- ✅ Production-grade error handling & logging
-- ✅ Model ensemble (stacking) untuk robustness
+```text
+frontend/ (React + Vite)
+  -> konsumsi REST + WebSocket
+  -> UI pages: Dashboard, Market, Strategies, Trades, AI Monitor, AI Graph, Profile, Settings
 
-### Phase 2: Advanced ML (✅ COMPLETE)
-- ✅ Online learning pipeline dengan drift detection
-- ✅ Meta-learning untuk adaptasi symbol baru
-- ✅ Anomaly detection (Isolation Forest + Autoencoder)
-- ✅ HMM-based market regime detection
-- ✅ RL policy training (PPO + SAC) dengan multi-symbol environment
+src/api/server.py (FastAPI app)
+  -> auth, system, charts, training, scheduler, metrics
+  -> include router: src/api/frontend_routes.py (prefix /api)
+  -> include router: src/notifications/api_routes.py (prefix /api/notifications)
 
-### Phase 3: Production Ready (✅ COMPLETE)
-- ✅ Official IDX API integration (BEI RTI WebSocket)
-- ✅ Real broker integration (Stockbit, Ajaib, Indo Premier)
-- ✅ Monitoring & alerting (Prometheus + Grafana + Slack)
-- ✅ GitHub Actions CI/CD pipeline with Docker
-- ✅ Load testing & performance optimization (Locust + pytest-benchmark)
+src/notifications/
+  -> manajemen rule + preference + history + websocket notif
 
-### Phase 4: UI/UX Enhancement (🚀 IN PROGRESS - 4/5)
-- ✅ TradingView charts (lightweight-charts, real-time WebSocket, 8 timeframes)
-- ✅ Model explainability dashboard (SHAP TreeExplainer, feature importance, prediction explanation)
-- ✅ Mobile-responsive design (PWA, Service Worker, offline support) - TASK 18 ✅
-- ✅ Real-time notification system (WebSocket, Slack/email alerts) - TASK 19
-- ⏳ Accessibility compliance (WCAG AA+, keyboard navigation) - TASK 20
-
-### 🌟 Key Capabilities
-```
-Data Processing:
-  • Real-time OHLCV aggregation dari ticks IDX
-  • News sentiment analysis (multi-source)
-  • Microstructure features (VWAP, order imbalance)
-  • Feature caching & optimization
-
-Machine Learning:
-  • Ensemble models (LightGBM, XGBoost, Random Forest)
-  • Online learning dengan concept drift detection
-  • Meta-learning untuk new symbols (few-shot)
-  • Anomaly detection dalam trading volume & price
-  • HMM regime detection (bull/bear/sideways)
-
-Reinforcement Learning:
-  • PPO & SAC agents untuk trading
-  • Multi-symbol environment
-  • Risk-aware reward shaping
-  • Sharpe ratio optimization
-
-Execution & Risk:
-  • IDX order validation (lot size, price limits, hours)
-  • Multi-broker integration (Stockbit, Ajaib, Indo Premier)
-  • Position sizing berdasarkan anomaly/regime
-  • T+2 settlement tracking
-  • Commission & slippage modeling
-
-Monitoring:
-  • 23+ Prometheus alert rules
-  • Grafana dashboards (Trading, Broker, Strategy)
-  • Slack notifications dengan color coding
-  • Performance tracking (latency, accuracy, P&L)
-
-UI/UX:
-  • Professional TradingView charts (8 timeframes)
-  • SHAP-based explainability dashboard
-  • Progressive Web App (PWA) capabilities
-    ✓ Install-to-home-screen on iOS/Android/Desktop
-    ✓ Offline-first with 4 intelligent caching strategies
-    ✓ Background sync for pending trades
-    ✓ Push notifications for trading alerts
-    ✓ 6 responsive breakpoints (320px-4K)
-    ✓ Touch-optimized interface
-    ✓ Safe area support for notched devices
-  • Service Worker for offline functionality
-  • Real-time metrics & alerts
-  • Responsive design (320px to 4K)
-  • Dark/light theme support
+src/ml, src/pipeline, src/data
+  -> fitur ML, scoring/projection, ETL/market ingestion
 ```
 
----
+## Kemampuan Aplikasi (Frontend)
 
-## 📋 Prasyarat (Prerequisites)
+### Halaman dan fitur utama
 
-### System Requirements
-- **OS**: Windows, macOS, atau Linux
-- **Python**: 3.10 atau lebih baru
-- **Node.js**: 16+ (untuk frontend React)
-- **Git**: Untuk version control
+| Halaman | Kemampuan |
+|---|---|
+| Dashboard | Portfolio summary, refresh portfolio, bot status, kill switch state, portfolio health, top AI signals, recent activity |
+| Market Intelligence | Realtime candlestick chart, symbol switch, timeframe switch, sentiment summary, sector heatmap, top movers, export report |
+| Strategies | Daftar strategi, deploy strategy, trigger backtest, rule display, metrik performa |
+| Trade Logs | Filter/sort trades, summary analytics, export CSV, trigger report performa |
+| AI Monitor | AI overview (model/dataset/pipeline), AI activity logs, auto refresh, manual checkpoint log |
+| AI Graph | Live chart + projection overlay, market switch (stocks/forex/crypto/index/all), prediction style preset (Scalping/Daily Trader/Trader), prediction lock ON/OFF, rationale + news context |
+| Profile | Edit profil, risk profile, daily report schedule, 2FA toggle UI, broker connection summary |
+| Settings | Theme preference, notification toggles, risk settings, preferred universe, broker connect/disconnect, broker feature flags |
+| Auth | Login, Register, Forgot Password, Logout via secure cookie flow |
 
-### Software Dependencies
+### Fitur lintas halaman
+
+- Navbar enhanced:
+  - Search shortcut (Ctrl+K)
+  - Notification bell dengan history + unread count + mark-read + mark-all-read
+  - Realtime notification WebSocket (/api/notifications/ws/{user_id})
+  - Emergency kill switch UI
+- Sidebar enhanced:
+  - Navigasi cepat (Ctrl+1..8), toggle sidebar (Ctrl+B), shortcut modal (Ctrl+/)
+- Toast feedback + loading skeleton + error boundary
+- Responsive system:
+  - Breakpoint + device detection + safe area inset
+  - Mobile/tablet/desktop adaptive layout
+- PWA support:
+  - Manifest + service worker + install prompt + offline fallback
+  - Catatan: service worker default nonaktif di localhost dev untuk menghindari cache stale
+
+## Kemampuan Backend
+
+### Ringkasan kemampuan
+
+- Auth berbasis httpOnly cookie (/auth/*)
+- API domain trading/frontend (/api/*) via frontend_routes
+- API notifikasi realtime (/api/notifications/*)
+- Chart REST + WebSocket realtime (/api/charts/*, /ws/charts/{symbol})
+- ETL trigger + scheduler + training artifact endpoint
+- Monitoring metrics endpoint untuk Prometheus
+- Persistent encrypted app state (SQLite + encryption) untuk settings/connection/feature flags/AI logs
+
+### Kondisi data saat ini (hybrid)
+
+Backend saat ini menggabungkan beberapa sumber:
+
+- Real/hampir real:
+  - Chart candles/metadata/trading status
+  - Market universe multi-market
+  - AI projection (dengan blending model + market momentum + sentiment)
+  - News context untuk projection
+- Demo/fallback untuk sebagian endpoint UI:
+  - Sebagian data portfolio, bot status, sectors, trades, report masih berbasis mock/fallback
+
+Ini sengaja menjaga UX tetap stabil saat data provider atau integrasi broker tertentu belum aktif penuh.
+
+## Endpoint Aktif
+
+### Core server (src/api/server.py)
+
+#### System and ops
+
+- GET /health
+- POST /run_etl
+- GET /metrics
+- GET /etl_runs
+- POST /alert
+- POST /scheduler/start
+- POST /scheduler/stop
+
+#### Auth
+
+- POST /auth/register
+- POST /auth/login
+- GET /auth/me
+- POST /auth/logout
+- POST /auth/forgot-password
+
+#### Training and diagnostics
+
+- GET /api/training
+- POST /api/training/trigger
+- GET /api/portfolio/reconcile
+
+#### Charts and realtime
+
+- GET /api/charts/metadata/{symbol}
+- GET /api/charts/candles/{symbol}
+- GET /api/charts/timeframes
+- GET /api/charts/trading-status
+- WS /ws/charts/{symbol}
+- WS /ws/events
+
+### Frontend domain API (src/api/frontend_routes.py, prefix /api)
+
+- Portfolio and bot:
+  - GET /api/portfolio
+  - POST /api/portfolio/refresh
+  - GET /api/bot/status
+  - POST /api/bot/start
+  - POST /api/bot/stop
+  - POST /api/bot/pause
+- Signal and market:
+  - GET /api/signals
+  - GET /api/market/sentiment
+  - GET /api/market/universe
+  - GET /api/market/sectors
+  - GET /api/market/movers
+  - GET /api/market/news
+- Strategy and trades:
+  - GET /api/strategies
+  - POST /api/strategies/{strategy_id}/deploy
+  - POST /api/strategies/{strategy_id}/backtest
+  - GET /api/trades
+  - GET /api/activity
+  - GET /api/reports/performance
+- User settings and broker:
+  - GET /api/user/settings
+  - PUT /api/user/settings
+  - GET /api/brokers/available
+  - GET /api/brokers/feature-flags
+  - PUT /api/brokers/feature-flags/{provider_id}
+  - GET /api/broker/connection
+  - POST /api/broker/connect
+  - POST /api/broker/disconnect
+- AI:
+  - GET /api/ai/projection/{symbol}
+  - GET /api/ai/overview
+  - GET /api/ai/logs
+  - POST /api/ai/logs
+
+### Notification API (src/notifications/api_routes.py, prefix /api/notifications)
+
+- Rules:
+  - POST /api/notifications/rules
+  - GET /api/notifications/rules
+  - GET /api/notifications/rules/{rule_id}
+  - PUT /api/notifications/rules/{rule_id}
+  - DELETE /api/notifications/rules/{rule_id}
+- Preferences:
+  - POST /api/notifications/preferences
+  - GET /api/notifications/preferences/{user_id}
+  - PUT /api/notifications/preferences/{user_id}
+  - PUT /api/notifications/preferences/{user_id}/channels
+  - POST /api/notifications/preferences/{user_id}/quiet-hours
+- Retrieval and stats:
+  - GET /api/notifications/history/{user_id}
+  - GET /api/notifications/unread/{user_id}
+  - POST /api/notifications/mark-read/{notification_id}
+  - GET /api/notifications/stats
+  - GET /api/notifications/bei-status
+  - GET /api/notifications/health
+- Realtime:
+  - WS /api/notifications/ws/{user_id}
+
+## AI Projection: Arti Field source
+
+Pada endpoint GET /api/ai/projection/{symbol}, field source menunjukkan asal sinyal utama:
+
+- transformer: sinyal utama dari model transformer
+- market_realtime: fallback ke momentum market realtime
+- transformer+market: hasil transformer distabilkan oleh data market realtime
+- fallback: fallback non-model saat sinyal model belum memadai
+
+Di UI AI Graph, ini tampil pada kartu confidence agar user tahu asal sinyal yang sedang dipakai.
+
+## Teknologi Utama
+
+### Frontend
+
+- React 18
+- Vite 5
+- lightweight-charts
+- Zustand
+- Vitest + Testing Library
+
+### Backend and ML
+
+- Python 3.10+
+- FastAPI + Uvicorn
+- pandas, numpy, scikit-learn
+- lightgbm, xgboost, transformers, torch
+- stable-baselines3 (RL)
+- APScheduler, aiohttp, httpx
+
+## Menjalankan Aplikasi
+
+### 1) Persiapan
+
 ```bash
-# Core ML & Data Processing
-python -m pip install pandas numpy scikit-learn
-python -m pip install lightgbm xgboost catboost
-python -m pip install torch transformers vaderSentiment
-python -m pip install shap optuna river
-
-# Reinforcement Learning
-python -m pip install stable-baselines3 gymnasium
-
-# API & Web Framework
-python -m pip install fastapi uvicorn pydantic
-python -m pip install websockets aiohttp
-
-# Monitoring & Logging
-python -m pip install prometheus-client structlog
-
-# Testing & Quality
-python -m pip install pytest pytest-cov pytest-asyncio pytest-benchmark
-python -m pip install black isort flake8 mypy bandit
-
-# Frontend
-npm install react react-dom vite lightweight-charts axios
-npm install -D tailwindcss postcss autoprefixer
-
-# Optional: Docker & Compose
-docker --version
-docker-compose --version
-```
-
-### External APIs & Keys (Optional)
-```
-# BEI Official API
-- BEI RTI account & credentials
-
-# Broker APIs
-- Stockbit: API key
-- Ajaib: API credentials  
-- Indo Premier: Session credentials
-
-# News & Sentiment
-- NewsAPI: API key
-- Financial data providers if using alternative sources
-```
-
----
-
-## ⚙️ Cara Instalasi (Installation)
-
-### 1. Clone Repository
-```bash
-git clone https://github.com/santz1994/AutoProjectSaham.git
-cd AutoProjectSaham
-```
-
-### 2. Setup Python Environment (Recommended: venv)
-```bash
-# Windows
-python -m venv venv
-venv\Scripts\activate
-
-# macOS/Linux
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### 3. Install Python Dependencies
-```bash
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
-```
 
-### 4. Setup Frontend (React)
-```bash
 cd frontend
 npm install
-npm run build  # Production build
-# atau untuk development: npm run dev
+cd ..
 ```
 
-### 5. Configure Environment Variables
+### 2) Development mode (direkomendasikan)
+
+Terminal 1 (backend):
+
 ```bash
-# Copy template
-cp .env.example .env
-
-# Edit .env dengan credentials Anda:
-# BEI_API_KEY=your_key
-# STOCKBIT_API_KEY=your_key
-# AJAIB_API_KEY=your_key
-# NEWS_API_KEY=your_key
-# SLACK_WEBHOOK_URL=your_webhook
+python -m uvicorn src.api.server:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-### 6. Initialize Database (jika diperlukan)
+Terminal 2 (frontend):
+
 ```bash
-python scripts/init_database.py
+cd frontend
+npm run dev
 ```
 
-### 7. Run Tests untuk Verifikasi
+Akses:
+
+- Frontend: http://localhost:5173
+- Backend: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+### 3) One-command full stack
+
+- PowerShell: ./RUN_FULLSTACK.ps1
+- CMD: RUN_FULLSTACK.bat
+- Python: python run_fullstack.py
+
+### 4) Backend only via runner
+
 ```bash
-pytest tests/ -v --cov=src
+python -m src.main --api
 ```
 
----
+## Validasi dan Testing
 
-## 💻 Cara Penggunaan (Usage)
+### Quick regression backend API
 
-### Quick Start - Main CLI
 ```bash
-# Dengan mode demo (tidak memerlukan API keys)
-python -m src.main --demo
-
-# Dengan data real (memerlukan credentials)
-python -m src.main --symbols BBCA.JK,BMRI.JK,TLKM.JK
+./scripts/quick_regression.ps1
+./scripts/quick_regression.ps1 -SkipMutatingActions
 ```
 
-### Windows GUI (Tkinter)
+### Frontend validation
+
 ```bash
-# Buka control panel untuk menjalankan tasks secara visual
-python -m src.ui.windows_app
+cd frontend
+npm run build
+npm run test
+npm run type-check
 ```
 
-### Run Scripts
+### Backend tests
+
 ```bash
-# Generate demo price data
-python bin/runner.py scripts/generate_demo_prices.py -- --symbols BBCA.JK TLKM.JK --n 300
-
-# Test execution manager
-python bin/runner.py scripts/test_execution_manager.py
-
-# Train model
-python bin/runner.py scripts/train_model.py -- --limit 3
-
-# Run backtester
-python bin/runner.py scripts/test_backtester.py
-
-# Start metrics server (Prometheus)
-python bin/runner.py scripts/start_metrics_server.py
+python -m pytest tests/ -q
+python -m pytest tests/test_notifications.py -q
 ```
 
-### Python API Usage
-```python
-from src.pipeline.runner import AutonomousPipeline
-from src.ml.ensemble import EnsembleModel
-from src.execution.execution_manager import ExecutionManager
+## Konfigurasi Environment
 
-# 1. Run autonomous pipeline
-runner = AutonomousPipeline()
-result = runner.run(
-    symbols=['BBCA.JK', 'BMRI.JK'],
-    fetch_prices=True,
-    news_api_key='your_key'
-)
+Salin .env.example menjadi .env, lalu isi sesuai kebutuhan.
 
-# 2. Get ensemble predictions
-model = EnsembleModel()
-model.load('models/ensemble_model.pkl')
-predictions = model.predict(features_df)
+Variabel penting:
 
-# 3. Execute trades safely
-executor = ExecutionManager(broker='stockbit')
-order = executor.place_order(
-    symbol='BBCA.JK',
-    side='BUY',
-    quantity=100,
-    order_type='LIMIT',
-    price=15500
-)
-```
+- Runtime: MARKET_SYMBOLS, TICKS_DB_PATH, MODELS_DIR, ML_TRAIN_INTERVAL
+- Market/news: NEWSAPI_KEY, ALPHAVANTAGE_API_KEY
+- Broker: BROKER_API_KEY, BROKER_API_SECRET
+- Notifications: SLACK_WEBHOOK_URL, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
 
-### Start Development Server (Frontend + Backend)
+## Docker and Observability
+
+docker-compose.yml sudah menyiapkan stack:
+
+- API (FastAPI)
+- Redis
+- PostgreSQL
+- Kong API Gateway
+- Prometheus
+- Alertmanager
+- Grafana
+- Node Exporter
+
+Jalankan:
+
 ```bash
-# Terminal 1: Start FastAPI backend
-python -m src.api.server
-
-# Terminal 2: Start React development server
-cd frontend && npm run dev
-
-# Access:
-# - Frontend: http://localhost:5173
-# - API: http://localhost:8000
-# - API Docs: http://localhost:8000/docs
-```
-
-### Docker Deployment
-```bash
-# Build & run dengan Docker Compose
 docker-compose up -d
-
-# Access services:
-# - API: http://localhost:8000
-# - Grafana: http://localhost:3000 (admin/password)
-# - Prometheus: http://localhost:9090
-# - AlertManager: http://localhost:9093
 ```
 
-### Load Testing
-```bash
-# Start API server first
-python -m src.api.server &
+## Struktur Folder Penting
 
-# Run Locust interactive UI
-locust -f tests/load_tests/locustfile.py --host=http://localhost:8000
-
-# Or headless testing
-locust -f tests/load_tests/locustfile.py --host=http://localhost:8000 \
-  --users=100 --spawn-rate=10 --run-time=5m --headless
+```text
+src/
+  api/             # FastAPI app, auth, routes, secure state store
+  notifications/   # Notification manager, delivery handlers, notification API
+  data/            # Data fetcher and market adapters
+  ml/              # ML models, features, evaluators
+  pipeline/        # ETL runner and scheduler
+frontend/
+  src/components/  # Pages and UI components
+  src/hooks/       # useResponsive, usePWA, market feed
+  src/utils/       # authService, apiService
+scripts/           # utility and validation scripts
+tests/             # backend test suite
+monitoring/        # Prometheus and alert configuration
 ```
 
-### TradingView Charts API
-```bash
-# Get chart metadata
-curl http://localhost:8000/api/charts/metadata/BBCA.JK
+## Catatan Penting
 
-# Get OHLCV candles
-curl "http://localhost:8000/api/charts/candles/BBCA.JK?timeframe=1d&limit=100"
+- Saat ini backend tidak melakukan static mount frontend ke path /ui.
+  Untuk akses UI, jalankan Vite dev server (localhost:5173) atau host build frontend secara terpisah.
+- Notification channel WebSocket berjalan realtime. Beberapa channel lain (email/push) masih pada level handler/queue/logging dan dapat diperluas sesuai kebutuhan produksi.
 
-# Trading status
-curl http://localhost:8000/api/charts/trading-status
+## Next Updates
 
-# WebSocket real-time updates
-ws://localhost:8000/ws/charts/BBCA.JK
-```
+Prioritas update berikutnya yang direkomendasikan:
 
-### Model Explainability API
-```bash
-# Top features
-curl http://localhost:8000/api/explainability/features?limit=20
+1. Integrasi static frontend serving yang konsisten dari backend (opsional path /ui) agar command docs dan runtime benar-benar satu alur.
+2. E2E test automation untuk flow kritikal (auth, strategies deploy/backtest, AI Graph controls, notifications).
+3. Hardening eksekusi broker live (audit trail order, guardrail risiko tambahan, dan rollout feature flag per provider).
+4. Persistensi notifikasi ke database + dashboard delivery status per channel.
+5. Rate limiting dan abuse protection khusus endpoint auth dan websocket handshake.
+6. Penguatan observability: SLO/SLI dashboard, alert tuning berbasis error budget.
+7. Packaging release yang lebih rapih (versioning, changelog, dan release notes otomatis).
 
-# Explain prediction
-curl -X POST http://localhost:8000/api/explainability/explain \
-  -H "Content-Type: application/json" \
-  -d '{
-    "features": {"BBCA_volume": 15000000, "sentiment": 0.7},
-    "top_features": 10
-  }'
+## Lisensi
 
-# Feature analysis
-curl http://localhost:8000/api/explainability/feature/market_sentiment
-
-# Model metrics
-curl http://localhost:8000/api/explainability/metrics
-```
-
-### React Component Usage Examples
-```jsx
-// TradingView Chart
-import ChartComponent from './components/ChartComponent';
-export default function Dashboard() {
-  return <ChartComponent symbol="BBCA.JK" timeframe="1d" theme="dark" />;
-}
-
-// Model Explainability Dashboard
-import ExplainabilityDashboard from './components/ExplainabilityDashboard';
-export default function Analytics() {
-  return <ExplainabilityDashboard theme="dark" autoRefresh={true} />;
-}
-```
-
----
-
-## 📦 Project Structure
-
-```
-AutoProjectSaham/
-├── bin/                      # Executable runners
-│   └── runner.py            # Python script runner
-├── src/                      # Source code
-│   ├── api/                 # API routes & services
-│   │   ├── chart_service.py            # TradingView charts
-│   │   ├── chart_routes.py
-│   │   ├── explainability_service.py   # SHAP integration
-│   │   ├── explainability_routes.py
-│   │   └── ... (server, auth, error_handler)
-│   ├── ml/                  # Machine learning
-│   │   ├── barriers.py           # Triple-barrier labeling
-│   │   ├── sentiment_features.py # News sentiment
-│   │   ├── microstructure.py     # Market features
-│   │   ├── ensemble.py           # Model ensemble
-│   │   ├── online_learner.py     # Online learning
-│   │   ├── meta_learning.py      # Meta-learning
-│   │   ├── anomaly_detector.py   # Anomaly detection
-│   │   └── regime_detector.py    # Market regime
-│   ├── rl/                  # Reinforcement learning
-│   │   ├── policy_trainer.py     # PPO/SAC training
-│   │   ├── agent_integration.py  # RL agent wrapper
-│   │   └── ... (environments, rewards)
-│   ├── execution/           # Trade execution & validation
-│   │   ├── execution_manager.py  # Order execution
-│   │   ├── idx_order_validator.py
-│   │   └── ... (validators, settlement)
-│   ├── brokers/             # Broker integrations
-│   │   ├── stockbit.py      # Stockbit adapter
-│   │   ├── ajaib.py         # Ajaib adapter
-│   │   ├── indo_premier.py  # Indo Premier adapter
-│   │   └── ... (base, manager)
-│   ├── data/                # Data connectors & IDX API
-│   │   ├── idx_api_client.py        # BEI RTI client
-│   │   ├── idx_market_data.py       # Market data mgr
-│   │   └── ... (yahoo, news, connectors)
-│   ├── pipeline/            # ETL & data pipeline
-│   │   ├── runner.py               # Main ETL runner
-│   │   ├── idx_realtime_fetcher.py # Streaming fetcher
-│   │   └── ... (scheduler, persistence)
-│   ├── monitoring/          # Metrics & observability
-│   │   └── metrics.py              # Prometheus metrics
-│   └── utils/               # Utilities
-│       └── ... (datetime, validation, performance)
-├── frontend/                # React UI
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── ChartComponent.jsx
-│   │   │   ├── ExplainabilityDashboard.jsx
-│   │   │   └── ... (other components)
-│   │   ├── hooks/
-│   │   │   ├── useChartData.js
-│   │   │   └── ... (other custom hooks)
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── package.json
-│   └── vite.config.js
-├── tests/                   # Test suite
-│   ├── test_*.py           # Unit tests
-│   ├── integration/        # Integration tests
-│   ├── load_tests/         # Locust load tests
-│   └── ... (35+ test modules)
-├── scripts/                # Utility scripts
-│   ├── generate_demo_prices.py
-│   ├── train_model.py
-│   ├── train_rl.py
-│   └── ... (10+ scripts)
-├── docs/                   # Documentation
-│   ├── PHASE1_COMPLETION_REPORT.md
-│   ├── INTEGRATION_TEST_FIX.md
-│   └── ... (architecture docs)
-├── data/                   # Data files
-│   ├── dataset/
-│   ├── features/
-│   └── prices/
-├── models/                 # Trained models
-│   ├── model.joblib
-│   ├── ensemble_test.joblib
-│   └── rl_ppo_config.json
-├── logs/                   # Log files (gitignored)
-├── requirements.txt        # Python dependencies
-├── package.json           # Python project metadata
-├── Dockerfile             # Docker configuration
-├── docker-compose.yml     # Multi-container setup
-├── .gitignore            # Git ignore patterns
-├── .env.example          # Environment template
-├── PROGRESS.md           # Development progress tracker
-├── README.md             # This file
-└── LICENSE               # MIT License
-```
-
----
-
-## 🤝 Kontribusi (Contributing)
-
-### Guidelines untuk Contributors
-
-1. **Sebelum commit:**
-   ```bash
-   # Run tests
-   pytest tests/ -v
-   
-   # Check code style
-   black src/ tests/
-   isort src/ tests/
-   flake8 src/
-   mypy src/
-   
-   # Security check
-   bandit -r src/
-   ```
-
-2. **Commit messages:**
-   - Format: `[PHASE#TASK#] Short description`
-   - Contoh: `[P4T18] Add PWA Service Worker`
-
-3. **Pull request process:**
-   - Create branch: `git checkout -b feature/task-description`
-   - Make changes
-   - Add tests untuk new features
-   - Update PROGRESS.md
-   - Submit PR dengan deskripsi lengkap
-
-4. **Code standards:**
-   - Type hints on all functions
-   - NumPy-style docstrings
-   - >80% test coverage untuk critical paths
-   - Jakarta timezone awareness untuk time-related code
-   - IDX compliance checks dalam order validation
-
-### Development Workflow
-```bash
-# 1. Update task dalam PROGRESS.md
-# 2. Create feature branch
-git checkout -b p4t18-pwa-responsive
-
-# 3. Implement changes
-# 4. Add/update tests
-pytest tests/ -v
-
-# 5. Commit dengan format yang benar
-git commit -m "[P4T18] Add PWA Service Worker & offline support"
-
-# 6. Push dan create PR
-git push origin p4t18-pwa-responsive
-```
-
----
-
-## 📄 Lisensi (License)
-
-**AutoSaham** adalah open-source software berlisensi **MIT License**.
-
-```
-MIT License
-
-Copyright (c) 2026 AutoSaham Contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software...
-
-[Full license text in LICENSE file]
-```
-
----
-
-## 📞 Kontak (Contact)
-
-**Developer:** Daniel Rizaldy  
-**Email:** danielrizaldy@gmail.com  
-**Phone:** +6281287412570  
-**GitHub:** [@santz1994](https://github.com/santz1994)
-
-### Informasi Proyek
-- **Repository**: [AutoProjectSaham](https://github.com/santz1994/AutoProjectSaham)
-- **Status**: 🚀 Phase 4 UI/UX Enhancement (95% complete - 19/20 tasks)
-- **Last Updated**: 2026-04-01 UTC+7 (JAKARTA TIME)
-
-### Support & Feedback
-- 🐛 **Issues & Bugs**: [GitHub Issues](https://github.com/santz1994/AutoProjectSaham/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/santz1994/AutoProjectSaham/discussions)
-- 📧 **Email**: danielrizaldy@gmail.com
-
----
-
-## 🎯 Current Phase - Phase 4 UI/UX Enhancement
-
-**Progress:** 4/5 (80%) - 95% Overall Project Complete! 🎉
-
-### Completed
-- ✅ **Task 16:** TradingView Charts (1,150+ lines) - Real-time OHLCV, 8 timeframes, WebSocket
-- ✅ **Task 17:** Model Explainability Dashboard (1,884+ lines) - SHAP, feature importance, predictions  
-- ✅ **Task 18:** Mobile-Responsive Design & PWA (3,850+ lines) - Service Worker, offline support, 6 responsive breakpoints (320px-4K)
-- ✅ **Task 19:** Real-time Notification System (3,700+ lines) - WebSocket, Email, Slack, Push, SMS, In-App alerts; Multi-channel delivery; Jakarta TZ (BEI 09:30-16:00 WIB)
-
-### In Progress
-- ⏳ **Task 20:** Accessibility Compliance - WCAG AAA, keyboard navigation, screen reader support
-
----
-
-**Made with ❤️ for Indonesian traders | Dibangun untuk para trader Indonesia**
+Gunakan lisensi internal tim/proyek sesuai kebijakan repository.

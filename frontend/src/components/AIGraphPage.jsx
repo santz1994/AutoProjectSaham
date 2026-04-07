@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Button from './Button';
 import ChartComponent from './ChartComponent';
 import apiService from '../utils/apiService';
@@ -47,6 +47,67 @@ const MARKET_OPTIONS = [
 ];
 const TIMEFRAME_OPTIONS = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w', '1mo'];
 const HORIZON_OPTIONS = [8, 12, 16, 24, 32];
+const LIVE_FAST_REFRESH_MS = 25 * 1000;
+const PREDICTION_STYLE_OPTIONS = [
+  {
+    value: 'scalping',
+    label: 'Scalping',
+    timeframe: '1m',
+    horizon: 8,
+    description: 'Preset cepat untuk entry/exit mikro.',
+  },
+  {
+    value: 'daily_trader',
+    label: 'Daily Trader',
+    timeframe: '15m',
+    horizon: 16,
+    description: 'Preset intraday dengan window stabil mengikuti candle.',
+  },
+  {
+    value: 'trader',
+    label: 'Trader',
+    timeframe: '1d',
+    horizon: 24,
+    description: 'Preset swing dengan update lebih jarang.',
+  },
+];
+
+const TIMEFRAME_WINDOW_MS = {
+  '1m': 60 * 1000,
+  '5m': 5 * 60 * 1000,
+  '15m': 15 * 60 * 1000,
+  '30m': 30 * 60 * 1000,
+  '1h': 60 * 60 * 1000,
+  '4h': 4 * 60 * 60 * 1000,
+  '1d': 24 * 60 * 60 * 1000,
+  '1w': 7 * 24 * 60 * 60 * 1000,
+  '1mo': 30 * 24 * 60 * 60 * 1000,
+};
+
+function resolvePredictionWindowMs(timeframe = '1d') {
+  return TIMEFRAME_WINDOW_MS[String(timeframe || '1d').toLowerCase()] || TIMEFRAME_WINDOW_MS['1d'];
+}
+
+function formatWindowLabel(ms) {
+  const totalSeconds = Math.max(1, Math.round(Number(ms || 0) / 1000));
+
+  if (totalSeconds < 60) {
+    return `${totalSeconds} detik`;
+  }
+
+  const totalMinutes = Math.round(totalSeconds / 60);
+  if (totalMinutes < 60) {
+    return `${totalMinutes} menit`;
+  }
+
+  const totalHours = Math.round(totalMinutes / 60);
+  if (totalHours < 24) {
+    return `${totalHours} jam`;
+  }
+
+  const totalDays = Math.round(totalHours / 24);
+  return `${totalDays} hari`;
+}
 
 const SIGNAL_CLASS = {
   STRONG_BUY: 'bullish',
@@ -108,6 +169,8 @@ function formatPercent(value) {
 
 export default function AIGraphPage({ theme = 'dark' }) {
   const [selectedMarket, setSelectedMarket] = useState('stocks');
+  const [predictionStyle, setPredictionStyle] = useState('daily_trader');
+  const [predictionLockEnabled, setPredictionLockEnabled] = useState(true);
   const [symbolOptions, setSymbolOptions] = useState(() => getFallbackSymbols('stocks'));
   const [selectedSymbol, setSelectedSymbol] = useState(() => getFallbackSymbols('stocks')[0] || 'BBCA.JK');
   const [selectedTimeframe, setSelectedTimeframe] = useState('1d');
@@ -118,6 +181,8 @@ export default function AIGraphPage({ theme = 'dark' }) {
   const [loadingProjection, setLoadingProjection] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [nextAutoRefreshAt, setNextAutoRefreshAt] = useState(0);
+  const nextAutoRefreshAtRef = useRef(0);
 
   const signalClassName = useMemo(() => {
     const signal = String(projectionMeta?.signal || 'HOLD').toUpperCase();
@@ -162,6 +227,45 @@ export default function AIGraphPage({ theme = 'dark' }) {
     };
   }, [selectedMarket]);
 
+  useEffect(() => {
+    const selectedPreset = PREDICTION_STYLE_OPTIONS.find((item) => item.value === predictionStyle);
+    if (!selectedPreset) {
+      return;
+    }
+
+    setSelectedTimeframe(selectedPreset.timeframe);
+    setProjectionHorizon(selectedPreset.horizon);
+  }, [predictionStyle]);
+
+  const predictionWindowMs = useMemo(
+    () => resolvePredictionWindowMs(selectedTimeframe),
+    [selectedTimeframe]
+  );
+
+  const predictionWindowLabel = useMemo(
+    () => formatWindowLabel(predictionWindowMs),
+    [predictionWindowMs]
+  );
+
+  const effectiveRefreshWindowMs = useMemo(
+    () => (predictionLockEnabled ? predictionWindowMs : LIVE_FAST_REFRESH_MS),
+    [predictionLockEnabled, predictionWindowMs]
+  );
+
+  const liveModeLabel = useMemo(
+    () => (
+      predictionLockEnabled
+        ? `WebSocket + AI freeze window ${predictionWindowLabel}`
+        : `WebSocket + AI refresh ${formatWindowLabel(LIVE_FAST_REFRESH_MS)}`
+    ),
+    [predictionLockEnabled, predictionWindowLabel]
+  );
+
+  const selectedStyleDescription = useMemo(() => {
+    const selectedPreset = PREDICTION_STYLE_OPTIONS.find((item) => item.value === predictionStyle);
+    return selectedPreset?.description || 'Preset prediksi.';
+  }, [predictionStyle]);
+
   const mapProjectionSeries = useCallback((payload) => {
     const baseTime = Number(payload?.baseTime);
     const currentPrice = Number(payload?.currentPrice);
@@ -183,7 +287,14 @@ export default function AIGraphPage({ theme = 'dark' }) {
   }, []);
 
   const loadProjection = useCallback(
-    async ({ silent = false } = {}) => {
+    async ({ silent = false, force = false } = {}) => {
+      if (predictionLockEnabled && silent && !force) {
+        const now = Date.now();
+        if (nextAutoRefreshAtRef.current > now) {
+          return;
+        }
+      }
+
       if (!silent) {
         setLoadingProjection(true);
       }
@@ -198,6 +309,9 @@ export default function AIGraphPage({ theme = 'dark' }) {
 
         setProjectionMeta(payload);
         setProjectionData(mapProjectionSeries(payload));
+  const nextRefreshAt = Date.now() + effectiveRefreshWindowMs;
+        nextAutoRefreshAtRef.current = nextRefreshAt;
+        setNextAutoRefreshAt(nextRefreshAt);
         setError(null);
       } catch (err) {
         const message = err?.message || 'Failed to load AI projection';
@@ -212,27 +326,42 @@ export default function AIGraphPage({ theme = 'dark' }) {
         }
       }
     },
-    [mapProjectionSeries, projectionHorizon, selectedMarket, selectedSymbol, selectedTimeframe]
+    [
+      effectiveRefreshWindowMs,
+      mapProjectionSeries,
+      predictionLockEnabled,
+      projectionHorizon,
+      selectedMarket,
+      selectedSymbol,
+      selectedTimeframe,
+    ]
   );
 
   useEffect(() => {
-    loadProjection({ silent: false });
+    nextAutoRefreshAtRef.current = 0;
+    setNextAutoRefreshAt(0);
+    loadProjection({ silent: false, force: true });
 
+    const intervalMs = predictionLockEnabled ? 5000 : LIVE_FAST_REFRESH_MS;
     const timer = setInterval(() => {
-      loadProjection({ silent: true });
-    }, 25000);
+      loadProjection({ silent: true, force: false });
+    }, intervalMs);
 
     return () => {
       clearInterval(timer);
     };
-  }, [loadProjection]);
+  }, [loadProjection, predictionLockEnabled]);
 
   const handleManualRefresh = async () => {
     setRefreshing(true);
-    await loadProjection({ silent: true });
+    await loadProjection({ silent: true, force: true });
     setRefreshing(false);
     toast.success('AI projection refreshed.');
   };
+
+  const nextAutoRefreshLabel = nextAutoRefreshAt > 0
+    ? new Date(nextAutoRefreshAt).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' })
+    : '-';
 
   const predictedMove = Number(projectionMeta?.expectedReturn || 0) * 100;
   const confidenceLabel = String(projectionMeta?.confidenceLabel || 'medium').replace('_', ' ');
@@ -287,6 +416,22 @@ export default function AIGraphPage({ theme = 'dark' }) {
         </div>
 
         <div className="ai-control-item">
+          <label htmlFor="ai-graph-style">Prediction Style</label>
+          <select
+            id="ai-graph-style"
+            value={predictionStyle}
+            onChange={(e) => setPredictionStyle(e.target.value)}
+          >
+            {PREDICTION_STYLE_OPTIONS.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+          <small className="ai-control-help">{selectedStyleDescription}</small>
+        </div>
+
+        <div className="ai-control-item">
           <label htmlFor="ai-graph-symbol">Symbol</label>
           <select
             id="ai-graph-symbol"
@@ -331,9 +476,27 @@ export default function AIGraphPage({ theme = 'dark' }) {
           </select>
         </div>
 
+        <div className="ai-control-item">
+          <label htmlFor="ai-graph-lock">Prediction Lock</label>
+          <button
+            id="ai-graph-lock"
+            type="button"
+            className={`ai-lock-toggle ${predictionLockEnabled ? 'active' : ''}`}
+            onClick={() => setPredictionLockEnabled((current) => !current)}
+          >
+            {predictionLockEnabled ? 'ON - Ikuti timeframe' : 'OFF - Live cepat 25 detik'}
+          </button>
+          <small className="ai-control-help">
+            {predictionLockEnabled
+              ? 'Current vs Target dikunci sampai window timeframe selesai.'
+              : 'Current vs Target update lebih cepat untuk monitoring agresif.'}
+          </small>
+        </div>
+
         <div className="ai-control-item ai-control-live">
           <label>Live Mode</label>
-          <span>WebSocket + AI refresh 25s</span>
+          <span>{liveModeLabel}</span>
+          <small className="ai-control-help">{`Next auto refresh (WIB): ${nextAutoRefreshLabel}`}</small>
         </div>
       </section>
 
