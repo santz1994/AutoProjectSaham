@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -273,3 +274,61 @@ def test_get_ai_projection_validates_timeframe_and_clamps_horizon(monkeypatch):
     payload = asyncio.run(frontend_routes.get_ai_projection("BBCA.JK", timeframe="1d", horizon=999))
     assert payload.horizon == 120
     assert len(payload.projection) == 120
+
+
+def test_get_ai_regime_status_returns_persisted_snapshot(monkeypatch):
+    snapshot = {
+        "regime": "BULL",
+        "confidence": 0.83,
+        "primaryAgent": "bull_agent",
+        "strategyProfile": "momentum_breakout",
+        "riskMultiplier": 1.0,
+        "asOf": "2026-01-01T00:00:00",
+    }
+
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "get_regime_state",
+        lambda defaults: snapshot,
+    )
+
+    payload = asyncio.run(frontend_routes.get_ai_regime_status())
+    assert payload["regime"] == "BULL"
+    assert payload["primaryAgent"] == "bull_agent"
+
+
+def test_resolve_regime_route_persists_transition_log(monkeypatch):
+    captured = {"state": None, "logs": []}
+
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "get_regime_state",
+        lambda defaults: {"regime": "BEAR"},
+    )
+
+    def _fake_set_regime_state(payload):
+        captured["state"] = dict(payload)
+        return dict(payload)
+
+    monkeypatch.setattr(frontend_routes._state_store, "set_regime_state", _fake_set_regime_state)
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "append_ai_log",
+        lambda **kwargs: captured["logs"].append(kwargs),
+    )
+
+    prices = np.linspace(100.0, 220.0, 64)
+    df = pd.DataFrame(
+        {
+            "symbol": ["AAA.JK"] * len(prices),
+            "last_price": prices,
+        }
+    )
+
+    route = frontend_routes._resolve_regime_route(df, ["AAA.JK"])
+
+    assert route is not None
+    assert captured["state"] is not None
+    assert captured["state"]["regime"] == "BULL"
+    assert len(captured["logs"]) == 1
+    assert captured["logs"][0]["event_type"] == "regime_transition"

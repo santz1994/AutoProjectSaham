@@ -10,13 +10,16 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 try:
     from src.ml.anomaly_detector import (
+        AutoencoderAnomaly,
         IsolationForestDetector,
         StatisticalAnomalyDetector,
         AnomalyRiskManager,
-        SKLEARN_AVAILABLE
+        SKLEARN_AVAILABLE,
+        TORCH_AVAILABLE,
     )
 except ImportError:
     SKLEARN_AVAILABLE = False
+    TORCH_AVAILABLE = False
 
 
 @unittest.skipIf(not SKLEARN_AVAILABLE, "scikit-learn not installed")
@@ -98,6 +101,16 @@ class TestAnomalyRiskManager(unittest.TestCase):
         }
         adjusted = self.risk_mgr.adjust_position_size(base_position, anomaly_result)
         self.assertEqual(adjusted, base_position * 0.5)
+
+
+@unittest.skipIf(not TORCH_AVAILABLE, "PyTorch not installed")
+class TestAutoencoderTopology(unittest.TestCase):
+    def test_bottleneck_compresses_small_feature_space(self):
+        model = AutoencoderAnomaly(input_dim=4, hidden_dim=16)
+
+        self.assertLess(model.bottleneck_dim, 4)
+        self.assertEqual(model.encoder[0].in_features, 4)
+        self.assertEqual(model.encoder[2].out_features, model.bottleneck_dim)
 
 
 if __name__ == '__main__':

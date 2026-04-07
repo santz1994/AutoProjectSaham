@@ -35,6 +35,33 @@ class TradingEnvLiquidityTests(unittest.TestCase):
         self.assertLessEqual(float(reward), -1.0)
         self.assertEqual(env.manager.broker.positions.get("TEST", 0), 0)
 
+    def test_reward_uses_percent_return_scale(self):
+        from src.rl.envs.trading_env import TradingEnv
+
+        env = TradingEnv(
+            prices=[100.0, 100.0, 100.0],
+            volumes=[1000.0, 1000.0, 1000.0],
+            symbol="TEST",
+            starting_cash=1_000_000.0,
+            position_size=1000,
+        )
+
+        reset_result = env.reset()
+        if isinstance(reset_result, tuple):
+            _obs, _info = reset_result
+
+        step_result = env.step([1, 0])
+        if len(step_result) == 5:
+            _obs, reward, _terminated, _truncated, info = step_result
+        else:
+            _obs, reward, _done, info = step_result
+
+        # With high slippage, absolute-Rupiah reward would be around -5000.
+        # Percent-based scaling keeps reward in a stable PPO-friendly range.
+        self.assertIn("period_return_pct", info)
+        self.assertLess(float(reward), 0.0)
+        self.assertGreater(float(reward), -10.0)
+
 
 if __name__ == "__main__":
     unittest.main()

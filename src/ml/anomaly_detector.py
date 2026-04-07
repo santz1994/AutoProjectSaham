@@ -60,20 +60,32 @@ class AutoencoderAnomaly(nn.Module):
             hidden_dim: Hidden layer dimension
         """
         super().__init__()
+
+        safe_input_dim = max(1, int(input_dim))
+        safe_hidden_dim = max(1, int(hidden_dim))
+        # Keep a true compression bottleneck when input has at least 2 features.
+        if safe_input_dim > 1:
+            self.bottleneck_dim = max(
+                1,
+                min(safe_hidden_dim, safe_input_dim // 2),
+            )
+        else:
+            self.bottleneck_dim = 1
+        self.intermediate_dim = max(safe_input_dim, self.bottleneck_dim * 2)
         
         # Encoder
         self.encoder = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim * 2),
+            nn.Linear(safe_input_dim, self.intermediate_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.Linear(self.intermediate_dim, self.bottleneck_dim),
             nn.ReLU()
         )
         
         # Decoder
         self.decoder = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim * 2),
+            nn.Linear(self.bottleneck_dim, self.intermediate_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim * 2, input_dim)
+            nn.Linear(self.intermediate_dim, safe_input_dim)
         )
     
     def forward(self, x):

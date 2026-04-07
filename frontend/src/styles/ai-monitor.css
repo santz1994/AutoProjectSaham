@@ -139,6 +139,26 @@
   background: rgba(217, 119, 6, 0.76);
 }
 
+.pipeline-status.bull {
+  color: #ecfdf5;
+  background: rgba(22, 163, 74, 0.78);
+}
+
+.pipeline-status.bear {
+  color: #fee2e2;
+  background: rgba(220, 38, 38, 0.78);
+}
+
+.pipeline-status.sideways {
+  color: #e0e7ff;
+  background: rgba(79, 70, 229, 0.74);
+}
+
+.pipeline-status.unknown {
+  color: #f8fafc;
+  background: rgba(100, 116, 139, 0.78);
+}
+
 .ai-log-list {
   margin-top: 0.8rem;
   display: flex;

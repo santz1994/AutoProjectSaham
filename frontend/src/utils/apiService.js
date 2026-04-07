@@ -297,6 +297,17 @@ class ApiService {
     }
   }
 
+  async getAIRegimeStatus() {
+    try {
+      return await this.request('/api/ai/regime');
+    } catch (error) {
+      if (this.isNotFoundError(error)) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
   async getAILogs(limit = 100) {
     try {
       return await this.request(`/api/ai/logs?limit=${limit}`);

@@ -12,6 +12,7 @@ const levelClassName = {
 export default function AIMonitorPage({ onNavigate }) {
   const [overview, setOverview] = useState(null);
   const [logs, setLogs] = useState([]);
+  const [regimeSnapshot, setRegimeSnapshot] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [autoRefreshSeconds, setAutoRefreshSeconds] = useState(20);
@@ -30,13 +31,17 @@ export default function AIMonitorPage({ onNavigate }) {
     }
 
     try {
-      const [overviewResult, logsResult] = await Promise.allSettled([
+      const [overviewResult, logsResult, regimeResult] = await Promise.allSettled([
         apiService.getAIOverview(),
         apiService.getAILogs(120),
+        apiService.getAIRegimeStatus(),
       ]);
 
       if (overviewResult.status === 'fulfilled') {
         setOverview(overviewResult.value || null);
+        if (overviewResult.value?.regime) {
+          setRegimeSnapshot(overviewResult.value.regime);
+        }
       } else if (!silent) {
         toast.error(`Failed to load AI monitor: ${overviewResult.reason?.message || 'Unknown error'}`);
       }
@@ -45,6 +50,10 @@ export default function AIMonitorPage({ onNavigate }) {
         setLogs(Array.isArray(logsResult.value) ? logsResult.value : []);
       } else if (!silent) {
         toast.error(`Failed to load AI logs: ${logsResult.reason?.message || 'Unknown error'}`);
+      }
+
+      if (regimeResult.status === 'fulfilled' && regimeResult.value) {
+        setRegimeSnapshot(regimeResult.value);
       }
     } finally {
       if (!silent) {
@@ -128,8 +137,15 @@ export default function AIMonitorPage({ onNavigate }) {
 
   const metrics = overview?.metrics || {};
   const model = overview?.model || {};
+  const regime = overview?.regime || regimeSnapshot || {};
   const pipeline = Array.isArray(overview?.learningPipeline) ? overview.learningPipeline : [];
   const isFallbackTelemetry = overview?.source === 'fallback';
+  const regimeLabel = String(regime.regime || 'UNKNOWN').toUpperCase();
+  const regimeConfidencePct = Number(regime.confidence || 0) * 100;
+  const regimeUpdatedAt = regime.updatedAt || regime.asOf;
+  const regimeUpdatedLabel = regimeUpdatedAt
+    ? new Date(regimeUpdatedAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+    : '-';
 
   return (
     <div className="ai-monitor-page">
@@ -178,6 +194,32 @@ export default function AIMonitorPage({ onNavigate }) {
           <strong>{Number(metrics.warningEvents || 0)}</strong>
           <span>Error events: {Number(metrics.errorEvents || 0)}</span>
         </article>
+      </section>
+
+      <section className="ai-card">
+        <div className="ai-card-header">
+          <h2>Market Regime Router</h2>
+          <span className="ai-timestamp">Updated: {regimeUpdatedLabel}</span>
+        </div>
+        <div className="ai-pipeline-list">
+          <div className="ai-pipeline-item">
+            <div>
+              <strong>{regimeLabel}</strong>
+              <p>
+                {`Agent: ${regime.primaryAgent || 'scalper_agent'} | `}
+                {`Profile: ${regime.strategyProfile || 'mean_reversion_swing'}`}
+              </p>
+              <p>
+                {`Confidence: ${Number.isFinite(regimeConfidencePct) ? regimeConfidencePct.toFixed(1) : '0.0'}% | `}
+                {`Risk x${Number(regime.riskMultiplier || 0.75).toFixed(2)} | `}
+                {`Volatility: ${Number(regime.volatility || 0).toFixed(4)}`}
+              </p>
+            </div>
+            <span className={`pipeline-status ${String(regimeLabel || 'warming_up').toLowerCase()}`}>
+              {regimeLabel}
+            </span>
+          </div>
+        </div>
       </section>
 
       {isFallbackTelemetry && (

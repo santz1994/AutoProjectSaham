@@ -345,7 +345,12 @@ class TradingEnv:
                 else price
             }
         )
-        reward += float(new_balance - prev_balance)
+        period_return = (float(new_balance) - float(prev_balance)) / max(
+            float(prev_balance),
+            1e-6,
+        )
+        reward += float(period_return * 100.0)
+        info["period_return_pct"] = float(period_return * 100.0)
 
         # Always return a valid observation (SB3 requires an observation
         # even at terminal)

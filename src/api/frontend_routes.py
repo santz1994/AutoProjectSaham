@@ -325,6 +325,20 @@ _default_broker_connection: Dict[str, Any] = {
     },
 }
 
+_default_regime_state: Dict[str, Any] = {
+    "regime": "UNKNOWN",
+    "confidence": 0.0,
+    "primaryAgent": "scalper_agent",
+    "strategyProfile": "mean_reversion_swing",
+    "riskMultiplier": 0.75,
+    "trendReturn": 0.0,
+    "volatility": 0.0,
+    "upMoveRatio": 0.5,
+    "symbols": [],
+    "pricePoints": 0,
+    "asOf": None,
+}
+
 _default_broker_feature_flags = [
     {"provider": "indonesia-securities", "liveEnabled": os.getenv("BROKER_LIVE_INDONESIA_SECURITIES", "1") == "1", "paperEnabled": True, "integrationReady": True},
     {"provider": "indopremier", "liveEnabled": os.getenv("BROKER_LIVE_INDOPREMIER", "1") == "1", "paperEnabled": True, "integrationReady": True},
@@ -360,6 +374,7 @@ _state_store.ensure_seed_ai_logs(
         },
     ]
 )
+_state_store.get_regime_state(_default_regime_state)
 
 
 _SYMBOL_NAME_MAP: Dict[str, str] = {
@@ -1773,6 +1788,107 @@ def _build_symbol_sequences(
     return samples
 
 
+def _extract_price_series_for_regime(
+    df: Any,
+    symbols: Optional[List[str]],
+    max_points: int = 120,
+) -> List[float]:
+    if "symbol" not in df.columns:
+        return []
+
+    price_col = None
+    for candidate in ["last_price", "close", "price", "adj_close", "open"]:
+        if candidate in df.columns:
+            price_col = candidate
+            break
+
+    if not price_col:
+        return []
+
+    candidate_symbols = [str(item) for item in (symbols or []) if str(item).strip()]
+    if not candidate_symbols:
+        candidate_symbols = [str(item) for item in df["symbol"].dropna().astype(str).unique()]
+
+    for symbol in candidate_symbols:
+        symbol_df = df[df["symbol"].astype(str) == symbol]
+        if symbol_df.empty:
+            continue
+
+        price_values = (
+            symbol_df[price_col]
+            .replace([float("inf"), float("-inf")], float("nan"))
+            .dropna()
+            .astype(float)
+            .tolist()
+        )
+        if len(price_values) >= 20:
+            return [float(value) for value in price_values[-max_points:]]
+
+    return []
+
+
+def _build_regime_state_payload(
+    route: Any,
+    symbols: Optional[List[str]],
+    price_points: int,
+) -> Dict[str, Any]:
+    return {
+        "regime": str(getattr(route, "regime", "UNKNOWN")),
+        "confidence": float(max(0.0, min(1.0, getattr(route, "confidence", 0.0)))),
+        "primaryAgent": str(getattr(route, "primary_agent", "scalper_agent")),
+        "strategyProfile": str(getattr(route, "strategy_profile", "mean_reversion_swing")),
+        "riskMultiplier": float(getattr(route, "risk_multiplier", 0.75)),
+        "trendReturn": float(getattr(route, "trend_return", 0.0)),
+        "volatility": float(max(0.0, getattr(route, "volatility", 0.0))),
+        "upMoveRatio": float(max(0.0, min(1.0, getattr(route, "up_move_ratio", 0.5)))),
+        "symbols": [str(item) for item in (symbols or [])[:5]],
+        "pricePoints": int(max(0, int(price_points))),
+        "asOf": datetime.now().isoformat(),
+    }
+
+
+def _persist_regime_route(route: Any, symbols: Optional[List[str]], price_points: int) -> None:
+    try:
+        previous_state = _state_store.get_regime_state(_default_regime_state)
+        next_state = _build_regime_state_payload(route, symbols, price_points)
+        saved_state = _state_store.set_regime_state(next_state)
+
+        previous_regime = str(previous_state.get("regime") or "UNKNOWN").upper()
+        current_regime = str(saved_state.get("regime") or "UNKNOWN").upper()
+        if (
+            previous_regime not in {"", "UNKNOWN"}
+            and current_regime not in {"", "UNKNOWN"}
+            and previous_regime != current_regime
+        ):
+            _state_store.append_ai_log(
+                level="info",
+                event_type="regime_transition",
+                message=f"Regime transition: {previous_regime} -> {current_regime}",
+                payload={
+                    "from": previous_regime,
+                    "to": current_regime,
+                    "confidence": saved_state.get("confidence"),
+                    "primaryAgent": saved_state.get("primaryAgent"),
+                },
+            )
+    except Exception:
+        pass
+
+
+def _resolve_regime_route(df: Any, symbols: Optional[List[str]]) -> Optional[Any]:
+    try:
+        from src.ml.regime_router import classify_market_regime
+
+        price_series = _extract_price_series_for_regime(df, symbols)
+        if not price_series:
+            return None
+        route = classify_market_regime(price_series)
+        _persist_regime_route(route, symbols=symbols, price_points=len(price_series))
+        return route
+    except Exception:
+        return None
+
+
 def _infer_signals_from_transformer(limit: int, preferred_universe: Optional[List[str]]) -> List[Signal]:
     import numpy as np
 
@@ -1796,6 +1912,16 @@ def _infer_signals_from_transformer(limit: int, preferred_universe: Optional[Lis
         symbols = _resolve_signal_universe(df, preferred_universe, max_symbols=max(safe_limit * 3, 6))
         if not symbols:
             return []
+
+        regime_route = _resolve_regime_route(df, symbols)
+        regime_overlay_fn = None
+        if regime_route is not None:
+            try:
+                from src.ml.regime_router import apply_regime_overlay
+
+                regime_overlay_fn = apply_regime_overlay
+            except Exception:
+                regime_overlay_fn = None
 
         samples = _build_symbol_sequences(
             df,
@@ -1838,8 +1964,25 @@ def _infer_signals_from_transformer(limit: int, preferred_universe: Optional[Lis
 
             expected_return = float(label_returns.get(predicted_label_int, 0.0))
             signal_name = _signal_from_expected_return(expected_return, confidence, return_levels)
+
+            regime_note = ""
+            if regime_overlay_fn is not None and regime_route is not None:
+                signal_name, expected_return, regime_note = regime_overlay_fn(
+                    signal=signal_name,
+                    expected_return=expected_return,
+                    model_confidence=confidence,
+                    route=regime_route,
+                )
+
             current_price = float(sample["current_price"])
             target_price = current_price * (1.0 + expected_return) if current_price > 0 else 0.0
+
+            base_reason = (
+                f"{str(runtime['architecture']).upper()} model ({runtime['source']}) "
+                f"predicted class {predicted_label_int} with {confidence * 100:.1f}% confidence."
+            )
+            if regime_note:
+                base_reason = f"{base_reason} {regime_note}"
 
             ranked_rows.append(
                 {
@@ -1848,10 +1991,7 @@ def _infer_signals_from_transformer(limit: int, preferred_universe: Optional[Lis
                     "name": _symbol_name(sample["symbol"]),
                     "signal": signal_name,
                     "confidence": confidence,
-                    "reason": (
-                        f"{str(runtime['architecture']).upper()} model ({runtime['source']}) "
-                        f"predicted class {predicted_label_int} with {confidence * 100:.1f}% confidence."
-                    ),
+                    "reason": base_reason,
                     "predictedMove": f"{expected_return * 100:+.2f}%",
                     "riskLevel": _risk_level_from_prediction(expected_return, confidence),
                     "sector": _symbol_sector(sample["symbol"]),
@@ -1901,6 +2041,16 @@ def _build_fallback_signals(limit: int, preferred_universe: Optional[List[str]])
                 generated_at = datetime.now().isoformat()
                 rows: List[Dict[str, Any]] = []
 
+                regime_route = _resolve_regime_route(df, symbols)
+                regime_overlay_fn = None
+                if regime_route is not None:
+                    try:
+                        from src.ml.regime_router import apply_regime_overlay
+
+                        regime_overlay_fn = apply_regime_overlay
+                    except Exception:
+                        regime_overlay_fn = None
+
                 for symbol in symbols:
                     symbol_df = df[df["symbol"].astype(str) == str(symbol)]
                     if symbol_df.empty:
@@ -1921,6 +2071,22 @@ def _build_fallback_signals(limit: int, preferred_universe: Optional[List[str]])
                         return_levels=[-abs(expected_return), abs(expected_return)],
                     )
 
+                    regime_note = ""
+                    if regime_overlay_fn is not None and regime_route is not None:
+                        signal_name, expected_return, regime_note = regime_overlay_fn(
+                            signal=signal_name,
+                            expected_return=expected_return,
+                            model_confidence=confidence,
+                            route=regime_route,
+                        )
+
+                    base_reason = (
+                        "Fallback technical heuristic using momentum and SMA trend gap "
+                        "while transformer signal model is unavailable."
+                    )
+                    if regime_note:
+                        base_reason = f"{base_reason} {regime_note}"
+
                     rows.append(
                         {
                             "rank": confidence * (abs(expected_return) + 0.001),
@@ -1928,10 +2094,7 @@ def _build_fallback_signals(limit: int, preferred_universe: Optional[List[str]])
                             "name": _symbol_name(str(symbol)),
                             "signal": signal_name,
                             "confidence": confidence,
-                            "reason": (
-                                "Fallback technical heuristic using momentum and SMA trend gap "
-                                "while transformer signal model is unavailable."
-                            ),
+                            "reason": base_reason,
                             "predictedMove": f"{expected_return * 100:+.2f}%",
                             "riskLevel": _risk_level_from_prediction(expected_return, confidence),
                             "sector": _symbol_sector(str(symbol)),
@@ -3031,6 +3194,7 @@ async def get_ai_projection(
 async def get_ai_overview():
     """Return AI workflow status, learning pipeline state, and key ML metrics."""
     settings = _state_store.get_user_settings(_default_user_settings)
+    regime_state = _state_store.get_regime_state(_default_regime_state)
     model_meta = _get_latest_model_artifact()
     dataset_path = _resolve_dataset_csv_path()
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -3044,9 +3208,13 @@ async def get_ai_overview():
     warning_count = sum(1 for item in recent_logs if item.get("level") == "warning")
     error_count = sum(1 for item in recent_logs if item.get("level") == "error")
 
+    regime_label = str(regime_state.get("regime") or "UNKNOWN").upper()
+    regime_status = "ready" if regime_label != "UNKNOWN" else "warming_up"
+
     return {
         "status": "running",
         "lastInferenceAt": recent_logs[0]["timestamp"] if recent_logs else None,
+        "regime": regime_state,
         "model": {
             "artifact": model_meta.get("artifact"),
             "lastTrainedAt": model_meta.get("lastTrainedAt"),
@@ -3076,6 +3244,14 @@ async def get_ai_overview():
                 "detail": "Serving confidence score and signal direction.",
             },
             {
+                "stage": "Regime router",
+                "status": regime_status,
+                "detail": (
+                    f"Market regime {regime_label} routed to "
+                    f"{regime_state.get('primaryAgent') or 'scalper_agent'}."
+                ),
+            },
+            {
                 "stage": "Execution gateway",
                 "status": "running",
                 "detail": "Routing approved signals to broker adapter.",
@@ -3089,6 +3265,12 @@ async def get_ai_overview():
             "processedEvents": len(recent_logs),
         },
     }
+
+
+@router.get("/ai/regime")
+async def get_ai_regime_status():
+    """Return latest persisted market regime route snapshot."""
+    return _state_store.get_regime_state(_default_regime_state)
 
 
 @router.get("/ai/logs")

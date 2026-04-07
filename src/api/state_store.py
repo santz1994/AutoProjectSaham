@@ -249,6 +249,12 @@ class SecureAppStateStore:
     def set_broker_connection(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         return self._set_secure_payload("broker_connection", payload)
 
+    def get_regime_state(self, defaults: Dict[str, Any]) -> Dict[str, Any]:
+        return self._get_secure_payload("ai_regime_state", defaults)
+
+    def set_regime_state(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        return self._set_secure_payload("ai_regime_state", payload)
+
     def ensure_feature_flags(self, default_flags: Iterable[Dict[str, Any]]) -> None:
         now_iso = _utc_now_iso()
         with self._lock:
