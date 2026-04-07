@@ -49,7 +49,12 @@ Legend:
 - [ ] PARTIAL / PENDING (lihat keterangan)
 
 System & Architecture
-- [ ] Migrasi state management dari file-based (SQLite/local key) ke Redis + PostgreSQL/TimescaleDB. (PARTIAL: infrastruktur Redis/PostgreSQL sudah ada di docker-compose, tetapi state utama aplikasi masih file-based/SQLite)
+- [x] Phase 1 hybrid state store non-breaking: SecureAppStateStore mendukung Redis read-through/write-through cache dengan fallback SQLite.
+- [x] Unit test untuk hybrid state store (Redis cache hit, SQLite fallback, cache backfill) sudah ditambahkan dan lulus.
+- [x] Phase 2 namespace runtime kritikal (ai_regime_state, broker_connection, user_settings) sudah Redis-primary dengan fallback SQLite + opsi shadow-write.
+- [x] Hardening phase 2: default shadow-write SQLite untuk namespace Redis-primary diaktifkan agar migrasi tetap non-breaking (dapat di-disable via env).
+- [x] Phase 3 pilot non-breaking: ai_activity_logs mendukung PostgreSQL sebagai primary backend opsional, dengan SQLite shadow-write/fallback.
+- [ ] Migrasi state management penuh dari file-based (SQLite/local key) ke Redis + PostgreSQL/TimescaleDB. (PARTIAL: sebagian namespace runtime sudah Redis-primary, tetapi persistence utama lintas domain dan historical state belum dipindahkan penuh)
 - [ ] Pisahkan workload ML/RL berat ke task queue terpisah (Celery + broker) untuk menjaga API responsif. (PARTIAL: beberapa workload sudah dijalankan di executor/background, belum full queue orchestration)
 
 Security

@@ -14,7 +14,7 @@ import secrets
 import sqlite3
 import threading
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 try:
     from cryptography.fernet import Fernet, InvalidToken
@@ -37,6 +37,67 @@ def _utc_now_iso() -> str:
 
 def _json_clone(payload: Dict[str, Any]) -> Dict[str, Any]:
     return json.loads(json.dumps(payload))
+
+
+def _resolve_redis_url(explicit_url: Optional[str] = None) -> Optional[str]:
+    candidates = [
+        explicit_url,
+        os.getenv("AUTOSAHAM_STATE_REDIS_URL"),
+        os.getenv("REDIS_URL"),
+        os.getenv("CELERY_BROKER_URL"),
+    ]
+    for item in candidates:
+        candidate = str(item or "").strip()
+        if candidate.lower().startswith(("redis://", "rediss://")):
+            return candidate
+    return None
+
+
+def _resolve_postgres_url(explicit_url: Optional[str] = None) -> Optional[str]:
+    candidates = [
+        explicit_url,
+        os.getenv("AUTOSAHAM_STATE_POSTGRES_URL"),
+        os.getenv("DATABASE_URL"),
+    ]
+    for item in candidates:
+        candidate = str(item or "").strip()
+        if candidate.lower().startswith(("postgres://", "postgresql://")):
+            return candidate
+    return None
+
+
+def _env_bool(value: Optional[str], default: bool) -> bool:
+    if value is None:
+        return default
+
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
+def _normalize_namespace_set(namespaces: Iterable[str]) -> set[str]:
+    normalized: set[str] = set()
+    for item in namespaces:
+        candidate = str(item or "").strip().lower()
+        if candidate:
+            normalized.add(candidate)
+    return normalized
+
+
+def _resolve_primary_namespaces(
+    explicit_namespaces: Optional[Iterable[str]] = None,
+) -> set[str]:
+    if explicit_namespaces is not None:
+        return _normalize_namespace_set(explicit_namespaces)
+
+    configured = os.getenv(
+        "AUTOSAHAM_STATE_REDIS_PRIMARY_NAMESPACES",
+        "ai_regime_state,broker_connection,user_settings",
+    )
+    return _normalize_namespace_set(configured.split(","))
 
 
 def _load_or_create_secret(key_env_var: str, key_path: str) -> str:
@@ -122,23 +183,257 @@ class _XorCipher(_CipherProtocol):
         return raw.decode("utf-8")
 
 
+class _PostgresClientAdapter:
+    def __init__(self, connection: Any):
+        self._connection = connection
+
+    def execute_sql(
+        self,
+        statement: str,
+        params: Tuple[Any, ...] = (),
+        *,
+        fetchone: bool = False,
+        fetchall: bool = False,
+    ) -> Any:
+        with self._connection.cursor() as cursor:
+            cursor.execute(statement, params)
+            if fetchone:
+                return cursor.fetchone()
+            if fetchall:
+                return cursor.fetchall()
+        return None
+
+
 class SecureAppStateStore:
-    """SQLite-backed encrypted state store for app settings and broker metadata."""
+    """Encrypted app state store with Redis cache and SQLite fallback support."""
 
     def __init__(
         self,
         db_path: str = DEFAULT_DB_PATH,
         key_env_var: str = "AUTOSAHAM_SETTINGS_KEY",
         key_path: str = DEFAULT_KEY_PATH,
+        redis_client: Optional[Any] = None,
+        redis_url: Optional[str] = None,
+        redis_prefix: str = "autosaham:state",
+        redis_primary_namespaces: Optional[Iterable[str]] = None,
+        redis_primary_shadow_sqlite: Optional[bool] = None,
+        postgres_client: Optional[Any] = None,
+        postgres_url: Optional[str] = None,
+        postgres_ai_logs_enabled: Optional[bool] = None,
+        postgres_ai_logs_shadow_sqlite: Optional[bool] = None,
     ):
         self.db_path = db_path
         self._lock = threading.RLock()
         os.makedirs(os.path.dirname(self.db_path) or ".", exist_ok=True)
 
         secret = _load_or_create_secret(key_env_var=key_env_var, key_path=key_path)
-        self._cipher: _CipherProtocol = _FernetCipher(secret) if FERNET_AVAILABLE else _XorCipher(secret)
+        self._cipher: _CipherProtocol = (
+            _FernetCipher(secret) if FERNET_AVAILABLE else _XorCipher(secret)
+        )
+        safe_prefix = str(redis_prefix or "autosaham:state").strip().strip(":")
+        self._redis_prefix = safe_prefix or "autosaham:state"
+        self._redis_client = (
+            redis_client
+            if redis_client is not None
+            else self._init_redis_client(redis_url)
+        )
+        self._redis_primary_namespaces = _resolve_primary_namespaces(
+            redis_primary_namespaces
+        )
+
+        if redis_primary_shadow_sqlite is None:
+            redis_primary_shadow_sqlite = _env_bool(
+                os.getenv("AUTOSAHAM_STATE_REDIS_PRIMARY_SHADOW_SQLITE"),
+                True,
+            )
+        self._redis_primary_shadow_sqlite = bool(redis_primary_shadow_sqlite)
+
+        self._postgres_client = (
+            postgres_client
+            if postgres_client is not None
+            else self._init_postgres_client(postgres_url)
+        )
+        if postgres_ai_logs_enabled is None:
+            postgres_ai_logs_enabled = _env_bool(
+                os.getenv("AUTOSAHAM_STATE_POSTGRES_AI_LOGS_ENABLED"),
+                True,
+            )
+        self._postgres_ai_logs_enabled = bool(postgres_ai_logs_enabled)
+
+        if postgres_ai_logs_shadow_sqlite is None:
+            postgres_ai_logs_shadow_sqlite = _env_bool(
+                os.getenv("AUTOSAHAM_STATE_POSTGRES_AI_LOGS_SHADOW_SQLITE"),
+                True,
+            )
+        self._postgres_ai_logs_shadow_sqlite = bool(postgres_ai_logs_shadow_sqlite)
 
         self._ensure_schema()
+
+    def _is_redis_primary_namespace(self, namespace: str) -> bool:
+        normalized = str(namespace or "").strip().lower()
+        return normalized in self._redis_primary_namespaces
+
+    def _init_redis_client(self, redis_url: Optional[str]) -> Optional[Any]:
+        resolved_url = _resolve_redis_url(redis_url)
+        if not resolved_url:
+            return None
+
+        try:
+            import redis
+        except Exception:
+            return None
+
+        try:
+            client = redis.Redis.from_url(
+                resolved_url,
+                decode_responses=True,
+                socket_connect_timeout=0.5,
+                socket_timeout=0.5,
+            )
+            client.ping()
+            return client
+        except Exception:
+            return None
+
+    def _init_postgres_client(self, postgres_url: Optional[str]) -> Optional[Any]:
+        resolved_url = _resolve_postgres_url(postgres_url)
+        if not resolved_url:
+            return None
+
+        try:
+            import psycopg
+        except Exception:
+            return None
+
+        try:
+            connection = psycopg.connect(
+                resolved_url,
+                connect_timeout=1,
+                autocommit=True,
+            )
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+            return _PostgresClientAdapter(connection)
+        except Exception:
+            return None
+
+    def _postgres_execute_sql(
+        self,
+        statement: str,
+        params: Tuple[Any, ...] = (),
+        *,
+        fetchone: bool = False,
+        fetchall: bool = False,
+    ) -> Any:
+        if not self._postgres_ai_logs_enabled:
+            return None
+        if self._postgres_client is None:
+            return None
+
+        try:
+            return self._postgres_client.execute_sql(
+                statement,
+                params,
+                fetchone=fetchone,
+                fetchall=fetchall,
+            )
+        except Exception:
+            return None
+
+    def _ensure_postgres_schema(self) -> None:
+        self._postgres_execute_sql(
+            """
+            CREATE TABLE IF NOT EXISTS ai_activity_logs (
+                id BIGSERIAL PRIMARY KEY,
+                level TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                message TEXT NOT NULL,
+                payload_json TEXT,
+                created_at TIMESTAMPTZ NOT NULL
+            )
+            """
+        )
+        self._postgres_execute_sql(
+            """
+            CREATE INDEX IF NOT EXISTS idx_ai_activity_logs_created_at
+            ON ai_activity_logs (created_at DESC, id DESC)
+            """
+        )
+
+    def _redis_secure_key(self, namespace: str) -> str:
+        return f"{self._redis_prefix}:secure:{namespace}"
+
+    def _redis_read_secure_payload(self, namespace: str) -> Optional[Tuple[str, str]]:
+        if self._redis_client is None:
+            return None
+
+        try:
+            raw_value = self._redis_client.get(self._redis_secure_key(namespace))
+            if not raw_value:
+                return None
+
+            payload = json.loads(str(raw_value))
+            encrypted_payload = str(payload.get("payload") or "").strip()
+            updated_at = str(payload.get("updated_at") or "").strip()
+            if not encrypted_payload or not updated_at:
+                return None
+
+            return encrypted_payload, updated_at
+        except Exception:
+            return None
+
+    def _redis_write_secure_payload(
+        self,
+        namespace: str,
+        encrypted_payload: str,
+        updated_at: str,
+    ) -> bool:
+        if self._redis_client is None:
+            return False
+
+        serialized = json.dumps(
+            {
+                "payload": encrypted_payload,
+                "updated_at": updated_at,
+            },
+            separators=(",", ":"),
+            ensure_ascii=True,
+        )
+        ttl_seconds = int(os.getenv("AUTOSAHAM_STATE_REDIS_TTL_SECONDS", "0") or 0)
+
+        try:
+            if ttl_seconds > 0:
+                self._redis_client.setex(
+                    self._redis_secure_key(namespace),
+                    ttl_seconds,
+                    serialized,
+                )
+            else:
+                self._redis_client.set(self._redis_secure_key(namespace), serialized)
+            return True
+        except Exception:
+            return False
+
+    def _sqlite_write_secure_payload(
+        self,
+        namespace: str,
+        encrypted_payload: str,
+        updated_at: str,
+    ) -> None:
+        with self._lock:
+            with self._connect() as connection:
+                cursor = connection.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO secure_state (namespace, payload, updated_at)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(namespace) DO UPDATE SET
+                        payload = excluded.payload,
+                        updated_at = excluded.updated_at
+                    """,
+                    (namespace, encrypted_payload, updated_at),
+                )
+                connection.commit()
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.db_path)
@@ -183,31 +478,183 @@ class SecureAppStateStore:
                 )
                 connection.commit()
 
-    def _set_secure_payload(self, namespace: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-        payload_json = json.dumps(payload, separators=(",", ":"), ensure_ascii=True)
-        encrypted = self._cipher.encrypt_text(payload_json)
-        now_iso = _utc_now_iso()
+        self._ensure_postgres_schema()
 
+    def _row_value(self, row: Any, key: str, index: int) -> Any:
+        try:
+            return row[key]
+        except Exception:
+            pass
+        try:
+            return row[index]
+        except Exception:
+            return None
+
+    def _parse_payload_json(self, payload_json: Any) -> Dict[str, Any]:
+        if payload_json in (None, ""):
+            return {}
+        try:
+            payload = json.loads(str(payload_json))
+            return payload if isinstance(payload, dict) else {}
+        except Exception:
+            return {}
+
+    def _format_ai_log(self, row: Any) -> Dict[str, Any]:
+        return {
+            "id": int(self._row_value(row, "id", 0) or 0),
+            "level": str(self._row_value(row, "level", 1) or "info"),
+            "eventType": str(self._row_value(row, "event_type", 2) or "system"),
+            "message": str(self._row_value(row, "message", 3) or "AI event"),
+            "payload": self._parse_payload_json(self._row_value(row, "payload_json", 4)),
+            "timestamp": str(self._row_value(row, "created_at", 5) or _utc_now_iso()),
+        }
+
+    def _insert_ai_log_sqlite(
+        self,
+        *,
+        level: str,
+        event_type: str,
+        message: str,
+        payload_json: str,
+        created_at: str,
+    ) -> int:
         with self._lock:
             with self._connect() as connection:
                 cursor = connection.cursor()
                 cursor.execute(
                     """
-                    INSERT INTO secure_state (namespace, payload, updated_at)
-                    VALUES (?, ?, ?)
-                    ON CONFLICT(namespace) DO UPDATE SET
-                        payload = excluded.payload,
-                        updated_at = excluded.updated_at
+                    INSERT INTO ai_activity_logs (level, event_type, message, payload_json, created_at)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
-                    (namespace, encrypted, now_iso),
+                    (level, event_type, message, payload_json, created_at),
                 )
+                inserted_id = int(cursor.lastrowid or 0)
                 connection.commit()
+        return inserted_id
+
+    def _insert_ai_log_postgres(
+        self,
+        *,
+        level: str,
+        event_type: str,
+        message: str,
+        payload_json: str,
+        created_at: str,
+    ) -> Optional[int]:
+        row = self._postgres_execute_sql(
+            """
+            INSERT INTO ai_activity_logs (level, event_type, message, payload_json, created_at)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (level, event_type, message, payload_json, created_at),
+            fetchone=True,
+        )
+        if row is None:
+            return None
+        inserted_id = self._row_value(row, "id", 0)
+        try:
+            return int(inserted_id)
+        except Exception:
+            return None
+
+    def _count_ai_logs_sqlite(self) -> int:
+        with self._lock:
+            with self._connect() as connection:
+                cursor = connection.cursor()
+                cursor.execute("SELECT COUNT(1) AS total FROM ai_activity_logs")
+                row = cursor.fetchone()
+                return int(row["total"]) if row else 0
+
+    def _count_ai_logs_postgres(self) -> Optional[int]:
+        row = self._postgres_execute_sql(
+            "SELECT COUNT(1) AS total FROM ai_activity_logs",
+            fetchone=True,
+        )
+        if row is None:
+            return None
+        value = self._row_value(row, "total", 0)
+        try:
+            return int(value)
+        except Exception:
+            return None
+
+    def _list_ai_logs_sqlite(self, limit: int) -> List[Dict[str, Any]]:
+        with self._lock:
+            with self._connect() as connection:
+                cursor = connection.cursor()
+                cursor.execute(
+                    """
+                    SELECT id, level, event_type, message, payload_json, created_at
+                    FROM ai_activity_logs
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT ?
+                    """,
+                    (limit,),
+                )
+                rows = cursor.fetchall()
+
+        return [self._format_ai_log(row) for row in rows]
+
+    def _list_ai_logs_postgres(self, limit: int) -> Optional[List[Dict[str, Any]]]:
+        rows = self._postgres_execute_sql(
+            """
+            SELECT id, level, event_type, message, payload_json, created_at
+            FROM ai_activity_logs
+            ORDER BY created_at DESC, id DESC
+            LIMIT %s
+            """,
+            (limit,),
+            fetchall=True,
+        )
+        if rows is None:
+            return None
+        return [self._format_ai_log(row) for row in rows]
+
+    def _set_secure_payload(
+        self,
+        namespace: str,
+        payload: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        payload_json = json.dumps(payload, separators=(",", ":"), ensure_ascii=True)
+        encrypted = self._cipher.encrypt_text(payload_json)
+        now_iso = _utc_now_iso()
+
+        if self._is_redis_primary_namespace(namespace):
+            redis_written = self._redis_write_secure_payload(
+                namespace,
+                encrypted,
+                now_iso,
+            )
+            if self._redis_primary_shadow_sqlite or not redis_written:
+                self._sqlite_write_secure_payload(namespace, encrypted, now_iso)
+        else:
+            self._sqlite_write_secure_payload(namespace, encrypted, now_iso)
+            self._redis_write_secure_payload(namespace, encrypted, now_iso)
 
         output = _json_clone(payload)
         output["updatedAt"] = now_iso
         return output
 
-    def _get_secure_payload(self, namespace: str, default_payload: Dict[str, Any]) -> Dict[str, Any]:
+    def _get_secure_payload(
+        self,
+        namespace: str,
+        default_payload: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        redis_cached = self._redis_read_secure_payload(namespace)
+        if redis_cached:
+            cached_encrypted_payload, cached_updated_at = redis_cached
+            try:
+                decrypted_json = self._cipher.decrypt_text(cached_encrypted_payload)
+                payload = json.loads(decrypted_json)
+                if isinstance(payload, dict):
+                    payload["updatedAt"] = cached_updated_at
+                    return payload
+            except (json.JSONDecodeError, ValueError, InvalidToken):
+                pass
+            except Exception:
+                pass
+
         with self._lock:
             with self._connect() as connection:
                 cursor = connection.cursor()
@@ -228,6 +675,11 @@ class SecureAppStateStore:
             payload = json.loads(decrypted_json)
             if isinstance(payload, dict):
                 payload["updatedAt"] = updated_at
+                self._redis_write_secure_payload(
+                    namespace,
+                    encrypted_payload,
+                    updated_at,
+                )
                 return payload
         except (json.JSONDecodeError, ValueError, InvalidToken):
             pass
@@ -386,18 +838,27 @@ class SecureAppStateStore:
         created = created_at or _utc_now_iso()
         payload_json = json.dumps(payload or {}, ensure_ascii=True)
 
-        with self._lock:
-            with self._connect() as connection:
-                cursor = connection.cursor()
-                cursor.execute(
-                    """
-                    INSERT INTO ai_activity_logs (level, event_type, message, payload_json, created_at)
-                    VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (level, event_type, message, payload_json, created),
-                )
-                inserted_id = cursor.lastrowid
-                connection.commit()
+        postgres_inserted_id = self._insert_ai_log_postgres(
+            level=level,
+            event_type=event_type,
+            message=message,
+            payload_json=payload_json,
+            created_at=created,
+        )
+
+        sqlite_inserted_id: Optional[int] = None
+        if self._postgres_ai_logs_shadow_sqlite or postgres_inserted_id is None:
+            sqlite_inserted_id = self._insert_ai_log_sqlite(
+                level=level,
+                event_type=event_type,
+                message=message,
+                payload_json=payload_json,
+                created_at=created,
+            )
+
+        inserted_id = postgres_inserted_id
+        if inserted_id is None:
+            inserted_id = sqlite_inserted_id
 
         return {
             "id": int(inserted_id or 0),
@@ -409,12 +870,9 @@ class SecureAppStateStore:
         }
 
     def ensure_seed_ai_logs(self, seed_logs: Iterable[Dict[str, Any]]) -> None:
-        with self._lock:
-            with self._connect() as connection:
-                cursor = connection.cursor()
-                cursor.execute("SELECT COUNT(1) AS total FROM ai_activity_logs")
-                row = cursor.fetchone()
-                total = int(row["total"]) if row else 0
+        total = self._count_ai_logs_postgres()
+        if total is None:
+            total = self._count_ai_logs_sqlite()
 
         if total > 0:
             return
@@ -430,37 +888,10 @@ class SecureAppStateStore:
 
     def list_ai_logs(self, limit: int = 100) -> List[Dict[str, Any]]:
         safe_limit = max(1, min(int(limit or 100), 500))
-        with self._lock:
-            with self._connect() as connection:
-                cursor = connection.cursor()
-                cursor.execute(
-                    """
-                    SELECT id, level, event_type, message, payload_json, created_at
-                    FROM ai_activity_logs
-                    ORDER BY created_at DESC, id DESC
-                    LIMIT ?
-                    """,
-                    (safe_limit,),
-                )
-                rows = cursor.fetchall()
-
-        logs: List[Dict[str, Any]] = []
-        for row in rows:
-            payload_json = row["payload_json"]
-            try:
-                payload = json.loads(payload_json) if payload_json else {}
-            except json.JSONDecodeError:
-                payload = {}
-
-            logs.append(
-                {
-                    "id": int(row["id"]),
-                    "level": row["level"],
-                    "eventType": row["event_type"],
-                    "message": row["message"],
-                    "payload": payload,
-                    "timestamp": row["created_at"],
-                }
-            )
-
-        return logs
+        postgres_logs = self._list_ai_logs_postgres(safe_limit)
+        if postgres_logs:
+            return postgres_logs
+        if postgres_logs == []:
+            sqlite_logs = self._list_ai_logs_sqlite(safe_limit)
+            return sqlite_logs if sqlite_logs else postgres_logs
+        return self._list_ai_logs_sqlite(safe_limit)
