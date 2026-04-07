@@ -66,6 +66,16 @@ class TestStatisticalAnomalyDetector(unittest.TestCase):
         self.assertEqual(len(anomalies), len(volumes))
         self.assertTrue(anomalies[150])  # Should detect spike
 
+    def test_price_anomaly_zero_prices_are_finite(self):
+        detector = StatisticalAnomalyDetector(window=3, z_threshold=3.0)
+        prices = np.array([0.0, 0.0, 0.0, 1.0, 2.0, 0.0, 1.0], dtype=float)
+
+        anomalies, z_scores = detector.detect_price_anomaly(prices)
+
+        self.assertEqual(len(anomalies), len(prices))
+        self.assertEqual(len(z_scores), len(prices))
+        self.assertTrue(np.isfinite(z_scores).all())
+
 
 @unittest.skipIf(not SKLEARN_AVAILABLE, "scikit-learn not installed")
 class TestAnomalyRiskManager(unittest.TestCase):

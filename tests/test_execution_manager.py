@@ -73,6 +73,46 @@ class ExecutionManagerTests(unittest.TestCase):
         # ensure callback recorded an order_filled event
         self.assertTrue(any(ev.get("type") == "order_filled" for ev in events))
 
+    def test_daily_loss_freeze_cancels_pending_orders(self):
+        events = []
+
+        def cb(ev):
+            events.append(ev)
+
+        from src.brokers.paper_adapter import PaperBrokerAdapter
+        from src.execution.manager import ExecutionManager
+
+        adapter = PaperBrokerAdapter(starting_cash=10000.0)
+        em = ExecutionManager(
+            broker=adapter,
+            max_position_per_symbol=200,
+            daily_loss_limit=0.05,
+            alert_callback=cb,
+        )
+        em.start_day({"TEST": 100.0})
+
+        buy = em.place_order("TEST", "buy", 50, 100.0, previous_close=100.0)
+        self.assertEqual(buy.get("status"), "filled")
+
+        queued = em.place_limit_order(
+            "TEST", "sell", 50, 110.0, previous_close=100.0
+        )
+        self.assertEqual(queued.get("status"), "pending")
+        self.assertEqual(len(em.get_pending_orders()), 1)
+
+        # Price collapse forces a daily-loss freeze during tick processing.
+        em.process_market_tick({"TEST": 50.0})
+
+        self.assertEqual(len(em.get_pending_orders()), 0)
+        self.assertTrue(any(ev.get("type") == "daily_loss_freeze" for ev in events))
+
+        cancelled_ev = next(
+            (ev for ev in events if ev.get("type") == "pending_orders_cancelled"),
+            None,
+        )
+        self.assertIsNotNone(cancelled_ev)
+        self.assertEqual(cancelled_ev.get("count"), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

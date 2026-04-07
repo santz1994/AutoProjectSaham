@@ -70,6 +70,7 @@ def test_ensemble_fitting(synthetic_data):
     # Check that base models were trained
     for model_name in ensemble.model_names:
         assert len(ensemble.fitted_base_models[model_name]) == ensemble.n_folds
+        assert len(ensemble.fitted_preprocessors[model_name]) == ensemble.n_folds
     
     # Check that scores were calculated
     assert len(ensemble.base_model_scores) > 0
@@ -78,6 +79,25 @@ def test_ensemble_fitting(synthetic_data):
     # Check weights sum to approximately 1
     total_weight = sum(ensemble.model_weights.values())
     assert abs(total_weight - 1.0) < 0.01
+
+
+def test_ensemble_baseline_adjusted_weights():
+    """Models at AUC 0.5 should receive zero edge weight."""
+    ensemble = StackedEnsemble(
+        n_folds=2,
+        use_lgbm=False,
+        use_xgb=False,
+        use_rf=True,
+        use_lr=True,
+    )
+
+    ensemble.base_model_scores = {name: 0.5 for name in ensemble.model_names}
+    ensemble.base_model_scores["rf"] = 0.8
+    update_weights = getattr(ensemble, "_update_weights")
+    update_weights()
+
+    assert ensemble.model_weights["rf"] == pytest.approx(1.0)
+    assert ensemble.model_weights["lr"] == pytest.approx(0.0)
 
 
 def test_ensemble_predictions(synthetic_data):

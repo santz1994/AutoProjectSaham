@@ -79,6 +79,7 @@ class ExecutionManager:
         # optional list of webhook URLs to POST alerts to (best-effort)
         self.alert_webhooks = list(alert_webhooks) if alert_webhooks else []
         self.logger = logger or logging.getLogger("autosaham.execution")
+        self._state_lock = threading.RLock()
 
         # lazily create a default paper broker if none provided
         if self.broker is None:
@@ -91,7 +92,6 @@ class ExecutionManager:
         # pending limit orders bookkeeping
         self.pending_orders: dict = {}
         self._next_order_id = 1
-        self.pending_orders: dict = {}
         # expected state tracked locally for reconciliation checks
         self._expected_positions: Dict[str, int] = {}
         self._expected_cash: Optional[float] = None
@@ -161,48 +161,90 @@ class ExecutionManager:
         except Exception:
             pass
 
+    def _drain_pending_orders_locked(self) -> list:
+        """Clear pending orders. Caller must hold ``_state_lock``."""
+        removed_orders = list(self.pending_orders.values())
+        self.pending_orders.clear()
+        return removed_orders
+
     # --- public methods ---
     def start_day(self, price_map: dict | None = None):
         # record starting balance for the day
-        self._start_balance = self._get_balance(price_map or {})
-        self._frozen = False
-        self._frozen_reason = None
+        start_balance = self._get_balance(price_map or {})
+        with self._state_lock:
+            self._start_balance = start_balance
+            self._frozen = False
+            self._frozen_reason = None
         self.logger.info("start_day balance=%.2f", float(self._start_balance))
         # initialize expected positions/cash from broker if available
         try:
-            self._expected_positions = dict(self._get_positions())
+            expected_positions = dict(self._get_positions())
             if hasattr(self.broker, "get_cash"):
-                self._expected_cash = float(self.broker.get_cash())
+                expected_cash = float(self.broker.get_cash())
             else:
                 # best-effort fallback: use cash attribute or balance
-                self._expected_cash = float(
+                expected_cash = float(
                     getattr(self.broker, "cash", self._get_balance({}))
                 )
+            with self._state_lock:
+                self._expected_positions = expected_positions
+                self._expected_cash = expected_cash
         except Exception:
-            self._expected_positions = {}
-            self._expected_cash = None
+            with self._state_lock:
+                self._expected_positions = {}
+                self._expected_cash = None
 
     def _check_daily_loss(self, price_map: dict | None = None) -> bool:
-        if self._start_balance is None:
+        with self._state_lock:
+            start_balance = self._start_balance
+            already_frozen = self._frozen
+        if start_balance is None:
             return True
+        if start_balance <= 0:
+            return True
+        if already_frozen:
+            return False
+
         cur = self._get_balance(price_map or {})
-        loss = (self._start_balance - cur) / self._start_balance
+        loss = (start_balance - cur) / start_balance
         if loss >= self.daily_loss_limit:
-            self._frozen = True
-            self._frozen_reason = (
-                f"daily loss exceeded: {loss:.3f} >= {self.daily_loss_limit}"
-            )
+            cancelled_orders = []
+            with self._state_lock:
+                if not self._frozen:
+                    self._frozen = True
+                    self._frozen_reason = (
+                        f"daily loss exceeded: {loss:.3f} >= {self.daily_loss_limit}"
+                    )
+                    cancelled_orders = self._drain_pending_orders_locked()
+                frozen_reason = self._frozen_reason
+
             ev = {
                 "type": "daily_loss_freeze",
                 "loss": loss,
                 "limit": self.daily_loss_limit,
-                "reason": self._frozen_reason,
+                "reason": frozen_reason,
+                "cancelledPendingOrders": len(cancelled_orders),
             }
-            self.logger.warning("execution frozen: %s", self._frozen_reason)
+            self.logger.warning("execution frozen: %s", frozen_reason)
             self._alert(ev)
+
+            if cancelled_orders:
+                self._alert(
+                    {
+                        "type": "pending_orders_cancelled",
+                        "count": len(cancelled_orders),
+                        "reason": "daily_loss_freeze",
+                    }
+                )
+
             try:
                 if DAILY_FREEZES:
                     DAILY_FREEZES.inc()
+                if PENDING_REMOVED:
+                    for _ in cancelled_orders:
+                        PENDING_REMOVED.inc()
+                if PENDING_ORDERS:
+                    PENDING_ORDERS.set(0)
             except Exception:
                 pass
             return False
@@ -216,15 +258,16 @@ class ExecutionManager:
         price: float,
         previous_close: Optional[float] = None,
     ) -> tuple[bool, str]:
-        if self._frozen:
-            return False, f"Execution frozen: {self._frozen_reason}"
+        with self._state_lock:
+            if self._frozen:
+                return False, f"Execution frozen: {self._frozen_reason}"
 
         # check quantity
         if qty <= 0:
             return False, "qty must be > 0"
 
         # position limit
-        pos_map = self._get_positions()
+        pos_map = dict(self._get_positions())
         pos = int(pos_map.get(symbol, 0))
         if side.lower() == "buy" and (pos + qty) > self.max_position_per_symbol:
             return False, (
@@ -254,7 +297,9 @@ class ExecutionManager:
         # daily loss check
         ok = self._check_daily_loss({symbol: price})
         if not ok:
-            return False, f"execution frozen by daily loss check: {self._frozen_reason}"
+            with self._state_lock:
+                frozen_reason = self._frozen_reason
+            return False, f"execution frozen by daily loss check: {frozen_reason}"
 
         return True, "ok"
 
@@ -368,8 +413,9 @@ class ExecutionManager:
 
     # --- limit / pending order helpers ---
     def _generate_order_id(self) -> str:
-        oid = f"lim-{self._next_order_id}"
-        self._next_order_id += 1
+        with self._state_lock:
+            oid = f"lim-{self._next_order_id}"
+            self._next_order_id += 1
         return oid
 
     def place_limit_order(
@@ -383,12 +429,19 @@ class ExecutionManager:
         """Register a pending limit order. Performs light validation (qty, pos limit,
         and ARA/ARB bounds) and returns a pending order id on success.
         """
+        with self._state_lock:
+            if self._frozen:
+                return {
+                    "status": "rejected",
+                    "reason": f"Execution frozen: {self._frozen_reason}",
+                }
+
         side_l = side.lower()
         qty = int(qty)
         if qty <= 0:
             return {"status": "rejected", "reason": "qty must be > 0"}
 
-        pos_map = self._get_positions()
+        pos_map = dict(self._get_positions())
         pos = int(pos_map.get(symbol, 0))
         if side_l == "buy" and (pos + qty) > self.max_position_per_symbol:
             return {
@@ -421,7 +474,10 @@ class ExecutionManager:
             "limit_price": float(limit_price),
             "previous_close": previous_close,
         }
-        self.pending_orders[oid] = order
+        with self._state_lock:
+            self.pending_orders[oid] = order
+            pending_count = len(self.pending_orders)
+
         ev = {"type": "order_queued", "order": order}
         self.logger.info("limit order queued: %s", order)
         self._alert(ev)
@@ -429,47 +485,56 @@ class ExecutionManager:
             if PENDING_CREATED:
                 PENDING_CREATED.inc()
             if PENDING_ORDERS:
-                PENDING_ORDERS.set(len(self.pending_orders))
+                PENDING_ORDERS.set(pending_count)
         except Exception:
             pass
         return {"status": "pending", "order_id": oid}
 
     def cancel_limit_order(self, order_id: str) -> bool:
-        if order_id in self.pending_orders:
+        with self._state_lock:
+            if order_id not in self.pending_orders:
+                return False
             order = self.pending_orders.pop(order_id)
-            ev = {"type": "order_cancelled", "order": order}
-            self.logger.info("limit order cancelled: %s", order)
-            self._alert(ev)
-            try:
-                if PENDING_REMOVED:
-                    PENDING_REMOVED.inc()
-                if PENDING_ORDERS:
-                    PENDING_ORDERS.set(len(self.pending_orders))
-            except Exception:
-                pass
-            return True
-        return False
+            pending_count = len(self.pending_orders)
+
+        ev = {"type": "order_cancelled", "order": order}
+        self.logger.info("limit order cancelled: %s", order)
+        self._alert(ev)
+        try:
+            if PENDING_REMOVED:
+                PENDING_REMOVED.inc()
+            if PENDING_ORDERS:
+                PENDING_ORDERS.set(pending_count)
+        except Exception:
+            pass
+        return True
 
     def cancel_all_pending_for_symbol(self, symbol: str) -> int:
-        removed = []
-        for oid, o in list(self.pending_orders.items()):
-            if o.get("symbol") == symbol:
-                removed.append(oid)
-                self.pending_orders.pop(oid, None)
-                self._alert({"type": "order_cancelled", "order": o})
+        with self._state_lock:
+            removed_orders = []
+            for oid, order in list(self.pending_orders.items()):
+                if order.get("symbol") == symbol:
+                    self.pending_orders.pop(oid, None)
+                    removed_orders.append(order)
+            pending_count = len(self.pending_orders)
+
+        for order in removed_orders:
+            self._alert({"type": "order_cancelled", "order": order})
+
         try:
             if PENDING_REMOVED:
                 # increment by number removed
-                for _ in removed:
+                for _ in removed_orders:
                     PENDING_REMOVED.inc()
             if PENDING_ORDERS:
-                PENDING_ORDERS.set(len(self.pending_orders))
+                PENDING_ORDERS.set(pending_count)
         except Exception:
             pass
-        return len(removed)
+        return len(removed_orders)
 
     def get_pending_orders(self) -> list:
-        return list(self.pending_orders.values())
+        with self._state_lock:
+            return list(self.pending_orders.values())
 
     def process_market_tick(self, price_map: dict) -> dict:
         """Check pending limit orders against current market prices
@@ -480,7 +545,17 @@ class ExecutionManager:
         executed = []
         rejected = []
         to_remove = []
-        for oid, order in list(self.pending_orders.items()):
+
+        with self._state_lock:
+            if self._frozen:
+                return {"executed": [], "rejected": []}
+            pending_snapshot = list(self.pending_orders.items())
+
+        for oid, order in pending_snapshot:
+            with self._state_lock:
+                if oid not in self.pending_orders:
+                    continue
+
             sym = order.get("symbol")
             side = order.get("side")
             qty = int(order.get("qty", 0))
@@ -553,8 +628,10 @@ class ExecutionManager:
                 to_remove.append(oid)
 
         # remove processed orders
-        for oid in to_remove:
-            self.pending_orders.pop(oid, None)
+        with self._state_lock:
+            for oid in to_remove:
+                self.pending_orders.pop(oid, None)
+            pending_count = len(self.pending_orders)
 
         # update daily loss baseline
         try:
@@ -565,13 +642,7 @@ class ExecutionManager:
         # update pending orders gauge
         try:
             if PENDING_ORDERS:
-                PENDING_ORDERS.set(len(self.pending_orders))
-        except Exception:
-            pass
-
-        # update daily loss baseline
-        try:
-            self._check_daily_loss(price_map)
+                PENDING_ORDERS.set(pending_count)
         except Exception:
             pass
 
@@ -587,19 +658,20 @@ class ExecutionManager:
             fee = float(trade.get("fee", 0.0)) if trade.get("fee") is not None else 0.0
             if not sym:
                 return
-            if side == "buy":
-                self._expected_positions[sym] = (
-                    self._expected_positions.get(sym, 0) + qty
-                )
-                if self._expected_cash is not None:
-                    self._expected_cash -= qty * price + fee
-            elif side == "sell":
-                self._expected_positions[sym] = (
-                    self._expected_positions.get(sym, 0) - qty
-                )
-                if self._expected_cash is not None:
-                    net = float(trade.get("net", price * qty - fee))
-                    self._expected_cash += net
+            with self._state_lock:
+                if side == "buy":
+                    self._expected_positions[sym] = (
+                        self._expected_positions.get(sym, 0) + qty
+                    )
+                    if self._expected_cash is not None:
+                        self._expected_cash -= qty * price + fee
+                elif side == "sell":
+                    self._expected_positions[sym] = (
+                        self._expected_positions.get(sym, 0) - qty
+                    )
+                    if self._expected_cash is not None:
+                        net = float(trade.get("net", price * qty - fee))
+                        self._expected_cash += net
         except Exception:
             self.logger.exception("error applying trade to expected state")
 
@@ -612,8 +684,10 @@ class ExecutionManager:
         if self.broker is None:
             return {"ok": True, "reason": "no_broker"}
 
-        expected_positions = dict(self._expected_positions or {})
-        expected_cash = self._expected_cash
+        with self._state_lock:
+            expected_positions = dict(self._expected_positions or {})
+            expected_cash = self._expected_cash
+
         # if we have no expected snapshot, default to current positions
         if expected_positions == {}:
             expected_positions = dict(self._get_positions())

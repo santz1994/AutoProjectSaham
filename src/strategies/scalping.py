@@ -19,15 +19,29 @@ def simple_sma_strategy(prices: List[float], short: int = 5, long: int = 20):
     n = len(prices)
     if n == 0:
         return []
+    if short <= 0 or long <= 0:
+        raise ValueError("short and long windows must be > 0")
 
     short_sma = [None] * n
     long_sma = [None] * n
 
+    short_sum = 0.0
+    long_sum = 0.0
+
     for i in range(n):
+        price = float(prices[i])
+        short_sum += price
+        long_sum += price
+
+        if i >= short:
+            short_sum -= float(prices[i - short])
+        if i >= long:
+            long_sum -= float(prices[i - long])
+
         if i + 1 >= short:
-            short_sma[i] = sum(prices[i + 1 - short : i + 1]) / short
+            short_sma[i] = short_sum / short
         if i + 1 >= long:
-            long_sma[i] = sum(prices[i + 1 - long : i + 1]) / long
+            long_sma[i] = long_sum / long
 
     signals = [0] * n
     for i in range(1, n):

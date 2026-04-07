@@ -39,6 +39,19 @@ class IdxRulesTests(unittest.TestCase):
         limits = calculate_idx_limits(1, is_fca=True)
         self.assertEqual(limits["arb"], 1)
 
+    def test_tier_crossing_uses_result_price_ticks(self):
+        # previous close 490 sits on tick=2 tier, but ARA crosses into tick=5 tier.
+        from src.execution.idx_rules import calculate_idx_limits
+
+        limits = calculate_idx_limits(490)
+
+        # 490 * 1.25 = 612.5 -> round down with tick 5 => 610
+        self.assertEqual(limits["ara"], 610)
+        # 490 * 0.75 = 367.5 -> round up with tick 2 => 368
+        self.assertEqual(limits["arb"], 368)
+        self.assertEqual(limits["araTick"], 5)
+        self.assertEqual(limits["arbTick"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

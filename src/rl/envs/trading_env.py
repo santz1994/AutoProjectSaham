@@ -158,6 +158,34 @@ class TradingEnv:
         )
         return obs
 
+    def _resolve_liquidity_adjusted_price(
+        self,
+        base_price: float,
+        trade_size: int,
+        current_volume: float,
+        side: str,
+    ) -> tuple[Optional[float], Optional[str]]:
+        """Return execution price adjusted by liquidity/slippage.
+
+        When current volume is zero, reject the trade to avoid a simulation
+        loophole where agents exploit zero-slippage in illiquid ticks.
+        """
+        if current_volume is None or float(current_volume) <= 0:
+            return None, "no_liquidity_volume_zero"
+
+        max_executable_vol = max(1, int(float(current_volume) * 0.10))
+        exec_price = float(base_price)
+
+        if abs(int(trade_size)) > max_executable_vol:
+            excess_ratio = (abs(int(trade_size)) - max_executable_vol) / max_executable_vol
+            slippage_factor = min(0.05, 0.005 * (excess_ratio**1.5))
+            if side == "buy":
+                exec_price = float(base_price) * (1.0 + slippage_factor)
+            else:
+                exec_price = float(base_price) * (1.0 - slippage_factor)
+
+        return exec_price, None
+
     def step(self, action):
         # action can be scalar (legacy) or array-like [decision, tp_bracket]
         price = float(self.prices[self.t])
@@ -207,28 +235,32 @@ class TradingEnv:
         # 2) Process incoming decision
         if decision == 1:
             # BUY market
-            # liquidity-aware slippage model (10% of daily volume is liquid)
             current_volume = self.volumes[self.t] if self.t < len(self.volumes) else 0
             trade_size = int(self.position_size)
-            max_executable_vol = (
-                max(1, int(current_volume * 0.10)) if current_volume else None
-            )
 
-            exec_price = price
-            if max_executable_vol and abs(trade_size) > max_executable_vol:
-                excess_ratio = (
-                    abs(trade_size) - max_executable_vol
-                ) / max_executable_vol
-                slippage_factor = min(0.05, 0.005 * (excess_ratio**1.5))
-                exec_price = price * (1.0 + slippage_factor)
-
-            trade = self.manager.place_order(
-                self.symbol,
-                "buy",
-                self.position_size,
-                exec_price,
-                previous_close=prev_close,
+            exec_price, liquidity_error = self._resolve_liquidity_adjusted_price(
+                base_price=price,
+                trade_size=trade_size,
+                current_volume=current_volume,
+                side="buy",
             )
+            if liquidity_error:
+                reward -= 2.0
+                info["rejected"] = liquidity_error
+                info["liquidity_penalty"] = True
+                exec_price = None
+
+            if exec_price is None:
+                trade = {"status": "rejected", "reason": liquidity_error}
+            else:
+                trade = self.manager.place_order(
+                    self.symbol,
+                    "buy",
+                    self.position_size,
+                    exec_price,
+                    previous_close=prev_close,
+                )
+
             if trade.get("status") == "rejected":
                 reward -= 1.0
                 info["rejected"] = trade.get("reason")
@@ -270,21 +302,23 @@ class TradingEnv:
                     self.volumes[self.t] if self.t < len(self.volumes) else 0
                 )
                 trade_size = int(qty)
-                max_executable_vol = (
-                    max(1, int(current_volume * 0.10)) if current_volume else None
-                )
 
-                exec_price = price
-                if max_executable_vol and abs(trade_size) > max_executable_vol:
-                    excess_ratio = (
-                        abs(trade_size) - max_executable_vol
-                    ) / max_executable_vol
-                    slippage_factor = min(0.05, 0.005 * (excess_ratio**1.5))
-                    exec_price = price * (1.0 - slippage_factor)
-
-                trade = self.manager.place_order(
-                    self.symbol, "sell", qty, exec_price, previous_close=prev_close
+                exec_price, liquidity_error = self._resolve_liquidity_adjusted_price(
+                    base_price=price,
+                    trade_size=trade_size,
+                    current_volume=current_volume,
+                    side="sell",
                 )
+                if liquidity_error:
+                    reward -= 2.0
+                    info["rejected"] = liquidity_error
+                    info["liquidity_penalty"] = True
+                    trade = {"status": "rejected", "reason": liquidity_error}
+                else:
+                    trade = self.manager.place_order(
+                        self.symbol, "sell", qty, exec_price, previous_close=prev_close
+                    )
+
                 if trade.get("status") == "rejected":
                     reward -= 1.0
                     info["rejected"] = trade.get("reason")

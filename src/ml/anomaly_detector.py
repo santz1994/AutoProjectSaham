@@ -25,7 +25,7 @@ import logging
 
 try:
     from sklearn.ensemble import IsolationForest
-    from sklearn.preprocessing import StandardScaler
+    from sklearn.preprocessing import StandardScaler, RobustScaler
     from sklearn.covariance import EllipticEnvelope
     SKLEARN_AVAILABLE = True
 except ImportError:
@@ -117,7 +117,9 @@ class AutoencoderDetector:
         
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model = AutoencoderAnomaly(input_dim, hidden_dim).to(self.device)
-        self.scaler = StandardScaler()
+        # RobustScaler is less sensitive to extreme tails/outliers than
+        # mean-variance normalization for anomaly-focused training.
+        self.scaler = RobustScaler()
         self.threshold_percentile = threshold_percentile
         self.contamination = contamination
         self.reconstruction_threshold = None
@@ -340,9 +342,14 @@ class StatisticalAnomalyDetector:
         Returns:
             Tuple of (anomaly_mask, z_scores)
         """
+        prices = np.asarray(prices, dtype=float)
+        if len(prices) == 0:
+            return np.array([], dtype=bool), np.array([], dtype=float)
+
         if returns is None:
-            returns = np.diff(prices) / prices[:-1]
-            returns = np.concatenate([[0], returns])
+            denominator = np.where(np.abs(prices[:-1]) < 1e-8, 1e-8, prices[:-1])
+            returns = np.diff(prices) / denominator
+            returns = np.concatenate([[0.0], returns])
         
         # Rolling Z-score
         anomalies = np.zeros(len(returns), dtype=bool)

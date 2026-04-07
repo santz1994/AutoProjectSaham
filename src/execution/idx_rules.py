@@ -7,12 +7,16 @@ tick sizes; validate against official IDX rulebook in production.
 import math
 
 
+REGULAR_MIN_PRICE = 50
+FCA_MIN_PRICE = 1
+
+
 def fraksi_harga_tick(price: float) -> int:
     """Return a sensible tick size (IDR) for a given price using heuristic tiers.
 
     NOTE: These tiers are heuristic and should be verified with IDX documentation.
     """
-    p = float(price)
+    p = max(0.0, float(price))
     if p < 200:
         return 1
     if p < 500:
@@ -33,6 +37,20 @@ def round_up_to_tick(price: float, tick: int) -> int:
     return int(math.ceil(price / tick) * tick)
 
 
+def round_down_to_valid_tick(price: float) -> int:
+    """Round down using tick derived from the target price level."""
+    target = max(0.0, float(price))
+    target_tick = fraksi_harga_tick(target)
+    return round_down_to_tick(target, target_tick)
+
+
+def round_up_to_valid_tick(price: float) -> int:
+    """Round up using tick derived from the target price level."""
+    target = max(0.0, float(price))
+    target_tick = fraksi_harga_tick(target)
+    return round_up_to_tick(target, target_tick)
+
+
 def calculate_idx_limits(previous_close: float, is_fca: bool = False) -> dict:
     """Calculate ARA and ARB limits for a given previous close price.
 
@@ -51,10 +69,16 @@ def calculate_idx_limits(previous_close: float, is_fca: bool = False) -> dict:
         raw_ara = previous_close * (1 + limit_percentage)
         raw_arb = previous_close * (1 - limit_percentage)
 
-        ara = round_down_to_tick(raw_ara, tick)
-        arb = max(1, round_up_to_tick(raw_arb, tick))
+        ara = round_down_to_valid_tick(raw_ara)
+        arb = max(FCA_MIN_PRICE, round_up_to_valid_tick(raw_arb))
 
-        return {"ara": int(ara), "arb": int(arb), "tick": int(tick)}
+        return {
+            "ara": int(ara),
+            "arb": int(arb),
+            "tick": int(tick),
+            "araTick": int(fraksi_harga_tick(ara)),
+            "arbTick": int(fraksi_harga_tick(arb)),
+        }
 
     # Regular / Main board: symmetric tiered percentages
     if previous_close < 200:
@@ -67,10 +91,19 @@ def calculate_idx_limits(previous_close: float, is_fca: bool = False) -> dict:
     raw_ara = previous_close * (1 + limit_percentage)
     raw_arb = previous_close * (1 - limit_percentage)
 
-    ara = round_down_to_tick(raw_ara, tick)
-    arb = max(50, round_up_to_tick(raw_arb, tick))
+    # IMPORTANT: Tick size follows the resulting price level, not only
+    # the previous close tier. This prevents invalid prices when crossing
+    # tier boundaries (e.g. 490 -> ARA around 612.5 should use tick 5).
+    ara = round_down_to_valid_tick(raw_ara)
+    arb = max(REGULAR_MIN_PRICE, round_up_to_valid_tick(raw_arb))
 
-    return {"ara": int(ara), "arb": int(arb), "tick": int(tick)}
+    return {
+        "ara": int(ara),
+        "arb": int(arb),
+        "tick": int(tick),
+        "araTick": int(fraksi_harga_tick(ara)),
+        "arbTick": int(fraksi_harga_tick(arb)),
+    }
 
 
 if __name__ == "__main__":
