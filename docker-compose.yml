@@ -56,7 +56,7 @@ services:
     ports:
       - "80:8000"        # HTTP proxy (external)
       - "443:8443"       # HTTPS proxy (external)
-      - "8001:8001"      # Admin API (internal only)
+      - "8002:8001"      # Admin API (dev/ops only)
     depends_on:
       - api
       - redis
@@ -84,6 +84,7 @@ services:
       AUTOSAHAM_STATE_POSTGRES_URL: "${AUTOSAHAM_STATE_POSTGRES_URL:-postgresql://trading:${DB_PASSWORD:-trading_secure_pwd}@postgres:5432/autosaham}"
       AUTOSAHAM_STATE_POSTGRES_AI_LOGS_ENABLED: "${AUTOSAHAM_STATE_POSTGRES_AI_LOGS_ENABLED:-1}"
       AUTOSAHAM_STATE_POSTGRES_AI_LOGS_SHADOW_SQLITE: "${AUTOSAHAM_STATE_POSTGRES_AI_LOGS_SHADOW_SQLITE:-1}"
+      AUTH_EXPOSE_RESET_TOKEN: "${AUTH_EXPOSE_RESET_TOKEN:-0}"
       TZ: Asia/Jakarta
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       API_HOST: 0.0.0.0

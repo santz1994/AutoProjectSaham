@@ -308,6 +308,7 @@ Variabel penting:
   - AUTOSAHAM_STATE_POSTGRES_URL (fallback ke DATABASE_URL bila kosong)
   - AUTOSAHAM_STATE_POSTGRES_AI_LOGS_ENABLED (default: 1)
   - AUTOSAHAM_STATE_POSTGRES_AI_LOGS_SHADOW_SQLITE (default: 1)
+  - AUTH_EXPOSE_RESET_TOKEN (default: 0, aktifkan 1 hanya untuk smoke test reset password di dev)
 
 ## Docker and Observability
 
