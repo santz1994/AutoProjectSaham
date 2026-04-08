@@ -58,5 +58,15 @@
     "password": "ac5f22ab31ced50106b70179dca6d5b5$kN8gQaZc0YkrfCcrVXy34ivyWGNj1zs2yW0N6XDLC2U=",
     "email": "prod_359416@example.com",
     "createdAt": "2026-04-08T03:52:39Z"
+  },
+  "localtest_791513886": {
+    "password": "7beec73b50384c764e2a7d5c4414bb3c$qXsL2m9AbPUrbkt92ko8qs1uC31LV6Y86IyeF2JOV7Q=",
+    "email": "localtest@example.com",
+    "createdAt": "2026-04-08T04:19:04Z"
+  },
+  "livetest": {
+    "password": "1dc53586b0f08dd9c53c60fd967f1f14$XjOlZoG2n6HIpSGOEI9ONjmCuUuJPWOP/ueY96tPlAE=",
+    "email": "livetest@example.com",
+    "createdAt": "2026-04-08T04:20:59Z"
   }
 }
