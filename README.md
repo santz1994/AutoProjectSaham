@@ -159,6 +159,9 @@ Ini sengaja menjaga UX tetap stabil saat data provider atau integrasi broker ter
   - GET /api/broker/connection
   - POST /api/broker/connect
   - POST /api/broker/disconnect
+  - GET /api/system/kill-switch
+  - POST /api/system/kill-switch/activate
+  - POST /api/system/kill-switch/deactivate
 - AI:
   - GET /api/ai/projection/{symbol}
   - GET /api/ai/overview
@@ -308,6 +311,9 @@ Variabel penting:
   - AUTOSAHAM_STATE_POSTGRES_URL (fallback ke DATABASE_URL bila kosong)
   - AUTOSAHAM_STATE_POSTGRES_AI_LOGS_ENABLED (default: 1)
   - AUTOSAHAM_STATE_POSTGRES_AI_LOGS_SHADOW_SQLITE (default: 1)
+  - AUTOSAHAM_WS_BACKPLANE_ENABLED (default: 0)
+  - AUTOSAHAM_WS_BACKPLANE_CHANNEL (default: autosaham:events)
+  - AUTOSAHAM_INSTANCE_ID (opsional untuk identitas publisher event lintas instance)
   - AUTH_EXPOSE_RESET_TOKEN (default: 0, aktifkan 1 hanya untuk smoke test reset password di dev)
 
 ## Docker and Observability
@@ -352,6 +358,11 @@ monitoring/        # Prometheus and alert configuration
 - Saat ini backend tidak melakukan static mount frontend ke path /ui.
   Untuk akses UI, jalankan Vite dev server (localhost:5173) atau host build frontend secara terpisah.
 - Notification channel WebSocket berjalan realtime. Beberapa channel lain (email/push) masih pada level handler/queue/logging dan dapat diperluas sesuai kebutuhan produksi.
+- Global Kill Switch memblokir trigger eksekusi baru (bot start, deploy/backtest strategy, run ETL/training trigger) sampai status di-resume melalui endpoint kill switch.
+
+## Kontribusi
+
+Pedoman kontribusi ada di file CONTRIBUTING.md, termasuk standar commit, validasi minimal, aturan keamanan secret, dan checklist review perubahan.
 
 ## Next Updates
 

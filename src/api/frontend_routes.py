@@ -53,6 +53,8 @@ class BotStatus(BaseModel):
     winRate: float = 0.0
     lastTradeTime: Optional[str] = None
     nextAnalysisIn: Optional[str] = None
+    killSwitchActive: bool = False
+    killSwitchReason: Optional[str] = None
     performanceToday: dict = {}
 
 class Signal(BaseModel):
@@ -232,6 +234,11 @@ class StateMigrationPayload(BaseModel):
     clearSqlite: bool = False
 
 
+class KillSwitchPayload(BaseModel):
+    reason: Optional[str] = None
+    actor: Optional[str] = None
+
+
 class AILogPayload(BaseModel):
     level: str = "info"
     eventType: str = "manual"
@@ -350,6 +357,13 @@ _default_regime_state: Dict[str, Any] = {
     "symbols": [],
     "pricePoints": 0,
     "asOf": None,
+}
+
+_default_system_control: Dict[str, Any] = {
+    "killSwitchActive": False,
+    "reason": None,
+    "activatedAt": None,
+    "activatedBy": None,
 }
 
 _STRATEGY_PROFILE_BY_TYPE: Dict[str, str] = {
@@ -2639,6 +2653,9 @@ def _resolve_runtime_bot_status() -> BotStatus:
     logs = _state_store.list_ai_logs(limit=250)
     settings = _state_store.get_user_settings(_default_user_settings)
     broker = _state_store.get_broker_connection(_default_broker_connection)
+    system_control = _state_store.get_system_control(_default_system_control)
+    kill_switch_active = bool(system_control.get("killSwitchActive"))
+    kill_switch_reason = str(system_control.get("reason") or "").strip() or None
 
     trade_like_events = {
         "trade_execution",
@@ -2690,8 +2707,15 @@ def _resolve_runtime_bot_status() -> BotStatus:
     )
     refresh_seconds = max(5, min(refresh_seconds, 300))
 
+    if kill_switch_active:
+        resolved_status = "stopped"
+        next_analysis = "halted"
+    else:
+        resolved_status = "running" if bool(broker.get("connected")) else "standby"
+        next_analysis = f"{refresh_seconds}s"
+
     return BotStatus(
-        status="running" if bool(broker.get("connected")) else "standby",
+        status=resolved_status,
         uptime=uptime,
         activeTrades=0,
         totalTradesToday=total_trades_today,
@@ -2699,9 +2723,49 @@ def _resolve_runtime_bot_status() -> BotStatus:
         failedTrades=failed_trades,
         winRate=round(win_rate, 4),
         lastTradeTime=last_trade_time.isoformat() if last_trade_time else None,
-        nextAnalysisIn=f"{refresh_seconds}s",
+        nextAnalysisIn=next_analysis,
+        killSwitchActive=kill_switch_active,
+        killSwitchReason=kill_switch_reason,
         performanceToday={"totalP_L": 0.0, "percentP_L": 0.0},
     )
+
+
+def _kill_switch_state() -> Dict[str, Any]:
+    return _state_store.get_system_control(_default_system_control)
+
+
+def _is_kill_switch_active() -> bool:
+    state = _kill_switch_state()
+    return bool(state.get("killSwitchActive"))
+
+
+def _assert_kill_switch_inactive(operation: str) -> None:
+    state = _kill_switch_state()
+    if not bool(state.get("killSwitchActive")):
+        return
+
+    reason = str(state.get("reason") or "Emergency stop active")
+    raise HTTPException(
+        status_code=423,
+        detail=f"{operation} blocked: {reason}",
+    )
+
+
+def _emit_kill_switch_event(active: bool, reason: str, actor: str) -> None:
+    try:
+        from src.api.event_queue import push_event
+
+        push_event(
+            {
+                "type": "kill_switch",
+                "active": bool(active),
+                "reason": reason,
+                "actor": actor,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
+    except Exception:
+        pass
 
 # ============== Routes ==============
 
@@ -2724,7 +2788,7 @@ async def get_bot_status():
 @router.post("/bot/start")
 async def start_bot():
     """Start the trading bot"""
-    # TODO: Implement bot start logic
+    _assert_kill_switch_inactive("Bot start")
     return {"status": "started", "timestamp": datetime.now().isoformat()}
 
 @router.post("/bot/stop")
@@ -2978,6 +3042,8 @@ async def get_strategies():
 @router.post("/strategies/{strategy_id}/deploy")
 async def deploy_strategy(strategy_id: int):
     """Activate a strategy for execution workflow."""
+    _assert_kill_switch_inactive("Strategy deploy")
+
     strategies = await get_strategies()
     strategy = next((item for item in strategies if item.id == strategy_id), None)
     if strategy is None:
@@ -3026,6 +3092,8 @@ async def deploy_strategy(strategy_id: int):
 @router.post("/strategies/{strategy_id}/backtest")
 async def backtest_strategy(strategy_id: int, payload: Optional[Dict[str, Any]] = None):
     """Queue a strategy backtest run and return execution metadata."""
+    _assert_kill_switch_inactive("Strategy backtest")
+
     strategies = await get_strategies()
     strategy = next((item for item in strategies if item.id == strategy_id), None)
     if strategy is None:
@@ -3227,6 +3295,81 @@ async def get_available_brokers():
 async def get_broker_feature_flags():
     """Return feature flag state for each broker provider."""
     return _state_store.list_feature_flags()
+
+
+@router.get("/system/kill-switch")
+async def get_kill_switch_state():
+    """Return global kill switch state."""
+    return _kill_switch_state()
+
+
+@router.post("/system/kill-switch/activate")
+async def activate_kill_switch(payload: Optional[KillSwitchPayload] = None):
+    """Activate global kill switch and halt new trading actions."""
+    reason = str((payload.reason if payload else "") or "Manual emergency stop").strip()
+    actor = str((payload.actor if payload else "") or "api").strip()
+    now_iso = datetime.now().isoformat()
+
+    current_state = _kill_switch_state()
+    updated_state = _state_store.set_system_control(
+        {
+            **current_state,
+            "killSwitchActive": True,
+            "reason": reason,
+            "activatedBy": actor,
+            "activatedAt": current_state.get("activatedAt") or now_iso,
+        }
+    )
+
+    _state_store.append_ai_log(
+        level="critical",
+        event_type="kill_switch_activated",
+        message=f"Global kill switch activated by {actor}.",
+        payload={
+            "reason": reason,
+            "actor": actor,
+        },
+    )
+    _emit_kill_switch_event(True, reason, actor)
+
+    return {
+        "status": "activated",
+        "killSwitch": updated_state,
+    }
+
+
+@router.post("/system/kill-switch/deactivate")
+async def deactivate_kill_switch(payload: Optional[KillSwitchPayload] = None):
+    """Deactivate global kill switch and allow trading actions again."""
+    reason = str((payload.reason if payload else "") or "Manual resume").strip()
+    actor = str((payload.actor if payload else "") or "api").strip()
+
+    current_state = _kill_switch_state()
+    updated_state = _state_store.set_system_control(
+        {
+            **current_state,
+            "killSwitchActive": False,
+            "reason": reason,
+            "activatedBy": actor,
+            "activatedAt": None,
+        }
+    )
+
+    _state_store.append_ai_log(
+        level="info",
+        event_type="kill_switch_deactivated",
+        message=f"Global kill switch deactivated by {actor}.",
+        payload={
+            "reason": reason,
+            "actor": actor,
+        },
+    )
+    _emit_kill_switch_event(False, reason, actor)
+
+    return {
+        "status": "deactivated",
+        "killSwitch": updated_state,
+    }
 
 
 @router.get("/system/state-store/status")

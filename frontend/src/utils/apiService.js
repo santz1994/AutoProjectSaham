@@ -69,6 +69,24 @@ class ApiService {
     return this.request('/api/bot/pause', { method: 'POST' });
   }
 
+  async getKillSwitchState() {
+    return this.request('/api/system/kill-switch');
+  }
+
+  async activateKillSwitch(reason = 'Emergency stop from UI', actor = 'ui-navbar') {
+    return this.request('/api/system/kill-switch/activate', {
+      method: 'POST',
+      body: JSON.stringify({ reason, actor }),
+    });
+  }
+
+  async deactivateKillSwitch(reason = 'Manual resume from UI', actor = 'ui-navbar') {
+    return this.request('/api/system/kill-switch/deactivate', {
+      method: 'POST',
+      body: JSON.stringify({ reason, actor }),
+    });
+  }
+
   // ============ Signals API ============
   async getTopSignals(limit = 10) {
     return this.request(`/api/signals?limit=${limit}`);

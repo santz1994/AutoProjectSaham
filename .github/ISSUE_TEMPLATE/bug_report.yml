@@ -1,0 +1,62 @@
+name: Bug Report
+description: Laporkan bug agar tim bisa reproduksi dan memperbaiki dengan cepat.
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Terima kasih sudah melaporkan bug. Sertakan detail yang cukup agar issue dapat direproduksi.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Ringkasan bug
+      description: Jelaskan masalah secara singkat.
+      placeholder: Saat klik tombol X, aplikasi menampilkan error Y...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Langkah reproduksi
+      description: Langkah terurut untuk memunculkan bug.
+      placeholder: |
+        1. Buka halaman ...
+        2. Klik ...
+        3. Lihat error ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Perilaku yang diharapkan
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log atau screenshot
+      description: Tempel stack trace, response API, atau screenshot jika ada.
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, browser, branch/commit jika diketahui.
+      placeholder: Windows 11, Chrome 136, branch master
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Tingkat dampak
+      options:
+        - Critical (trading/error finansial)
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true

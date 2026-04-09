@@ -65,9 +65,11 @@ System & Architecture
 - [ ] Implementasi paid (Basic, Pro) and free tier dengan rate limit berbeda di Kong, serta endpoint API untuk memantau penggunaan kuota per user. (PARTIAL: rate limiting sudah aktif di Kong, namun segmentasi paid/free tier dan endpoint monitoring kuota masih perlu ditambahkan)
 - [ ] Audit readiness untuk migrasi ke microservices: pastikan semua endpoint API sudah terdefinisi dengan baik di kong.yml, dan tidak ada tight coupling antar modul yang bisa menghambat pemisahan layanan di masa depan.
 - [ ] Implementasi monitoring dan alerting untuk state store (Redis/PostgreSQL) dan task queue (Celery) untuk mendeteksi masalah performa atau kegagalan sistem dengan cepat. (PARTIAL: endpoint status migrasi sudah tersedia, namun integrasi dengan monitoring tool seperti Prometheus/Grafana masih perlu dilakukan)
-- [ ] Update dokumentasi kontribusi (CONTRIBUTING.md) untuk mencerminkan perubahan arsitektur, standar kode, dan proses pengembangan baru setelah migrasi ke state store terpusat dan task queue. (PARTIAL: beberapa bagian dokumentasi sudah diperbarui, namun audit menyeluruh seluruh bagian kontribusi masih diperlukan untuk memastikan semua perubahan arsitektur dan proses tercermin dengan jelas)
-- [ ] Update .gitignore untuk memastikan file sementara, log, dan artefak build yang tidak relevan tidak masuk ke repository, terutama setelah penambahan Redis/PostgreSQL dan task queue. (PARTIAL: beberapa entri baru sudah ditambahkan untuk Redis dump, Celery logs, dan PostgreSQL artifacts, namun audit menyeluruh seluruh .gitignore masih diperlukan untuk memastikan tidak ada file sensitif atau sementara yang terlewat)
-- [ ] Update README.md untuk mencerminkan perubahan arsitektur, setup environment, dan instruksi penggunaan baru setelah migrasi ke state store terpusat dan task queue. (PARTIAL: beberapa bagian README sudah diperbarui, namun audit menyeluruh seluruh README masih diperlukan untuk memastikan semua perubahan arsitektur, setup, dan instruksi tercermin dengan jelas)
+- [x] Update dokumentasi kontribusi (CONTRIBUTING.md) untuk mencerminkan perubahan arsitektur, standar kode, dan proses pengembangan baru setelah migrasi ke state store terpusat dan task queue.
+- [x] Update .gitignore untuk memastikan file sementara, log, dan artefak build yang tidak relevan tidak masuk ke repository, terutama setelah penambahan Redis/PostgreSQL dan task queue.
+- [-] Update README.md untuk mencerminkan perubahan arsitektur, setup environment, dan instruksi penggunaan baru setelah migrasi ke state store terpusat dan task queue. (PARTIAL: endpoint kill switch, env websocket backplane, dan catatan kontribusi sudah ditambahkan; audit keseluruhan isi README masih berjalan)
+- [-] Redis Pub/Sub untuk Scaling WebSocket Gunakan pola Redis Pub/Sub. Semua market data di-publish ke Redis, dan setiap instance FastAPI men-subscribe Redis tersebut untuk di-broadcast ke klien WebSocket masing-masing. Ini memungkinkan horizontal scaling dengan banyak instance API yang tetap menerima data real-time tanpa harus mengandalkan sticky session atau load balancer khusus WebSocket. (PARTIAL: backplane Redis Pub/Sub opsional sudah diimplementasikan pada src/api/event_queue.py dengan env AUTOSAHAM_WS_BACKPLANE_ENABLED, rollout/monitoring produksi multi-instance masih perlu)
+- [ ] Data Retention & Archival Strategy (Hot vs Cold Data) Buat aturan archival. Data 3 bulan terakhir simpan di PostgreSQL (Hot Storage). Data lebih dari 3 bulan di- dump ke format Parquet/CSV dan disimpan di S3/Cloud Storage (Cold Storage) untuk keperluan training (menggunakan DuckDB atau Polars untuk membacanya).
 
 User Authentication & UAC
 - [ ] Implementasi sistem autentikasi dan otorisasi pengguna yang kuat, termasuk manajemen session dan token.
@@ -97,15 +99,18 @@ Code Quality
 - [x] Implementasi model registry (mis. MLflow) untuk lifecycle artefak model. (DONE: model registry persisten sudah diimplementasikan dan terintegrasi ke trainer)
 - [x] Perbaikan kompatibilitas GitHub Actions: upgrade checkout/setup-python ke versi terbaru dan migrasi upload-artifact dari v3 ke v4.
 - [x] Investigasi dan perbaikan kegagalan job "Code Quality & Linting" (exit code 1): stabilisasi workflow (Python 3.11, Node24 opt-in, lint report-only).
-- [ ] Update dokumentasi kontribusi (CONTRIBUTING.md) untuk mencerminkan perubahan arsitektur, standar kode, dan proses pengembangan baru setelah migrasi ke state store terpusat dan task queue. (PARTIAL: beberapa bagian dokumentasi sudah diperbarui, namun audit menyeluruh seluruh bagian kontribusi masih diperlukan untuk memastikan semua perubahan arsitektur dan proses tercermin dengan jelas)
-- [ ] Update .gitignore untuk memastikan file sementara, log, dan artefak build yang tidak relevan tidak masuk ke repository, terutama setelah penambahan Redis/PostgreSQL dan task queue. (PARTIAL: beberapa entri baru sudah ditambahkan untuk Redis dump, Celery logs, dan PostgreSQL artifacts, namun audit menyeluruh seluruh .gitignore masih diperlukan untuk memastikan tidak ada file sensitif atau sementara yang terlewat)
+- [x] Update dokumentasi kontribusi (CONTRIBUTING.md) untuk mencerminkan perubahan arsitektur, standar kode, dan proses pengembangan baru setelah migrasi ke state store terpusat dan task queue.
+- [x] Update .gitignore untuk memastikan file sementara, log, dan artefak build yang tidak relevan tidak masuk ke repository, terutama setelah penambahan Redis/PostgreSQL dan task queue.
+- [x] Automated Secret & Vulnerability Scanning Tambahkan GitHooks (misal: TruffleHog atau Gitleaks) di CI/CD untuk mencegah commit yang mengandung API Key atau kredensial database. Gunakan Dependabot untuk memantau celah keamanan di requirements.txt / package.json .
+- [ ] Strict Type Hinting (Python mypy) Terapkan aturan Strict Type Hinting menggunakan mypy sebagai pass/fail gate di Github Actions CI.
+- [ ] Check Duplicated Code, Linting, dan Code Smells Tambahkan tools seperti SonarQube atau CodeClimate untuk analisis kualitas kode secara menyeluruh, termasuk deteksi duplikasi, code smells, dan potensi bug.
 
 Documentation simpan dalam /docs kecuali untuk dokumentasi kontribusi (CONTRIBUTING.md) dan README.md yang berada di root repository.
 - [x] Dokumentasi API state store (Redis/PostgreSQL) dan task queue (Celery) untuk penggunaan dan konfigurasi sudah ditambahkan di docs/api_state_store.md.
 - [x] Dokumentasi penggunaan dan konfigurasi rate limiting di Kong untuk paid/free tier sudah ditambahkan di docs/CICD_DEPLOYMENT_GUIDE.md.
-- [ ] Update dokumentasi kontribusi (CONTRIBUTING.md) untuk mencerminkan perubahan arsitektur, standar kode, dan proses pengembangan baru setelah migrasi ke state store terpusat dan task queue. (PARTIAL: beberapa bagian dokumentasi sudah diperbarui, namun audit menyeluruh seluruh bagian kontribusi masih diperlukan untuk memastikan semua perubahan arsitektur dan proses tercermin dengan jelas)
-- [ ] Update .gitignore untuk memastikan file sementara, log, dan artefak build yang tidak relevan tidak masuk ke repository, terutama setelah penambahan Redis/PostgreSQL dan task queue. (PARTIAL: beberapa entri baru sudah ditambahkan untuk Redis dump, Celery logs, dan PostgreSQL artifacts, namun audit menyeluruh seluruh .gitignore masih diperlukan untuk memastikan tidak ada file sensitif atau sementara yang terlewat)
-- [ ] Update README.md untuk mencerminkan perubahan arsitektur, setup environment, dan instruksi penggunaan baru setelah migrasi ke state store terpusat dan task queue. (PARTIAL: beberapa bagian README sudah diperbarui, namun audit menyeluruh seluruh README masih diperlukan untuk memastikan semua perubahan arsitektur, setup, dan instruksi tercermin dengan jelas)
+- [x] Update dokumentasi kontribusi (CONTRIBUTING.md) untuk mencerminkan perubahan arsitektur, standar kode, dan proses pengembangan baru setelah migrasi ke state store terpusat dan task queue.
+- [x] Update .gitignore untuk memastikan file sementara, log, dan artefak build yang tidak relevan tidak masuk ke repository, terutama setelah penambahan Redis/PostgreSQL dan task queue.
+- [-] Update README.md untuk mencerminkan perubahan arsitektur, setup environment, dan instruksi penggunaan baru setelah migrasi ke state store terpusat dan task queue. (PARTIAL: endpoint kill switch, env websocket backplane, dan catatan kontribusi sudah ditambahkan; audit keseluruhan isi README masih berjalan)
 - [ ] Dokumentasi API state store (Redis/PostgreSQL) dan task queue (Celery) untuk penggunaan dan konfigurasi.
 - [ ] Dokumentasi penggunaan dan konfigurasi rate limiting di Kong untuk paid/free tier.
 - [ ] Dokumentasi kontribusi (CONTRIBUTING.md) untuk mencerminkan perubahan arsitektur, standar kode, dan proses pengembangan baru setelah migrasi ke state store terpusat dan task queue.
@@ -116,7 +121,7 @@ UI/UX & Accessibility
 - [ ] Optimistic UI pada seluruh alur eksekusi order/trade log. (PARTIAL: TradeLogsPage sudah punya optimistic refresh/report state, flow eksekusi order end-to-end masih perlu dituntaskan)
 - [ ] Chart rendering berbasis Canvas/WebGL untuk data frekuensi tinggi (mis. Lightweight Charts) untuk menghindari React render hell.
 - [x] Implementasi utilitas a11y untuk memastikan standar aksesibilitas terpenuhi (keyboard navigation, ARIA roles, dll).
-- [x] PWA readiness: service worker untuk caching dan offline support sudah diimplementasikan.
+- [ ] PWA readiness: Aplikasi trading sangat bergantung pada data real-time. Menyediakan dukungan offline (kecuali untuk melihat log historis) bisa memberikan rasa aman palsu kepada trader. Jika koneksi terputus, UI harus langsung memblokir aksi dan menampilkan peringatan Disconnected, bukan menyimpan data di cache offline. (PARTIAL: service worker sudah terpasang, namun audit menyeluruh seluruh jalur data dan aksi saat offline masih diperlukan untuk memastikan tidak ada celah yang bisa menyebabkan user melakukan aksi trading saat koneksi terputus)
 - [ ] Komponen UI/UX disetiap halaman (dashboard, market, portfolio) sudah dioptimasi untuk responsivitas dan performa pada perangkat mobile, dengan penyeragaman desain dan testing lintas device. Agar tampilan menjadi konsisten dan user-friendly di berbagai ukuran layar, professional UI/UX audit dan penyesuaian desain mungkin diperlukan untuk memastikan elemen interaktif tetap mudah diakses dan navigasi tetap intuitif pada smartphone dan tablet.
 
 Security Financial Logic
@@ -130,12 +135,16 @@ AI/ML/RL
 - [ ] Integrasi Feature Store (mis. Feast, Hopsworks): Mengelola dan melayani fitur ML secara tersentralisasi. Ini memastikan kalkulasi indikator teknikal (seperti RSI, MACD) 100% identik saat fase training (historical) dan serving/inference (real-time), mencegah fenomena training-serving skew.
 - [ ] Automatisasi Feature Selection: Menggunakan teknik seperti Feature Importance atau Principal Component Analysis (PCA) secara otomatis dalam pipeline untuk membuang sinyal yang berisik (noisy) dan mencegah overfitting atau kutukan dimensi (curse of dimensionality).
 - [ ] Penerapan Reward Shaping berbasis Risiko: Mengubah fungsi reward RL dari sekadar "Total Profit/Return" menjadi metrik yang disesuaikan dengan risiko, seperti Sharpe Ratio, Sortino Ratio, atau memberikan penalti eksponensial terhadap Maximum Drawdown untuk menciptakan agen yang lebih protektif terhadap modal.
-- [ ] Multi-Agent System (Hierarchical RL): Memisahkan tugas agen. Alih-alih satu agen melakukan semuanya, buat: 1) Agen Alokasi (menentukan sektor/saham), 2) Agen Sizing (menentukan berapa lot), dan 3) Agen Eksekusi (membeli secara mencicil untuk meminimalkan slippage).
+- [ ] Gunakan RL/ML hanya untuk sinyal arah (Alokasi) dan penentuan ukuran posisi (Position Sizing). Untuk Eksekusi (mencicil lot/meminimalkan slippage), gunakan algoritma aturan statis konvensional seperti TWAP (Time-Weighted Average Price) atau VWAP (Volume-Weighted Average Price). Jauh lebih aman dan mudah di- debug.
 - [ ] Simulasi Slippage dan Transaction Cost Dinamis: Memastikan environment RL Anda menstimulasikan biaya komisi broker, pajak, dan market impact/slippage secara realistis berdasarkan kedalaman antrean (Order Book / Bid-Ask spread) agar agen tidak belajar strategi scalping ilusionis yang mustahil di dunia nyata.
 - [ ] Implementasi Market Regime Detection (Deteksi Fase Pasar): Menggunakan Unsupervised Learning (seperti Hidden Markov Models atau Gaussian Mixture Models) untuk mendeteksi apakah pasar sedang Bullish, Bearish, atau Sideways. Sistem dapat otomatis menukar (switch) model/agen RL mana yang aktif berdasarkan rezim tersebut.
 - [ ] Uncertainty Quantification (Kuantifikasi Ketidakpastian): Menggunakan teknik seperti Monte Carlo Dropout atau Bayesian Neural Networks. Jika model menghasilkan prediksi profit tetapi tingkat "ketidakpastiannya" sangat tinggi, sistem akan secara otomatis mengurangi position size atau melewatkan (skip) sinyal trading tersebut.
 - [ ] Automasi Deteksi Concept Drift & Data Drift: Menggunakan alat seperti Evidently AI atau Alibi Detect untuk memantau apakah pola pasar saat ini sudah menyimpang jauh dari data yang digunakan saat training. Jika terdeteksi drift tinggi, sistem akan otomatis memicu pipeline CI/CD untuk me-retrain model.
 - [ ] Integrasi Explainable AI (XAI): Mengimplementasikan SHAP (SHapley Additive exPlanations) atau LIME ke dalam dashboard monitoring. Ini memungkinkan trader/developer untuk mengaudit secara real-time fitur apa (misal: "berita sentimen negatif" atau "Volume Spike") yang membuat model memutuskan untuk JUAL/BELI pada detik tersebut.
+- [ ] Implementasi Continuous Learning: Alih-alih model statis yang hanya di-retrain secara periodik, buat pipeline yang memungkinkan model untuk terus belajar dari data baru (online learning) dengan mekanisme validasi ketat untuk mencegah overfitting pada noise jangka pendek.
+- [ ] Purged CV untuk validasi silang model ML pada data time-series saham, untuk mencegah look-ahead bias.
+- [ ] Reward shaping berbasis metrik risiko (Sharpe Ratio, penalti drawdown) untuk agen RL yang lebih protektif modal.
+- [ ] Market regime detection dengan Unsupervised Learning untuk switching model/agen otomatis berdasarkan fase pasar.
 
 Database & Storage
 - [ ] Migrasi penuh state management dari file-based ke Redis + PostgreSQL/TimescaleDB. (PARTIAL: dukungan Redis-primary + PostgreSQL-primary (opsional untuk ai logs) dan endpoint migrasi sudah tersedia, tetapi migrasi penuh seluruh domain state/historical belum selesai)
@@ -146,9 +155,13 @@ Database & Storage
 Github
 - [x] Stabilkan workflow CI/CD untuk Python 3.11, Node24 opt-in, dan lint report-only.
 - [x] Perbaiki kegagalan job "Code Quality & Linting" (exit code 1) dengan memastikan semua linter dan formatter sudah kompatibel dengan kode yang ada, serta menambahkan pengecualian (ignore) untuk kasus khusus jika diperlukan.
-- [ ] Update dokumentasi kontribusi (CONTRIBUTING.md) untuk mencerminkan perubahan arsitektur, standar kode, dan proses pengembangan baru setelah migrasi ke state store terpusat dan task queue.
-- [ ] Update .gitignore untuk memastikan file sementara, log, dan artefak build yang tidak relevan tidak masuk ke repository, terutama setelah penambahan Redis/PostgreSQL dan task queue.
-- [ ] Implementasi GitHub Issue Template dan Pull Request Template untuk memastikan standar pelaporan bug dan kontribusi kode yang konsisten di seluruh tim.
+- [x] Update dokumentasi kontribusi (CONTRIBUTING.md) untuk mencerminkan perubahan arsitektur, standar kode, dan proses pengembangan baru setelah migrasi ke state store terpusat dan task queue.
+- [x] Update .gitignore untuk memastikan file sementara, log, dan artefak build yang tidak relevan tidak masuk ke repository, terutama setelah penambahan Redis/PostgreSQL dan task queue.
+- [x] Implementasi GitHub Issue Template dan Pull Request Template untuk memastikan standar pelaporan bug dan kontribusi kode yang konsisten di seluruh tim.
+
+Financial & Data
+- [ ] Penanganan Corporate Actions (Stock Splits, Dividen, Rights Issue) Ini adalah "pembunuh" model ML nomor satu. Jika saham BBCA melakukan stock split 1:2, harganya akan turun 50% di grafik. Jika data historis tidak di-adjust secara otomatis, fitur ML Anda (MACD, RSI) akan rusak, dan Autoencoder Anomali Anda akan membunyikan alarm palsu atau agen RL akan melakukan cut-loss massal. Anda wajib punya mekanisme ETL untuk melakukan backward adjustment terhadap data harga dan volume.
+- [-] Global Kill Switch (Panic Button) Dampak: Algoritma bisa saja mengalami looping error atau pasar mengalami Flash Crash (seperti IHSG anjlok mendadak). Tanpa mekanisme kill switch, kerugian bisa membengkak dalam hitungan detik. Solusi: Implementasikan endpoint API "Panic Button" yang bisa mematikan semua aktivitas trading secara instan (membatalkan order terbuka, menghentikan eksekusi baru) dengan otorisasi super ketat (mis. 2FA + role admin). Solusi: Harus ada endpoint dan tombol UI fisik berupa "Global Kill Switch" yang jika ditekan akan: 1) Men- suspend semua cron/task AI, 2) Membatalkan (Cancel) semua Open Orders di bursa, 3) (Opsional) Mengirim market order untuk melikuidasi semua posisi ke cash. (PARTIAL: endpoint kill switch backend + integrasi tombol UI + guard untuk bot start/strategy deploy/backtest/run_etl/training sudah aktif; pembatalan open order massal, 2FA, dan forced liquidation belum selesai)
 
 8. Better Ideas for Review (Proposed)
 - [/] Tambahkan "Migration Control Center" endpoint kecil (read-only dashboard JSON) yang merangkum status Redis/PostgreSQL shadow write, error counter, dan last successful migration timestamp per namespace.
@@ -156,3 +169,72 @@ Github
 - [/] Tambahkan simulasi exchange lokal untuk chaos testing (latency spike, partial fill acak, cancel race condition) sebelum fitur eksekusi baru diaktifkan ke akun real.
 - [/] Integrasikan OpenTelemetry tracing untuk request API -> broker adapter -> state_store agar bottleneck latency mudah dilacak lintas komponen.
 - [/] Terapkan feature flag rollout untuk path kritikal (streaming adapter, celery async training, state migration) sehingga release bisa canary per environment/user group.
+- [/] Tambahkan endpoint read-only "Migration Control Center" versi v2 yang menyertakan kill switch state, queue backlog, dan ws backplane health dalam satu payload operasional.
+
+9. Temuan Lainnya
+- [-] Status Berjalan (PARTIAL) & Ruang Perbaikan (Improvement)
+  [ ] A. Asinkronisasi ML/RL vs Event Loop FastAPI
+        Kondisi Kode: Anda memiliki src/tasks.py dan integrasi Celery. Namun, pada modul inferensi real-time (src/ml/service.py atau src/rl/agent_integration.py), jika model PyTorch dieksekusi secara sinkronus di dalam route FastAPI saat data masuk, Event Loop Python akan terblokir.
+        Improvement: Inferensi ML tidak harus melalui Celery (karena Celery menambah latensi antrean). Untuk inferensi real-time yang cepat, pastikan Anda menggunakan asyncio.to_thread() untuk mendelegasikan kalkulasi tensor ke OS thread pool agar API tidak stalling, ATAU gunakan ONNX Runtime secara penuh.
+  [ ] B. Sistem AI / Regim Pasar (Regime Detection)
+        Kondisi Kode: Terdapat file src/ml/regime_detector.py dan src/ml/regime_router.py. Ini adalah lompatan brilian! Model bisa membedakan pasar Bullish/Bearish.
+        Improvement: Hati-hati dengan Lag Indicator. Metode deteksi rezim (misal HMM atau K-Means pada return historis) seringkali terlambat menyadari perubahan pasar (pasar sudah crash 2 hari, model baru switch ke rezim Bearish). Anda perlu memasukkan fitur Order Book Imbalance (mikrostruktur pasar) ke dalam regime_detector.py sebagai leading indicator agar bot bisa bereaksi dalam hitungan menit, bukan hari.
+  [ ] C. Secret Management (Enkripsi Kredensial Broker)
+        Kondisi Kode: src/utils/secrets.py dan src/utils/security.py ada, tetapi Progress.md mencatat ini masih Partial.
+        Improvement: Di lingkungan produksi, jangan biarkan backend mendekripsi kunci API Ajaib/Stockbit jika tidak diperlukan. Enkripsi kunci API di database, dan hanya dekripsi di RAM (selama proses di base_broker.py). Gunakan vault yang ephemeral.
+
+- [ ] Kekurangan Kritis yang Belum Ada di Progress.md (Missing Links)
+  [ ] A. Penyesuaian Corporate Action (ETL Backward Adjustment)
+        Anda memiliki modul src/pipeline/etl.py dan src/ml/walk_forward.py. Namun, jika saham BMRI atau BBCA melakukan Stock Split (misal harga Rp 10.000 menjadi Rp 5.000), algoritma ML Anomali dan RL Anda akan mengira saham itu "anjlok 50% dalam 1 detik" dan langsung memicu perintah Cut Loss massal (Panic Selling otomatis).
+        Aksi: Tambahkan "Corporate Action Data Pipeline" untuk menormalkan data historis (membagi data harga masa lalu dan mengkalikan volumenya sebelum di-feed ke fitur ML).
+  [ ] B. Distributed WebSocket Backplane (Redis Pub/Sub)
+        Di Progress.md, Anda berencana menggunakan Kong dan me-scale aplikasi secara horizontal (berjalan di banyak server/kontainer sekaligus).
+        Jika Anda menggunakan WebSocket bawaan FastAPI (hooks/useWebSocket.ts), klien A mungkin terhubung ke Server 1, sedangkan data bursa baru saja ditangkap oleh Server 2. Klien A tidak akan mendapat harga update.
+        Status Update 2026-04-09: Backplane opsional sudah diimplementasikan di src/api/event_queue.py (publish+subscribe+dedupe event lintas instance) dengan env AUTOSAHAM_WS_BACKPLANE_ENABLED.
+        Aksi Lanjutan: aktifkan default di staging/production, tambah metrik health channel, dan jalankan soak test multi-instance.
+
+- [ ] Machine Learning Pipeline Aspect (Akurasi & MLOps)
+      Sistem ini memiliki pipeline ML yang sangat kaya (mulai dari ETL, Feature Store, hingga Walk-Forward Validation). Namun, ketangguhan di backtest belum tentu menjamin profit di live market.
+  [ ] A. Sinyal "Look-Ahead Bias" pada Labeling
+        Kondisi Kode (src/ml/labeler.py): Jika Anda menggunakan fitur seperti shift(-1) untuk membuat target klasifikasi (misalnya, apakah harga besok naik?), pastikan fitur-fitur teknikal (RSI, MACD) dihitung sebelum pergeseran (shift) tersebut terjadi.
+        Audit: Saya melihat implementasi Triple Barrier Method (src/ml/barriers.py). Ini adalah standar gold dari Marcos Lopez de Prado. Namun, pastikan volatility (untuk menentukan lebar barrier) dihitung menggunakan rolling window dari data masa lalu, bukan future data.
+        Status: Eksekusi metode ini di kode Anda sudah cukup baik, tetapi unit test untuk test_triple_barrier.py harus dikonfigurasi agar secara eksplisit menangkap data leakage.
+  [ ] B. Online Learning & Concept Drift
+        Kondisi Kode (src/ml/online_learner.py & src/ml/drift.py): Ini adalah fitur advanced (MLOps tingkat lanjut). Model dilatih ulang secara otomatis jika terdeteksi perubahan pola pasar (Concept Drift).
+        Celah Kritikal (Catastrophic Forgetting): Jika online learner diperbarui terlalu sering (setiap ada tick harga aneh), model akan mengalami "Lupa Bencana" (Catastrophic Forgetting). Model hanya akan ingat pola 5 menit terakhir dan melupakan tren besar secara keseluruhan.
+        Improvement: Implementasikan mekanisme Replay Buffer. Saat me- retrain model secara online, campurkan 20% data baru dengan 80% data lama yang representatif (stratified sampling) agar memori panjang model tetap terjaga.
+
+- [ ] Reinforcement Learning Aspect (Pengendalian Agen)
+      Anda menggunakan RL (Ray RLlib) dengan algoritma PPO (Proximal Policy Optimization). Ini adalah pilihan yang solid untuk HFT.
+  [ ] A. Reward Function Escalation
+        Kondisi Kode (src/rl/envs/trading_env.py): (Seperti yang kita bahas sebelumnya), fungsi reward berbasis persentase sudah lebih baik dari sekadar nilai absolut Rupiah.
+        Celah Kritikal (Slippage Illusion): Agen RL sangat pintar mencari "celah" dalam simulasi. Jika lingkungan trading Anda (trading environment) mengeksekusi order market pada harga mid-price atau harga penutupan (close price) tanpa memperhitungkan bid-ask spread dan antrean lot (kedalaman pasar), agen akan belajar untuk melakukan scalping ribuan kali per hari secara fiktif.
+        Improvement Wajib: Jika agen memutuskan beli (BUY), paksa lingkungan untuk mengeksekusi di harga ASK (harga jual terendah). Jika jual (SELL), eksekusi di harga BID (harga beli tertinggi). Tambahkan juga penalti komisi broker (misal 0.15% per transaksi) ke dalam fungsi reward.
+  [ ] B. State Space Normalization
+        Audit: Apakah observation space (input state) ke agen PPO sudah distandarisasi secara statis? Harga saham bisa berkisar dari Rp 50 hingga Rp 10.000. Jaringan saraf tiruan PPO akan meledak (vanishing/exploding gradients) jika menerima input yang tidak diskalakan (misal antara -1 hingga 1).
+        Solusi: Gunakan indikator yang terikat secara matematis (RSI [0-100], persentase Z-score) sebagai state, bukan harga absolut.
+
+- [ ] Observability, Logging, & Alerting (DevOps Phase)
+      Untuk sistem yang berjalan otomatis 24/5 tanpa pengawasan manusia secara terus-menerus, monitoring adalah segalanya.
+  [ ] A. Prometheus & Grafana (monitoring/)
+        Kondisi Kode: Anda sudah mensetup prometheus.yml dan grafana_dashboards.py. Ini sangat bagus.
+        Celah (Missing Business Metrics): Metrik infrastruktur (CPU, RAM, API Latency) memang penting. Tetapi metrik bisnis lebih krusial.
+        Improvement: Pastikan Prometheus men- scrape metrik kustom dari sistem Python Anda, seperti:
+        trading_expected_cash vs trading_broker_cash (jika selisihnya > Rp 1.000, tembak alarm Slack).
+        ml_model_confidence_score (jika confidence model turun di bawah 50% selama 10 menit, tembak alarm).
+        api_broker_rate_limit_remaining (sisa kuota API ke Stockbit/Ajaib).
+  [ ] B. Error Handling & Silent Failures
+        Kondisi Kode: Anda menggunakan retry_wrapper.py untuk mengatasi timeout broker.
+        Audit: Bagaimana jika API broker mengubah skema responsnya (JSON format berubah)? Sistem Anda mungkin gagal parsing, masuk ke dalam infinite loop retry, dan tidak melakukan trading seharian tanpa Anda ketahui (silent failure).
+        Improvement: Integrasikan Sentry atau alat error tracking sejenis. Jika ada KeyError atau ValueError yang tidak tertangani (Unhandled Exception) di production, Anda harus mendapat notifikasi WhatsApp/Slack beserta stack trace-nya dalam hitungan detik.
+
+- [-] Frontend, UI/UX, & Aksesibilitas (Deep View)
+  [ ] A. Optimistic UI pada Trade Logs (frontend/src/components/TradeLogsPage.jsx)
+        Kondisi Saat Ini: Anda merencanakan (di Progress.md) Optimistic UI pada alur eksekusi order.
+        Audit: Hati-hati dengan Optimistic UI di sistem finansial. Jika UI menunjukkan status "TEREKSEKUSI" padahal di backend/broker statusnya masih "ANTRE" (karena optimistic update terlalu agresif), trader bisa mengambil keputusan yang salah.
+        Aturan Emas UI Finansial: Untuk status order, selalu gunakan Pessimistic UI (Hanya tampilkan "TEREKSEKUSI" jika WebSocket dari broker benar-benar mengirim event FILL). Optimistic UI hanya boleh digunakan untuk aksi visual yang tidak mengikat (seperti mengganti tema, mem- pin saham ke watchlist, atau berpindah tab).
+  [ ] B. Keamanan JWT (JSON Web Tokens)
+        Kondisi Kode: Authentication menggunakan utils/authService.js (Frontend) dan src/api/auth.py (Backend).
+        Audit: Di mana JWT disimpan di browser klien? Jika Anda menyimpannya di localStorage atau Zustand state, JWT rentan terhadap serangan XSS (Cross-Site Scripting).
+        Status Update 2026-04-09: Flow auth sudah menggunakan HTTP-Only cookie (frontend/src/utils/authService.js + src/api/server.py), bukan localStorage token.
+        Improvement Security: lanjutkan hardening dengan rotasi session token dan optional CSRF token untuk aksi mutating berisiko tinggi.

@@ -89,7 +89,8 @@ export default function NavbarEnhanced({
 }) {
   const killSwitchTriggered = useTradingStore((s) => s.killSwitchTriggered);
   const botStatus = useTradingStore((s) => s.botStatus);
-  const toggleKillSwitch = useTradingStore((s) => s.toggleKillSwitch);
+  const setBotStatus = useTradingStore((s) => s.setBotStatus);
+  const setKillSwitchState = useTradingStore((s) => s.setKillSwitchState);
   
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -99,6 +100,7 @@ export default function NavbarEnhanced({
   const [unreadCountHint, setUnreadCountHint] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState('');
+  const [killSwitchLoading, setKillSwitchLoading] = useState(false);
 
   const searchRef = useRef(null);
   const notifRef = useRef(null);
@@ -237,6 +239,20 @@ export default function NavbarEnhanced({
     }
   };
 
+  const syncKillSwitchState = async () => {
+    try {
+      const state = await apiService.getKillSwitchState();
+      const active = Boolean(state?.killSwitchActive);
+      const stamp = state?.activatedAt || state?.updatedAt || new Date().toISOString();
+      setKillSwitchState(active, stamp);
+      if (active) {
+        setBotStatus('stopped');
+      }
+    } catch (error) {
+      // Keep existing local state when backend state cannot be fetched.
+    }
+  };
+
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -274,18 +290,38 @@ export default function NavbarEnhanced({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleKillSwitch = () => {
-    toggleKillSwitch();
-    if (!killSwitchTriggered) {
-      toast.error('Emergency stop activated! All trading halted.', {
-        duration: 5000,
-        action: {
-          label: 'Undo',
-          onClick: () => toggleKillSwitch(),
-        },
-      });
-    } else {
-      toast.success('Trading resumed successfully', { duration: 3000 });
+  useEffect(() => {
+    syncKillSwitchState();
+  }, []);
+
+  const handleKillSwitch = async () => {
+    if (killSwitchLoading) {
+      return;
+    }
+
+    setKillSwitchLoading(true);
+    try {
+      if (!killSwitchTriggered) {
+        const result = await apiService.activateKillSwitch(
+          'Emergency stop activated from navbar',
+          'ui-navbar',
+        );
+        setKillSwitchState(true, result?.killSwitch?.activatedAt || result?.killSwitch?.updatedAt || null);
+        setBotStatus('stopped');
+        toast.error('Emergency stop activated! All trading halted.', { duration: 5000 });
+      } else {
+        const result = await apiService.deactivateKillSwitch(
+          'Trading resumed from navbar',
+          'ui-navbar',
+        );
+        setKillSwitchState(false, result?.killSwitch?.updatedAt || null);
+        setBotStatus('idle');
+        toast.success('Trading resumed successfully', { duration: 3000 });
+      }
+    } catch (error) {
+      toast.error(error?.message || 'Failed to update kill switch state');
+    } finally {
+      setKillSwitchLoading(false);
     }
   };
 
@@ -565,6 +601,7 @@ export default function NavbarEnhanced({
           variant={killSwitchTriggered ? 'danger' : 'success'}
           size="md"
           onClick={handleKillSwitch}
+          loading={killSwitchLoading}
           icon={<span>{killSwitchTriggered ? '⏹️' : '▶️'}</span>}
           title={killSwitchTriggered ? 'Resume Trading' : 'Emergency Stop'}
           ariaLabel={killSwitchTriggered ? 'Resume trading' : 'Emergency stop - halts all trading'}

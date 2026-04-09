@@ -29,6 +29,12 @@ export const useTradingStore = create((set) => ({
     lastKillSwitchTime: new Date().toISOString(),
   }),
 
+  setKillSwitchState: (active, timestamp = null) => set({
+    killSwitchTriggered: Boolean(active),
+    isTradingActive: !Boolean(active),
+    lastKillSwitchTime: timestamp || new Date().toISOString(),
+  }),
+
   // ============ Bot Status ============
   botStatus: 'idle', // 'idle', 'running', 'paused', 'liquidating', 'maintenance'
   setBotStatus: (status) => set({ botStatus: status }),

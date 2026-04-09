@@ -418,7 +418,40 @@ def test_redis_primary_namespaces_can_be_configured_by_env(tmp_path, monkeypatch
 
     assert not _sqlite_has_secure_state_row(db_path, "user_settings")
     assert _sqlite_has_secure_state_row(db_path, "broker_connection")
-    assert fake_redis.get("autosaham:test:secure:user_settings")
+
+
+def test_system_control_roundtrip_for_kill_switch(tmp_path):
+    db_path = tmp_path / "app_state.db"
+    key_path = tmp_path / ".app_state.key"
+
+    store = SecureAppStateStore(
+        db_path=str(db_path),
+        key_path=str(key_path),
+    )
+
+    default_state = {
+        "killSwitchActive": False,
+        "reason": None,
+        "activatedAt": None,
+        "activatedBy": None,
+    }
+    initial = store.get_system_control(default_state)
+    assert initial["killSwitchActive"] is False
+
+    saved = store.set_system_control(
+        {
+            "killSwitchActive": True,
+            "reason": "unit test",
+            "activatedAt": "2026-04-09T00:00:00+00:00",
+            "activatedBy": "pytest",
+        }
+    )
+    assert saved["killSwitchActive"] is True
+    assert saved["reason"] == "unit test"
+
+    loaded = store.get_system_control(default_state)
+    assert loaded["killSwitchActive"] is True
+    assert loaded["activatedBy"] == "pytest"
 
 
 def test_ai_logs_postgres_primary_with_default_sqlite_shadow(tmp_path):

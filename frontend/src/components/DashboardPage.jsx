@@ -89,12 +89,20 @@ function BotStatusCard() {
   const [botData, setBotData] = useState(null)
   const botStatus = useTradingStore((s) => s.botStatus)
   const killSwitchTriggered = useTradingStore((s) => s.killSwitchTriggered)
+  const setBotStatus = useTradingStore((s) => s.setBotStatus)
+  const setKillSwitchState = useTradingStore((s) => s.setKillSwitchState)
 
   useEffect(() => {
     const loadBotStatus = async () => {
       try {
         const data = await apiService.getBotStatus()
         setBotData(data)
+        if (data?.status) {
+          setBotStatus(String(data.status).toLowerCase())
+        }
+        if (typeof data?.killSwitchActive === 'boolean') {
+          setKillSwitchState(Boolean(data.killSwitchActive), data?.lastTradeTime || null)
+        }
       } catch (error) {
         console.error('Failed to load bot status:', error)
       }

@@ -734,6 +734,12 @@ class SecureAppStateStore:
     def set_regime_state(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         return self._set_secure_payload("ai_regime_state", payload)
 
+    def get_system_control(self, defaults: Dict[str, Any]) -> Dict[str, Any]:
+        return self._get_secure_payload("system_control", defaults)
+
+    def set_system_control(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        return self._set_secure_payload("system_control", payload)
+
     def ensure_feature_flags(self, default_flags: Iterable[Dict[str, Any]]) -> None:
         now_iso = _utc_now_iso()
         with self._lock:

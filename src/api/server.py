@@ -39,6 +39,7 @@ if FASTAPI_AVAILABLE:
     from src.pipeline.runner import AutonomousPipeline
     from src.pipeline.scheduler import PipelineScheduler
     from src.brokers.paper_adapter import PaperBrokerAdapter
+    from src.api.state_store import SecureAppStateStore
     from src.api.auth import (
         register_user,
         authenticate_user,
@@ -123,6 +124,13 @@ if FASTAPI_AVAILABLE:
     # Background services (initialized on application startup)
     market_service = None
     ml_service = None
+    _runtime_state_store = SecureAppStateStore()
+    _system_control_defaults = {
+        "killSwitchActive": False,
+        "reason": None,
+        "activatedAt": None,
+        "activatedBy": None,
+    }
     
     # Project root directory for data/models paths
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -135,6 +143,21 @@ if FASTAPI_AVAILABLE:
 
     def _celery_enabled() -> bool:
         return _env_flag("AUTOSAHAM_USE_CELERY", False)
+
+    def _is_kill_switch_active() -> bool:
+        try:
+            state = _runtime_state_store.get_system_control(_system_control_defaults)
+            return bool(state.get("killSwitchActive"))
+        except Exception:
+            return False
+
+    def _assert_runtime_not_halted(operation: str) -> None:
+        if not _is_kill_switch_active():
+            return
+        raise HTTPException(
+            status_code=423,
+            detail=f"{operation} blocked: global kill switch active.",
+        )
 
     def _dispatch_celery_task(
         task_name: str,
@@ -194,6 +217,7 @@ if FASTAPI_AVAILABLE:
     async def run_etl(payload: RunPayload):
         start = time()
         try:
+            _assert_runtime_not_halted("ETL run")
             run_async = bool(payload.async_run or payload.asyncRun or _celery_enabled())
 
             if run_async:
@@ -552,6 +576,7 @@ if FASTAPI_AVAILABLE:
     @app.post("/scheduler/start")
     async def start_scheduler(symbols: List[str], interval_seconds: float = 3600.0):
         global _scheduler
+        _assert_runtime_not_halted("Scheduler start")
         if (
             _scheduler
             and getattr(_scheduler, "_thread", None)
@@ -877,6 +902,8 @@ if FASTAPI_AVAILABLE:
         global ml_service
         try:
             import asyncio
+
+            _assert_runtime_not_halted("Training trigger")
 
             run_async = bool(async_run or _celery_enabled())
             if run_async:
