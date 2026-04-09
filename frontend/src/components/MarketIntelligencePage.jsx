@@ -1,12 +1,32 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import Button from './Button'
 import toast from '../store/toastStore'
 import { CardSkeleton } from './LoadingSkeletons'
 import ChartComponent from './ChartComponent'
 import apiService from '../utils/apiService'
+import { useTradingStore } from '../store/useTradingStore'
 import '../styles/market.css'
 
 const IDX_SYMBOLS = ['BBCA.JK', 'USIM.JK', 'KLBF.JK', 'ASII.JK', 'UNVR.JK', 'INDF.JK', 'PGAS.JK', 'GGRM.JK']
+const ORDERBOOK_DEPTH = 8
+
+const formatPrice = (value) => {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return '-'
+  return num.toLocaleString('id-ID', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })
+}
+
+const formatVolume = (value) => {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return '-'
+  return num.toLocaleString('id-ID', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })
+}
 
 export default function MarketIntelligencePage({ theme = 'dark' }) {
   const [selectedSymbol, setSelectedSymbol] = useState('BBCA.JK')
@@ -16,6 +36,93 @@ export default function MarketIntelligencePage({ theme = 'dark' }) {
   const [topMovers, setTopMovers] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [orderType, setOrderType] = useState('limit')
+  const [orderQty, setOrderQty] = useState(1)
+  const [orderPrice, setOrderPrice] = useState('')
+  const [submittingOrder, setSubmittingOrder] = useState(false)
+  const [selectedSide, setSelectedSide] = useState('buy')
+  const orderBook = useTradingStore((s) => s.orderBook)
+
+  const normalizedBids = useMemo(() => (
+    Array.isArray(orderBook?.bids)
+      ? orderBook.bids
+          .map((item) => ({
+            price: Number(item?.price),
+            volume: Number(item?.volume),
+          }))
+          .filter((item) => Number.isFinite(item.price) && item.price > 0 && Number.isFinite(item.volume) && item.volume > 0)
+          .sort((left, right) => right.price - left.price)
+          .slice(0, ORDERBOOK_DEPTH)
+      : []
+  ), [orderBook?.bids])
+
+  const normalizedAsks = useMemo(() => (
+    Array.isArray(orderBook?.asks)
+      ? orderBook.asks
+          .map((item) => ({
+            price: Number(item?.price),
+            volume: Number(item?.volume),
+          }))
+          .filter((item) => Number.isFinite(item.price) && item.price > 0 && Number.isFinite(item.volume) && item.volume > 0)
+          .sort((left, right) => left.price - right.price)
+          .slice(0, ORDERBOOK_DEPTH)
+      : []
+  ), [orderBook?.asks])
+
+  const bestBid = normalizedBids.length > 0 ? normalizedBids[0].price : null
+  const bestAsk = normalizedAsks.length > 0 ? normalizedAsks[0].price : null
+  const spreadValue = (bestBid !== null && bestAsk !== null) ? (bestAsk - bestBid) : null
+  const spreadPercent = (spreadValue !== null && bestAsk > 0)
+    ? (spreadValue / bestAsk) * 100
+    : null
+
+  const handleSelectPriceLevel = (side, price) => {
+    setSelectedSide(side)
+    setOrderPrice(String(Number(price) || ''))
+    setOrderType('limit')
+  }
+
+  const handleSubmitOrder = async (sideOverride = null) => {
+    const side = String(sideOverride || selectedSide || 'buy').toLowerCase()
+    const qty = Math.max(1, Number(orderQty) || 1)
+
+    const payload = {
+      symbol: selectedSymbol,
+      side,
+      qty,
+      orderType,
+    }
+
+    const parsedPrice = Number(orderPrice)
+    if (orderType === 'limit') {
+      if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+        toast.error('Limit price is required for limit order.')
+        return
+      }
+      payload.limitPrice = parsedPrice
+    } else {
+      const marketRefPrice = Number.isFinite(parsedPrice) && parsedPrice > 0
+        ? parsedPrice
+        : (side === 'buy' ? bestAsk : bestBid)
+
+      if (!Number.isFinite(marketRefPrice) || marketRefPrice <= 0) {
+        toast.error('Market reference price is unavailable. Select a price level first.')
+        return
+      }
+      payload.marketPrice = marketRefPrice
+    }
+
+    setSubmittingOrder(true)
+    try {
+      const response = await apiService.submitExecutionOrder(payload)
+      const orderRef = response?.submission?.order_id || response?.submission?.id || '-'
+      toast.success(`Order submitted (${side.toUpperCase()} x${qty}) • Ref: ${orderRef}`)
+    } catch (err) {
+      toast.error(`Order submission failed: ${err.message || 'Unknown error'}`)
+    } finally {
+      setSubmittingOrder(false)
+    }
+  }
 
   const loadMarketData = async () => {
     setLoading(true)
@@ -162,6 +269,158 @@ export default function MarketIntelligencePage({ theme = 'dark' }) {
             onTimeframeChange={setSelectedTimeframe}
             theme={theme}
           />
+        </div>
+      </div>
+
+      <div className="market-card orderbook-card">
+        <h2>📚 Live Order Book (Ask/Bid)</h2>
+        <div className="orderbook-summary">
+          <div className="summary-pill">
+            <span>Best Bid</span>
+            <strong>{bestBid !== null ? formatPrice(bestBid) : '-'}</strong>
+          </div>
+          <div className="summary-pill">
+            <span>Best Ask</span>
+            <strong>{bestAsk !== null ? formatPrice(bestAsk) : '-'}</strong>
+          </div>
+          <div className={`summary-pill ${spreadValue !== null && spreadValue <= 0 ? 'tight' : 'wide'}`}>
+            <span>Spread</span>
+            <strong>
+              {spreadValue !== null
+                ? `${formatPrice(spreadValue)} (${(spreadPercent || 0).toFixed(2)}%)`
+                : '-'}
+            </strong>
+          </div>
+        </div>
+
+        <div className="orderbook-grid">
+          <div className="orderbook-table-wrapper asks">
+            <h3>Ask (Sell Queue)</h3>
+            <table className="orderbook-table">
+              <thead>
+                <tr>
+                  <th>Price</th>
+                  <th>Volume</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {normalizedAsks.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="orderbook-empty">No ask levels yet</td>
+                  </tr>
+                ) : (
+                  normalizedAsks.map((level, idx) => (
+                    <tr key={`ask-${idx}`} className={idx === 0 ? 'best-level' : ''}>
+                      <td>{formatPrice(level.price)}</td>
+                      <td>{formatVolume(level.volume)}</td>
+                      <td>
+                        <button
+                          className="orderbook-action buy"
+                          onClick={() => handleSelectPriceLevel('buy', level.price)}
+                        >
+                          Buy @ Ask
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="orderbook-table-wrapper bids">
+            <h3>Bid (Buy Queue)</h3>
+            <table className="orderbook-table">
+              <thead>
+                <tr>
+                  <th>Price</th>
+                  <th>Volume</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {normalizedBids.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="orderbook-empty">No bid levels yet</td>
+                  </tr>
+                ) : (
+                  normalizedBids.map((level, idx) => (
+                    <tr key={`bid-${idx}`} className={idx === 0 ? 'best-level' : ''}>
+                      <td>{formatPrice(level.price)}</td>
+                      <td>{formatVolume(level.volume)}</td>
+                      <td>
+                        <button
+                          className="orderbook-action sell"
+                          onClick={() => handleSelectPriceLevel('sell', level.price)}
+                        >
+                          Sell @ Bid
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="order-ticket">
+          <h3>Quick Order Ticket</h3>
+          <div className="ticket-grid">
+            <label>
+              Side
+              <select value={selectedSide} onChange={(e) => setSelectedSide(e.target.value)}>
+                <option value="buy">BUY</option>
+                <option value="sell">SELL</option>
+              </select>
+            </label>
+            <label>
+              Type
+              <select value={orderType} onChange={(e) => setOrderType(e.target.value)}>
+                <option value="limit">Limit</option>
+                <option value="market">Market</option>
+              </select>
+            </label>
+            <label>
+              Qty
+              <input
+                type="number"
+                min="1"
+                value={orderQty}
+                onChange={(e) => setOrderQty(Math.max(1, parseInt(e.target.value || '1', 10)))}
+              />
+            </label>
+            <label>
+              {orderType === 'limit' ? 'Limit Price' : 'Reference Price'}
+              <input
+                type="number"
+                min="1"
+                value={orderPrice}
+                onChange={(e) => setOrderPrice(e.target.value)}
+                placeholder={orderType === 'limit' ? 'Set limit price' : 'Optional override'}
+              />
+            </label>
+          </div>
+          <div className="ticket-actions">
+            <Button
+              variant="primary"
+              onClick={() => handleSubmitOrder('buy')}
+              disabled={submittingOrder}
+            >
+              {submittingOrder ? 'Submitting...' : 'Submit BUY'}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => handleSubmitOrder('sell')}
+              disabled={submittingOrder}
+            >
+              {submittingOrder ? 'Submitting...' : 'Submit SELL'}
+            </Button>
+          </div>
+          <p className="order-ticket-note">
+            Tip: click any ask/bid row action to auto-fill side and price.
+          </p>
         </div>
       </div>
 

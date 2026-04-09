@@ -25,8 +25,8 @@ export default function SidebarEnhanced({ currentPage, onNavigate }) {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ctrl/Cmd + number for navigation
-      if ((e.ctrlKey || e.metaKey) && /^[1-9]$/.test(e.key)) {
+      // Alt+Shift + number for navigation (avoid browser tab conflicts).
+      if (e.altKey && e.shiftKey && /^[1-9]$/.test(e.key)) {
         e.preventDefault();
         const item = menuItems.find((i) => i.shortcut === e.key);
         if (item) {
@@ -95,7 +95,7 @@ export default function SidebarEnhanced({ currentPage, onNavigate }) {
               onClick={() => onNavigate(item.id)}
               onMouseEnter={() => setHoveredItem(item.id)}
               onMouseLeave={() => setHoveredItem(null)}
-              title={`${item.label} (Ctrl+${item.shortcut})`}
+              title={`${item.label} (Alt+Shift+${item.shortcut})`}
               aria-label={`${item.label} - ${item.desc}`}
               aria-current={currentPage === item.id ? 'page' : undefined}
               role="menuitem"
@@ -112,8 +112,8 @@ export default function SidebarEnhanced({ currentPage, onNavigate }) {
               )}
 
               {isExpanded && (
-                <span className="nav-shortcut" aria-label={`Shortcut: Ctrl+${item.shortcut}`}>
-                  ⌘{item.shortcut}
+                <span className="nav-shortcut" aria-label={`Shortcut: Alt+Shift+${item.shortcut}`}>
+                  ⌥⇧{item.shortcut}
                 </span>
               )}
 
@@ -127,7 +127,7 @@ export default function SidebarEnhanced({ currentPage, onNavigate }) {
                 <div className="nav-tooltip" role="tooltip">
                   <div className="tooltip-title">{item.label}</div>
                   <div className="tooltip-desc">{item.desc}</div>
-                  <div className="tooltip-shortcut">Ctrl+{item.shortcut}</div>
+                  <div className="tooltip-shortcut">Alt+Shift+{item.shortcut}</div>
                 </div>
               )}
             </button>
@@ -182,7 +182,7 @@ export default function SidebarEnhanced({ currentPage, onNavigate }) {
                 {menuItems.map((item) => (
                   <div key={item.id} className="shortcut-item">
                     <span className="shortcut-desc">{item.label}</span>
-                    <kbd>Ctrl+{item.shortcut}</kbd>
+                    <kbd>Alt+Shift+{item.shortcut}</kbd>
                   </div>
                 ))}
               </div>

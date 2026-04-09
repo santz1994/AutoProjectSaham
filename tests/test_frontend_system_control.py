@@ -449,3 +449,154 @@ def test_require_role_operation_allows_trader(monkeypatch):
 
     assert context["username"] == "trader-user"
     assert context["role"] == "trader"
+
+
+def test_submit_execution_order_limit_success(monkeypatch):
+    class _FakeExecutionManager:
+        def place_limit_order(
+            self,
+            symbol: str,
+            side: str,
+            qty: int,
+            limit_price: float,
+            previous_close=None,
+        ):
+            assert symbol == "BBCA.JK"
+            assert side == "buy"
+            assert qty == 5
+            assert limit_price == 9050.0
+            return {
+                "status": "pending",
+                "order_id": "lim-77",
+            }
+
+    monkeypatch.setattr(
+        frontend_routes,
+        "_require_role_operation",
+        lambda *args, **kwargs: {
+            "username": "trader-user",
+            "role": "trader",
+            "csrfToken": "",
+        },
+    )
+    monkeypatch.setattr(
+        frontend_routes,
+        "_runtime_execution_manager",
+        lambda: _FakeExecutionManager(),
+    )
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "append_ai_log",
+        lambda **kwargs: None,
+    )
+
+    payload = frontend_routes.ExecutionOrderPayload(
+        symbol="bbca.jk",
+        side="BUY",
+        qty=5,
+        orderType="limit",
+        limitPrice=9050,
+    )
+
+    response = asyncio.run(
+        frontend_routes.submit_execution_order(
+            payload,
+            request=SimpleNamespace(cookies={}, headers={}),
+        )
+    )
+
+    assert response["status"] == "ok"
+    assert response["accepted"] is True
+    assert response["orderType"] == "limit"
+    assert response["submission"]["order_id"] == "lim-77"
+
+
+def test_submit_execution_order_market_success(monkeypatch):
+    class _FakeExecutionManager:
+        def place_order(
+            self,
+            symbol: str,
+            side: str,
+            qty: int,
+            price: float,
+            previous_close=None,
+        ):
+            assert symbol == "BBCA.JK"
+            assert side == "sell"
+            assert qty == 3
+            assert price == 9100.0
+            return {
+                "status": "filled",
+                "id": "mkt-21",
+            }
+
+    monkeypatch.setattr(
+        frontend_routes,
+        "_require_role_operation",
+        lambda *args, **kwargs: {
+            "username": "trader-user",
+            "role": "trader",
+            "csrfToken": "",
+        },
+    )
+    monkeypatch.setattr(
+        frontend_routes,
+        "_runtime_execution_manager",
+        lambda: _FakeExecutionManager(),
+    )
+    monkeypatch.setattr(
+        frontend_routes._state_store,
+        "append_ai_log",
+        lambda **kwargs: None,
+    )
+
+    payload = frontend_routes.ExecutionOrderPayload(
+        symbol="bbca.jk",
+        side="SELL",
+        qty=3,
+        orderType="market",
+        marketPrice=9100,
+    )
+
+    response = asyncio.run(
+        frontend_routes.submit_execution_order(
+            payload,
+            request=SimpleNamespace(cookies={}, headers={}),
+        )
+    )
+
+    assert response["status"] == "ok"
+    assert response["accepted"] is True
+    assert response["orderType"] == "market"
+    assert response["submission"]["status"] == "filled"
+
+
+def test_submit_execution_order_requires_manager(monkeypatch):
+    monkeypatch.setattr(
+        frontend_routes,
+        "_require_role_operation",
+        lambda *args, **kwargs: {
+            "username": "trader-user",
+            "role": "trader",
+            "csrfToken": "",
+        },
+    )
+    monkeypatch.setattr(frontend_routes, "_runtime_execution_manager", lambda: None)
+
+    payload = frontend_routes.ExecutionOrderPayload(
+        symbol="BBCA.JK",
+        side="BUY",
+        qty=1,
+        orderType="limit",
+        limitPrice=9000,
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(
+            frontend_routes.submit_execution_order(
+                payload,
+                request=SimpleNamespace(cookies={}, headers={}),
+            )
+        )
+
+    assert exc.value.status_code == 503

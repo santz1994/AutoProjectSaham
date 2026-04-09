@@ -38,7 +38,7 @@ src/ml, src/pipeline, src/data
 | Halaman | Kemampuan |
 |---|---|
 | Dashboard | Portfolio summary, refresh portfolio, bot status, kill switch state, portfolio health, top AI signals, recent activity |
-| Market Intelligence | Realtime candlestick chart, symbol switch, timeframe switch, sentiment summary, sector heatmap, top movers, export report |
+| Market Intelligence | Realtime candlestick chart, symbol switch, timeframe switch, sentiment summary, sektor heatmap, top movers, live ask/bid orderbook + spread indicator, quick order ticket (BUY/SELL) |
 | Strategies | Daftar strategi, deploy strategy, trigger backtest, rule display, metrik performa |
 | Trade Logs | Filter/sort trades, summary analytics, export CSV, trigger report performa |
 | AI Monitor | AI overview (model/dataset/pipeline), AI activity logs, auto refresh, manual checkpoint log |
@@ -367,6 +367,7 @@ Variabel penting:
   - AUTOSAHAM_CSRF_PROTECTION_ENABLED (default: aktif pada ENV=prod/production)
   - AUTOSAHAM_ROLE_GUARD_ENABLED (default: aktif pada ENV=prod/production)
   - AUTOSAHAM_ROLE_ETL_WRITE_ROLES (default: trader,developer)
+  - AUTOSAHAM_ROLE_EXECUTION_WRITE_ROLES (default: trader,developer)
   - AUTOSAHAM_ROLE_SCHEDULER_WRITE_ROLES (default: developer)
   - AUTOSAHAM_ROLE_MODEL_REGISTRY_WRITE_ROLES (default: developer)
   - AUTOSAHAM_ROLE_ALERT_WRITE_ROLES (default: admin,developer)
@@ -424,6 +425,7 @@ monitoring/        # Prometheus and alert configuration
 - Endpoint operasional mutating berisiko tinggi (bot control, broker connect/disconnect, state migration, broker feature-flag update) kini mendukung guard admin session + double-submit CSRF token berbasis env flag.
 - Endpoint mutating strategi/profile/log AI kini mendukung role-guard granular berbasis env (trader/developer/admin) dengan admin override dan validasi CSRF saat guard diaktifkan.
 - Endpoint mutating server non-router (`/run_etl`, `/scheduler/start`, `/scheduler/stop`, `/api/training/registry/active`, `/alert`) kini ikut role-guard berbasis env + validasi CSRF saat role guard diaktifkan.
+- Endpoint `/api/system/execution/orders` kini tersedia untuk submit order runtime (market/limit) dari UI Market orderbook, dijaga role-guard + CSRF saat guard aktif.
 - Login kini mendukung challenge two-factor authentication (2FA) untuk role yang dikonfigurasi (TOTP atau fallback static code), di samping opsi rememberMe TTL session.
 - Endpoint auth 2FA (`/auth/2fa/status`, `/auth/2fa/enroll`, `/auth/2fa/verify`, `/auth/2fa/disable`) kini aktif untuk enrollment per-user TOTP dari Settings, dengan proteksi CSRF untuk operasi mutating.
 - ETL historis mendukung corporate action backward adjustment berbasis file JSON (jika AUTOSAHAM_CORPORATE_ACTIONS_FILE dikonfigurasi) untuk membantu menjaga kontinuitas fitur ML saat stock split/dividen terjadi.

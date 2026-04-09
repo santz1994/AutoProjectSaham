@@ -142,6 +142,13 @@ class ApiService {
     return this.request(`/api/system/execution/pending-orders?limit=${safeLimit}`);
   }
 
+  async submitExecutionOrder(payload) {
+    return this.request('/api/system/execution/orders', {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
   // ============ Signals API ============
   async getTopSignals(limit = 10) {
     return this.request(`/api/signals?limit=${limit}`);

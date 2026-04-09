@@ -254,6 +254,16 @@ class AILogPayload(BaseModel):
     payload: Dict[str, Any] = {}
 
 
+class ExecutionOrderPayload(BaseModel):
+    symbol: str
+    side: str
+    qty: int
+    orderType: str = "limit"
+    limitPrice: Optional[float] = None
+    marketPrice: Optional[float] = None
+    previousClose: Optional[float] = None
+
+
 _default_user_settings: Dict[str, Any] = {
     "fullName": "AutoSaham User",
     "email": "user@autosaham.local",
@@ -3198,6 +3208,15 @@ def _runtime_execution_status() -> Dict[str, Any]:
     return status
 
 
+def _runtime_execution_manager() -> Optional[Any]:
+    try:
+        from src.api import server as api_server
+
+        return getattr(api_server, "_execution_manager", None)
+    except Exception:
+        return None
+
+
 def _resolve_live_broker_adapter(provider: str):
     normalized = str(provider or "").strip().lower()
 
@@ -4206,6 +4225,127 @@ async def get_execution_pending_orders(limit: int = 200):
         "execution": execution_status,
         "total": len(pending_orders),
         "pendingOrders": pending_orders[:safe_limit],
+    }
+
+
+@router.post("/system/execution/orders")
+async def submit_execution_order(payload: ExecutionOrderPayload, request: Request):
+    """Submit a runtime order request (market or limit) to execution manager."""
+    _require_role_operation(
+        request,
+        "Execution order submit",
+        allowed_roles=_parse_csv_set(
+            os.getenv("AUTOSAHAM_ROLE_EXECUTION_WRITE_ROLES", "trader,developer")
+        ),
+    )
+
+    execution_manager = _runtime_execution_manager()
+    if execution_manager is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Execution manager is unavailable.",
+        )
+
+    symbol = str(payload.symbol or "").strip().upper()
+    if not symbol:
+        raise HTTPException(status_code=400, detail="symbol is required")
+
+    side = str(payload.side or "").strip().lower()
+    if side not in {"buy", "sell"}:
+        raise HTTPException(status_code=400, detail="side must be buy or sell")
+
+    qty = int(payload.qty or 0)
+    if qty <= 0:
+        raise HTTPException(status_code=400, detail="qty must be > 0")
+
+    order_type = str(payload.orderType or "limit").strip().lower()
+    if order_type not in {"limit", "market"}:
+        raise HTTPException(status_code=400, detail="orderType must be limit or market")
+
+    previous_close = (
+        float(payload.previousClose)
+        if payload.previousClose is not None
+        else None
+    )
+
+    if order_type == "limit":
+        if payload.limitPrice is None:
+            raise HTTPException(status_code=400, detail="limitPrice is required for limit order")
+
+        limit_price = float(payload.limitPrice)
+        if limit_price <= 0:
+            raise HTTPException(status_code=400, detail="limitPrice must be > 0")
+
+        if not hasattr(execution_manager, "place_limit_order"):
+            raise HTTPException(status_code=503, detail="Execution manager does not support limit orders.")
+
+        submission = execution_manager.place_limit_order(
+            symbol=symbol,
+            side=side,
+            qty=qty,
+            limit_price=limit_price,
+            previous_close=previous_close,
+        )
+    else:
+        candidate_price = payload.marketPrice
+        if candidate_price is None:
+            candidate_price = payload.limitPrice
+        if candidate_price is None:
+            raise HTTPException(
+                status_code=400,
+                detail="marketPrice (or limitPrice fallback) is required for market order",
+            )
+
+        market_price = float(candidate_price)
+        if market_price <= 0:
+            raise HTTPException(status_code=400, detail="marketPrice must be > 0")
+
+        if not hasattr(execution_manager, "place_order"):
+            raise HTTPException(status_code=503, detail="Execution manager does not support market orders.")
+
+        submission = execution_manager.place_order(
+            symbol=symbol,
+            side=side,
+            qty=qty,
+            price=market_price,
+            previous_close=previous_close,
+        )
+
+    if not isinstance(submission, dict):
+        raise HTTPException(status_code=500, detail="Unexpected execution response type")
+
+    accepted = str(submission.get("status") or "").strip().lower() in {
+        "filled",
+        "pending",
+        "queued",
+    }
+    if not accepted:
+        reason = str(submission.get("reason") or "order_rejected")
+        raise HTTPException(status_code=400, detail=reason)
+
+    _state_store.append_ai_log(
+        level="info",
+        event_type="execution_order_submit",
+        message=f"{order_type.upper()} order submitted for {symbol} ({side.upper()} x{qty}).",
+        payload={
+            "symbol": symbol,
+            "side": side,
+            "qty": qty,
+            "orderType": order_type,
+            "status": submission.get("status"),
+            "orderId": submission.get("order_id") or submission.get("id"),
+        },
+    )
+
+    return {
+        "status": "ok",
+        "accepted": True,
+        "orderType": order_type,
+        "symbol": symbol,
+        "side": side,
+        "qty": qty,
+        "submission": submission,
+        "timestamp": datetime.now().isoformat(),
     }
 
 
