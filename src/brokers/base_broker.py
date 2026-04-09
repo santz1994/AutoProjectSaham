@@ -285,6 +285,55 @@ class BaseBroker(ABC):
     async def get_order_status(self, order_id: str) -> Optional[OrderResult]:
         """Get status of an order."""
         pass
+
+    async def list_open_orders(self, limit: int = 200) -> List[str]:
+        """Return open order ids when broker API supports order queries.
+
+        Default implementation is empty for backward compatibility with
+        adapters that only support direct order placement/cancellation.
+        """
+        _ = limit
+        return []
+
+    async def cancel_all_open_orders(self, limit: int = 200) -> Dict[str, Any]:
+        """Best-effort cancel for all currently open broker orders."""
+        safe_limit = max(1, min(1000, int(limit)))
+
+        try:
+            open_order_ids = await self.list_open_orders(limit=safe_limit)
+        except Exception as exc:
+            return {
+                "status": "error",
+                "openOrders": 0,
+                "cancelled": 0,
+                "failed": 0,
+                "cancelledOrderIds": [],
+                "failedOrderIds": [],
+                "error": str(exc),
+            }
+
+        cancelled_ids: List[str] = []
+        failed_ids: List[str] = []
+
+        for order_id in open_order_ids[:safe_limit]:
+            try:
+                cancelled = await self.cancel_order(order_id)
+            except Exception:
+                cancelled = False
+
+            if cancelled:
+                cancelled_ids.append(order_id)
+            else:
+                failed_ids.append(order_id)
+
+        return {
+            "status": "ok",
+            "openOrders": len(open_order_ids[:safe_limit]),
+            "cancelled": len(cancelled_ids),
+            "failed": len(failed_ids),
+            "cancelledOrderIds": cancelled_ids,
+            "failedOrderIds": failed_ids,
+        }
     
     # ========================================================================
     # Trade History

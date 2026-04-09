@@ -394,6 +394,43 @@ class IndoPremierBroker(BaseBroker):
         except Exception as e:
             logger.error(f"Status check error: {e}")
             return None
+
+    async def list_open_orders(self, limit: int = 200) -> List[str]:
+        """List open order ids for best-effort mass cancellation."""
+        safe_limit = max(1, min(1000, int(limit)))
+
+        try:
+            data = await self._make_request(
+                "GET",
+                f"/accounts/{self.account_id}/orders?status=OPEN&limit={safe_limit}",
+            )
+            if not data:
+                return []
+
+            items = data.get("orders")
+            if not isinstance(items, list):
+                return []
+
+            order_ids: List[str] = []
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                status = map_execution_status(item.get("status", "new"))
+                if status not in {
+                    ExecutionStatus.PENDING,
+                    ExecutionStatus.ACCEPTED,
+                    ExecutionStatus.PARTIALLY_FILLED,
+                }:
+                    continue
+
+                order_id = str(item.get("orderID") or item.get("id") or "").strip()
+                if order_id:
+                    order_ids.append(order_id)
+
+            return order_ids[:safe_limit]
+        except Exception as e:
+            logger.error(f"Open-order query error: {e}")
+            return []
     
     # ========================================================================
     # Trade History

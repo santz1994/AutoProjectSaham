@@ -509,6 +509,45 @@ class ExecutionManager:
             pass
         return True
 
+    def cancel_all_pending_orders(self, reason: str = "manual") -> int:
+        """Cancel all pending limit orders and emit consolidated alert events."""
+        reason_text = str(reason or "manual")
+
+        with self._state_lock:
+            removed_orders = self._drain_pending_orders_locked()
+            pending_count = len(self.pending_orders)
+
+        if not removed_orders:
+            return 0
+
+        for order in removed_orders:
+            self._alert(
+                {
+                    "type": "order_cancelled",
+                    "order": order,
+                    "reason": reason_text,
+                }
+            )
+
+        self._alert(
+            {
+                "type": "pending_orders_cancelled",
+                "count": len(removed_orders),
+                "reason": reason_text,
+            }
+        )
+
+        try:
+            if PENDING_REMOVED:
+                for _ in removed_orders:
+                    PENDING_REMOVED.inc()
+            if PENDING_ORDERS:
+                PENDING_ORDERS.set(pending_count)
+        except Exception:
+            pass
+
+        return len(removed_orders)
+
     def cancel_all_pending_for_symbol(self, symbol: str) -> int:
         with self._state_lock:
             removed_orders = []

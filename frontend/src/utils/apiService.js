@@ -5,6 +5,42 @@
 
 import { getAPIBase } from './authService';
 
+function readCookieValue(name) {
+  if (typeof document === 'undefined') {
+    return '';
+  }
+
+  const encodedName = encodeURIComponent(String(name || '').trim());
+  if (!encodedName) {
+    return '';
+  }
+
+  const chunks = String(document.cookie || '').split(';');
+  for (const rawChunk of chunks) {
+    const chunk = rawChunk.trim();
+    if (!chunk) {
+      continue;
+    }
+    if (!chunk.startsWith(`${encodedName}=`)) {
+      continue;
+    }
+
+    const value = chunk.slice(encodedName.length + 1);
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  }
+
+  return '';
+}
+
+function isMutatingMethod(method) {
+  const normalized = String(method || 'GET').trim().toUpperCase();
+  return normalized === 'POST' || normalized === 'PUT' || normalized === 'PATCH' || normalized === 'DELETE';
+}
+
 class ApiService {
   constructor() {
     this.baseURL = getAPIBase();
@@ -13,10 +49,14 @@ class ApiService {
   // Helper method for API calls with error handling
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
+    const method = String(options.method || 'GET').trim().toUpperCase();
+    const csrfToken = isMutatingMethod(method) ? readCookieValue('csrf_token') : '';
+
     const defaultOptions = {
       credentials: 'include', // Include cookies for auth
       headers: {
         'Content-Type': 'application/json',
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
         ...options.headers,
       },
     };
@@ -73,18 +113,33 @@ class ApiService {
     return this.request('/api/system/kill-switch');
   }
 
-  async activateKillSwitch(reason = 'Emergency stop from UI', actor = 'ui-navbar') {
+  async activateKillSwitch(reason = 'Emergency stop from UI', actor = 'ui-navbar', options = {}) {
+    const challengeCode = String(options?.challengeCode || '').trim();
     return this.request('/api/system/kill-switch/activate', {
       method: 'POST',
-      body: JSON.stringify({ reason, actor }),
+      body: JSON.stringify({
+        reason,
+        actor,
+        ...(challengeCode ? { challengeCode } : {}),
+      }),
     });
   }
 
-  async deactivateKillSwitch(reason = 'Manual resume from UI', actor = 'ui-navbar') {
+  async deactivateKillSwitch(reason = 'Manual resume from UI', actor = 'ui-navbar', options = {}) {
+    const challengeCode = String(options?.challengeCode || '').trim();
     return this.request('/api/system/kill-switch/deactivate', {
       method: 'POST',
-      body: JSON.stringify({ reason, actor }),
+      body: JSON.stringify({
+        reason,
+        actor,
+        ...(challengeCode ? { challengeCode } : {}),
+      }),
     });
+  }
+
+  async getExecutionPendingOrders(limit = 200) {
+    const safeLimit = Math.max(1, Math.min(1000, Number(limit) || 200));
+    return this.request(`/api/system/execution/pending-orders?limit=${safeLimit}`);
   }
 
   // ============ Signals API ============

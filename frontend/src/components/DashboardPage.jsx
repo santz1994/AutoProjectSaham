@@ -199,6 +199,79 @@ function HealthScoreWidget() {
   )
 }
 
+function ExecutionQueueWidget() {
+  const [snapshot, setSnapshot] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+
+    const loadExecutionQueue = async () => {
+      try {
+        const data = await apiService.getExecutionPendingOrders(20)
+        if (active) {
+          setSnapshot(data)
+        }
+      } catch (error) {
+        if (active) {
+          console.error('Failed to load execution queue snapshot:', error)
+        }
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadExecutionQueue()
+    const interval = setInterval(loadExecutionQueue, 8000)
+
+    return () => {
+      active = false
+      clearInterval(interval)
+    }
+  }, [])
+
+  if (loading) {
+    return <CardSkeleton />
+  }
+
+  const total = Number(snapshot?.total || 0)
+  const managerReady = Boolean(snapshot?.execution?.available)
+  const sampleOrders = Array.isArray(snapshot?.pendingOrders) ? snapshot.pendingOrders.slice(0, 3) : []
+
+  return (
+    <div className="card execution-queue-card">
+      <h2>Execution Queue</h2>
+      <div className="queue-summary">
+        <div className="queue-metric">
+          <label>Pending Orders</label>
+          <div className="value">{total}</div>
+        </div>
+        <div className="queue-metric">
+          <label>Manager</label>
+          <div className={`state ${managerReady ? 'ready' : 'offline'}`}>
+            {managerReady ? 'READY' : 'OFFLINE'}
+          </div>
+        </div>
+      </div>
+      <div className="queue-orders">
+        {sampleOrders.length === 0 ? (
+          <p className="queue-empty">No pending orders in runtime queue.</p>
+        ) : (
+          sampleOrders.map((order) => (
+            <div key={order.order_id || `${order.symbol}-${order.side}`} className="queue-order-item">
+              <span>{order.symbol || 'UNKNOWN'}</span>
+              <span>{String(order.side || '-').toUpperCase()}</span>
+              <span>{order.qty || 0}</span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
 function TopSignalsWidget() {
   const [signals, setSignals] = useState([])
   const [loading, setLoading] = useState(true)
@@ -371,6 +444,10 @@ export default function DashboardPage({ onNavigate }) {
 
         <div className="grid-item">
           <HealthScoreWidget />
+        </div>
+
+        <div className="grid-item">
+          <ExecutionQueueWidget />
         </div>
 
         <div className="grid-item span-full">

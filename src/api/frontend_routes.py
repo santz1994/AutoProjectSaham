@@ -4,18 +4,23 @@ Contains endpoints for portfolio, bot status, signals, strategies, trades, and m
 """
 
 import asyncio
+import base64
+import binascii
 import csv
+import hashlib
+import hmac
 import json
 import math
 import os
 from functools import partial
 from types import SimpleNamespace
 from threading import Lock
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from typing import Optional, List, Dict, Any, Tuple
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 
+from src.api.auth import get_session_context, get_user_from_token
 from src.api.state_store import SecureAppStateStore
 from src.brokers.paper_adapter import PaperBrokerAdapter
 
@@ -238,6 +243,8 @@ class StateMigrationPayload(BaseModel):
 class KillSwitchPayload(BaseModel):
     reason: Optional[str] = None
     actor: Optional[str] = None
+    activatedBy: Optional[str] = None
+    challengeCode: Optional[str] = None
 
 
 class AILogPayload(BaseModel):
@@ -2745,6 +2752,314 @@ def _kill_switch_state() -> Dict[str, Any]:
     return _state_store.get_system_control(_default_system_control)
 
 
+def _extract_auth_token_from_request(request: Optional[Request]) -> str:
+    if request is None or not hasattr(request, "cookies"):
+        return ""
+    return str(request.cookies.get("auth_token") or "").strip()
+
+
+def _session_context_from_request(request: Optional[Request]) -> Optional[Dict[str, Any]]:
+    token = _extract_auth_token_from_request(request)
+    if not token:
+        return None
+
+    context = get_session_context(token)
+    if context:
+        return context
+
+    # Backward compatibility for sessions created before context fields existed.
+    username = get_user_from_token(token)
+    if not username:
+        return None
+
+    return {
+        "username": username,
+        "role": "",
+        "csrfToken": "",
+    }
+
+
+def _assert_csrf_guard(
+    request: Optional[Request],
+    operation: str,
+    *,
+    require_authenticated: bool = False,
+) -> Optional[Dict[str, Any]]:
+    session_context = _session_context_from_request(request)
+
+    if require_authenticated and not session_context:
+        raise HTTPException(
+            status_code=401,
+            detail=f"{operation} requires authenticated session.",
+        )
+
+    if not session_context:
+        return None
+
+    require_csrf_default = str(os.getenv("ENV", "")).strip().lower() in {
+        "prod",
+        "production",
+    }
+    require_csrf = _env_flag(
+        "AUTOSAHAM_CSRF_PROTECTION_ENABLED",
+        require_csrf_default,
+    )
+    if not require_csrf:
+        return session_context
+
+    header_token = ""
+    cookie_token = ""
+    if request is not None and hasattr(request, "headers"):
+        header_token = str(
+            request.headers.get("x-csrf-token")
+            or request.headers.get("x-xsrf-token")
+            or ""
+        ).strip()
+    if request is not None and hasattr(request, "cookies"):
+        cookie_token = str(request.cookies.get("csrf_token") or "").strip()
+
+    session_csrf = str(session_context.get("csrfToken") or "").strip()
+
+    if not header_token or not cookie_token:
+        raise HTTPException(
+            status_code=403,
+            detail=f"{operation} blocked: missing CSRF token.",
+        )
+
+    if not hmac.compare_digest(header_token, cookie_token):
+        raise HTTPException(
+            status_code=403,
+            detail=f"{operation} blocked: CSRF token mismatch.",
+        )
+
+    if session_csrf and not hmac.compare_digest(header_token, session_csrf):
+        raise HTTPException(
+            status_code=403,
+            detail=f"{operation} blocked: invalid CSRF token.",
+        )
+
+    return session_context
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    raw = str(os.getenv(name, "")).strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _parse_csv_set(value: str) -> set[str]:
+    return {
+        item.strip().lower()
+        for item in str(value or "").split(",")
+        if item.strip()
+    }
+
+
+def _is_admin_session(session_context: Optional[Dict[str, Any]]) -> bool:
+    if not session_context:
+        return False
+
+    session_user = str(session_context.get("username") or "").strip().lower()
+    session_role = str(session_context.get("role") or "").strip().lower()
+
+    admin_users = _parse_csv_set(
+        os.getenv("AUTOSAHAM_KILL_SWITCH_ADMIN_USERS", "admin")
+    )
+    if not admin_users:
+        admin_users = {"admin"}
+
+    admin_roles = _parse_csv_set(
+        os.getenv("AUTOSAHAM_ADMIN_ROLES", "admin")
+    )
+    if not admin_roles:
+        admin_roles = {"admin"}
+
+    return (session_user in admin_users) or (session_role in admin_roles)
+
+
+def _require_admin_operation(request: Optional[Request], operation: str) -> Dict[str, Any]:
+    require_admin_default = str(os.getenv("ENV", "")).strip().lower() in {
+        "prod",
+        "production",
+    }
+    require_admin = _env_flag("AUTOSAHAM_ADMIN_GUARD_ENABLED", require_admin_default)
+
+    session_context = _assert_csrf_guard(
+        request,
+        operation,
+        require_authenticated=require_admin,
+    )
+
+    if not require_admin:
+        return session_context or {
+            "username": "api",
+            "role": "system",
+            "csrfToken": "",
+        }
+
+    if not session_context:
+        raise HTTPException(
+            status_code=401,
+            detail=f"{operation} requires authenticated admin session.",
+        )
+
+    if not _is_admin_session(session_context):
+        raise HTTPException(
+            status_code=403,
+            detail=f"{operation} requires admin role.",
+        )
+
+    return session_context
+
+
+def _totp_code_at(
+    secret: str,
+    timestamp: int,
+    *,
+    step_seconds: int = 30,
+    digits: int = 6,
+) -> Optional[str]:
+    normalized_secret = "".join(str(secret or "").strip().split()).upper()
+    if not normalized_secret:
+        return None
+
+    try:
+        secret_bytes = base64.b32decode(normalized_secret, casefold=True)
+    except (binascii.Error, ValueError, TypeError):
+        return None
+
+    step = max(1, int(step_seconds))
+    counter = int(timestamp // step)
+    msg = counter.to_bytes(8, "big")
+    digest = hmac.new(secret_bytes, msg, hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+
+    binary_code = (
+        ((digest[offset] & 0x7F) << 24)
+        | (digest[offset + 1] << 16)
+        | (digest[offset + 2] << 8)
+        | digest[offset + 3]
+    )
+
+    modulus = 10 ** max(1, int(digits))
+    return str(binary_code % modulus).zfill(max(1, int(digits)))
+
+
+def _verify_totp_code(
+    secret: str,
+    code: str,
+    *,
+    step_seconds: int = 30,
+    window: int = 1,
+) -> bool:
+    normalized_code = str(code or "").strip()
+    if not normalized_code or not normalized_code.isdigit():
+        return False
+
+    now_ts = int(datetime.now().timestamp())
+    valid_window = max(0, int(window))
+    for drift in range(-valid_window, valid_window + 1):
+        current_ts = now_ts + drift * int(step_seconds)
+        expected = _totp_code_at(
+            secret,
+            current_ts,
+            step_seconds=step_seconds,
+            digits=len(normalized_code),
+        )
+        if expected and hmac.compare_digest(expected, normalized_code):
+            return True
+
+    return False
+
+
+def _authorize_kill_switch_actor(
+    request: Optional[Request],
+    payload: Optional[KillSwitchPayload],
+) -> str:
+    payload_actor = str(
+        (
+            payload.actor
+            if payload and payload.actor is not None
+            else (payload.activatedBy if payload else "")
+        )
+        or ""
+    ).strip()
+
+    session_context = _assert_csrf_guard(request, "Kill switch", require_authenticated=False)
+    session_user = str((session_context or {}).get("username") or "").strip() or None
+    session_role = str((session_context or {}).get("role") or "").strip().lower() or None
+
+    require_admin_default = str(os.getenv("ENV", "")).strip().lower() in {
+        "prod",
+        "production",
+    }
+    require_admin = _env_flag(
+        "AUTOSAHAM_KILL_SWITCH_REQUIRE_ADMIN",
+        require_admin_default,
+    )
+
+    admin_users = _parse_csv_set(os.getenv("AUTOSAHAM_KILL_SWITCH_ADMIN_USERS", "admin"))
+    if not admin_users:
+        admin_users = {"admin"}
+    admin_roles = _parse_csv_set(
+        os.getenv("AUTOSAHAM_KILL_SWITCH_ADMIN_ROLES", os.getenv("AUTOSAHAM_ADMIN_ROLES", "admin"))
+    )
+    if not admin_roles:
+        admin_roles = {"admin"}
+
+    if require_admin:
+        if not session_user:
+            raise HTTPException(
+                status_code=401,
+                detail="Kill switch requires authenticated admin session.",
+            )
+        if (
+            str(session_user).strip().lower() not in admin_users
+            and str(session_role or "").strip().lower() not in admin_roles
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Kill switch requires admin role.",
+            )
+
+    challenge_code = str((payload.challengeCode if payload else "") or "").strip()
+    totp_secret = str(os.getenv("AUTOSAHAM_KILL_SWITCH_TOTP_SECRET", "")).strip()
+    fallback_code = str(os.getenv("AUTOSAHAM_KILL_SWITCH_2FA_CODE", "")).strip()
+    require_2fa = _env_flag(
+        "AUTOSAHAM_KILL_SWITCH_REQUIRE_2FA",
+        bool(totp_secret or fallback_code),
+    )
+
+    if require_2fa:
+        if not challenge_code:
+            raise HTTPException(
+                status_code=401,
+                detail="Kill switch requires 2FA challenge code.",
+            )
+
+        if totp_secret:
+            if not _verify_totp_code(totp_secret, challenge_code):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid 2FA challenge code.",
+                )
+        elif fallback_code:
+            if not hmac.compare_digest(fallback_code, challenge_code):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid 2FA challenge code.",
+                )
+        else:
+            raise HTTPException(
+                status_code=503,
+                detail="Kill switch 2FA enabled but verifier is not configured.",
+            )
+
+    resolved_actor = payload_actor or str(session_user or "").strip() or "api"
+    return resolved_actor
+
+
 def _is_kill_switch_active() -> bool:
     state = _kill_switch_state()
     return bool(state.get("killSwitchActive"))
@@ -2804,12 +3119,156 @@ def _runtime_scheduler_status() -> Dict[str, Any]:
     return status
 
 
+def _runtime_execution_status() -> Dict[str, Any]:
+    status: Dict[str, Any] = {
+        "available": False,
+        "pendingOrders": 0,
+    }
+    try:
+        from src.api import server as api_server
+
+        execution_manager = getattr(api_server, "_execution_manager", None)
+        if execution_manager is None:
+            return status
+
+        pending_orders = []
+        if hasattr(execution_manager, "get_pending_orders"):
+            pending_orders = list(execution_manager.get_pending_orders() or [])
+
+        status.update(
+            {
+                "available": True,
+                "pendingOrders": len(pending_orders),
+            }
+        )
+    except Exception as exc:
+        status["error"] = str(exc)
+
+    return status
+
+
+def _resolve_live_broker_adapter(provider: str):
+    normalized = str(provider or "").strip().lower()
+
+    if normalized == "indopremier":
+        from src.brokers.indopremier import IndoPremierBroker
+
+        return IndoPremierBroker
+    if normalized == "stockbit":
+        from src.brokers.stockbit import StockbitBroker
+
+        return StockbitBroker
+    if normalized == "ajaib":
+        from src.brokers.ajaib import AjaibBroker
+
+        return AjaibBroker
+
+    return None
+
+
+def _cancel_live_broker_open_orders(limit: int = 200) -> Dict[str, Any]:
+    """Best-effort cancel for open orders on live broker connection."""
+    safe_limit = max(1, min(1000, int(limit)))
+    summary: Dict[str, Any] = {
+        "requested": False,
+        "connected": False,
+        "provider": None,
+        "status": "skipped",
+        "openOrders": 0,
+        "cancelled": 0,
+        "failed": 0,
+        "error": None,
+    }
+
+    connection = _state_store.get_broker_connection(_default_broker_connection)
+    if not bool(connection.get("connected")):
+        summary["status"] = "skipped_not_connected"
+        return summary
+
+    trading_mode = str(connection.get("tradingMode") or "paper").strip().lower()
+    if trading_mode != "live":
+        summary["status"] = "skipped_not_live"
+        return summary
+
+    provider = str(connection.get("provider") or "").strip().lower()
+    summary["provider"] = provider or None
+
+    adapter_cls = _resolve_live_broker_adapter(provider)
+    if adapter_cls is None:
+        summary["status"] = "unsupported_provider"
+        return summary
+
+    credentials = _state_store.get_broker_credentials()
+    account_id = str(
+        connection.get("accountId")
+        or credentials.get("accountId")
+        or ""
+    ).strip()
+    api_key = str(credentials.get("apiKey") or "").strip()
+    api_secret = str(credentials.get("apiSecret") or "").strip()
+
+    if not account_id or not api_key or not api_secret:
+        summary["status"] = "missing_credentials"
+        return summary
+
+    summary["requested"] = True
+
+    async def _cancel_async() -> Dict[str, Any]:
+        broker = adapter_cls(
+            api_key=api_key,
+            api_secret=api_secret,
+            account_id=account_id,
+        )
+
+        try:
+            connected = await broker.connect()
+            summary["connected"] = bool(connected)
+            if not connected:
+                summary["status"] = "connect_failed"
+                return summary
+
+            cancel_report = await broker.cancel_all_open_orders(limit=safe_limit)
+            summary["status"] = str(cancel_report.get("status") or "ok")
+            summary["openOrders"] = int(cancel_report.get("openOrders") or 0)
+            summary["cancelled"] = int(cancel_report.get("cancelled") or 0)
+            summary["failed"] = int(cancel_report.get("failed") or 0)
+            summary["error"] = cancel_report.get("error")
+            return summary
+        except Exception as exc:
+            summary["status"] = "error"
+            summary["error"] = str(exc)
+            return summary
+        finally:
+            try:
+                await broker.disconnect()
+            except Exception:
+                pass
+
+    try:
+        return asyncio.run(_cancel_async())
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(_cancel_async())
+        finally:
+            loop.close()
+
+
 def _suspend_runtime_services() -> Dict[str, Any]:
     """Best-effort stop for local scheduler after kill switch activation."""
     actions: Dict[str, Any] = {
         "schedulerStopRequested": False,
         "schedulerWasRunning": False,
         "schedulerStopped": False,
+        "pendingOrderCancelRequested": False,
+        "pendingOrdersBefore": 0,
+        "pendingOrdersCancelled": 0,
+        "pendingOrdersAfter": 0,
+        "brokerOpenOrderCancelRequested": False,
+        "brokerOpenOrdersFound": 0,
+        "brokerOpenOrdersCancelled": 0,
+        "brokerOpenOrdersFailed": 0,
+        "brokerOpenOrderCancelSummary": None,
         "errors": [],
     }
 
@@ -2817,20 +3276,67 @@ def _suspend_runtime_services() -> Dict[str, Any]:
         from src.api import server as api_server
 
         scheduler = getattr(api_server, "_scheduler", None)
-        if scheduler is None:
-            return actions
+        if scheduler is not None:
+            actions["schedulerStopRequested"] = True
+            thread = getattr(scheduler, "_thread", None)
+            was_running = bool(thread and thread.is_alive())
+            actions["schedulerWasRunning"] = was_running
 
-        actions["schedulerStopRequested"] = True
-        thread = getattr(scheduler, "_thread", None)
-        was_running = bool(thread and thread.is_alive())
-        actions["schedulerWasRunning"] = was_running
-
-        if was_running:
-            scheduler.stop(timeout=2.0)
-            thread_after = getattr(scheduler, "_thread", None)
-            actions["schedulerStopped"] = not bool(thread_after and thread_after.is_alive())
+            if was_running:
+                scheduler.stop(timeout=2.0)
+                thread_after = getattr(scheduler, "_thread", None)
+                actions["schedulerStopped"] = not bool(thread_after and thread_after.is_alive())
+            else:
+                actions["schedulerStopped"] = True
         else:
             actions["schedulerStopped"] = True
+
+        execution_manager = getattr(api_server, "_execution_manager", None)
+        if execution_manager is not None:
+            actions["pendingOrderCancelRequested"] = True
+
+            try:
+                pending_before = list(execution_manager.get_pending_orders() or [])
+            except Exception:
+                pending_before = []
+
+            actions["pendingOrdersBefore"] = len(pending_before)
+
+            try:
+                if hasattr(execution_manager, "cancel_all_pending_orders"):
+                    cancelled = execution_manager.cancel_all_pending_orders(
+                        reason="kill_switch"
+                    )
+                else:
+                    cancelled = 0
+            except Exception as exc:
+                cancelled = 0
+                actions["errors"].append(str(exc))
+
+            actions["pendingOrdersCancelled"] = int(cancelled or 0)
+
+            try:
+                pending_after = list(execution_manager.get_pending_orders() or [])
+            except Exception:
+                pending_after = []
+            actions["pendingOrdersAfter"] = len(pending_after)
+
+        broker_cancel_summary = _cancel_live_broker_open_orders(limit=200)
+        actions["brokerOpenOrderCancelRequested"] = bool(
+            broker_cancel_summary.get("requested")
+        )
+        actions["brokerOpenOrdersFound"] = int(
+            broker_cancel_summary.get("openOrders") or 0
+        )
+        actions["brokerOpenOrdersCancelled"] = int(
+            broker_cancel_summary.get("cancelled") or 0
+        )
+        actions["brokerOpenOrdersFailed"] = int(
+            broker_cancel_summary.get("failed") or 0
+        )
+        actions["brokerOpenOrderCancelSummary"] = broker_cancel_summary
+        if broker_cancel_summary.get("error"):
+            actions["errors"].append(str(broker_cancel_summary["error"]))
     except Exception as exc:
         actions["errors"].append(str(exc))
 
@@ -2948,20 +3454,23 @@ async def get_bot_status():
     return await _run_blocking(_resolve_runtime_bot_status)
 
 @router.post("/bot/start")
-async def start_bot():
+async def start_bot(request: Request):
     """Start the trading bot"""
+    _require_admin_operation(request, "Bot start")
     _assert_kill_switch_inactive("Bot start")
     return {"status": "started", "timestamp": datetime.now().isoformat()}
 
 @router.post("/bot/stop")
-async def stop_bot():
+async def stop_bot(request: Request):
     """Stop the trading bot"""
+    _require_admin_operation(request, "Bot stop")
     # TODO: Implement bot stop logic
     return {"status": "stopped", "timestamp": datetime.now().isoformat()}
 
 @router.post("/bot/pause")
-async def pause_bot():
+async def pause_bot(request: Request):
     """Pause the trading bot"""
+    _require_admin_operation(request, "Bot pause")
     # TODO: Implement bot pause logic
     return {"status": "paused", "timestamp": datetime.now().isoformat()}
 
@@ -3469,10 +3978,13 @@ async def get_kill_switch_state():
 
 
 @router.post("/system/kill-switch/activate")
-async def activate_kill_switch(payload: Optional[KillSwitchPayload] = None):
+async def activate_kill_switch(
+    request: Request,
+    payload: Optional[KillSwitchPayload] = None,
+):
     """Activate global kill switch and halt new trading actions."""
     reason = str((payload.reason if payload else "") or "Manual emergency stop").strip()
-    actor = str((payload.actor if payload else "") or "api").strip()
+    actor = _authorize_kill_switch_actor(request, payload)
     now_iso = datetime.now().isoformat()
     runtime_actions = await _run_blocking(_suspend_runtime_services)
 
@@ -3507,10 +4019,13 @@ async def activate_kill_switch(payload: Optional[KillSwitchPayload] = None):
 
 
 @router.post("/system/kill-switch/deactivate")
-async def deactivate_kill_switch(payload: Optional[KillSwitchPayload] = None):
+async def deactivate_kill_switch(
+    request: Request,
+    payload: Optional[KillSwitchPayload] = None,
+):
     """Deactivate global kill switch and allow trading actions again."""
     reason = str((payload.reason if payload else "") or "Manual resume").strip()
-    actor = str((payload.actor if payload else "") or "api").strip()
+    actor = _authorize_kill_switch_actor(request, payload)
 
     current_state = _kill_switch_state()
     updated_state = _state_store.set_system_control(
@@ -3556,6 +4071,7 @@ async def get_migration_control_center():
     ws_health = await _run_blocking(_ws_backplane_health_snapshot)
     celery_backlog = await _run_blocking(_celery_queue_backlog_snapshot)
     scheduler_status = await _run_blocking(_runtime_scheduler_status)
+    execution_status = await _run_blocking(_runtime_execution_status)
 
     websocket_queue = {
         "depth": int(ws_health.get("queueDepth") or 0),
@@ -3577,14 +4093,42 @@ async def get_migration_control_center():
         "websocketBackplane": ws_health.get("backplane", {}),
         "runtime": {
             "scheduler": scheduler_status,
+            "execution": execution_status,
             "brokerConnection": broker_connection,
         },
     }
 
 
+@router.get("/system/execution/pending-orders")
+async def get_execution_pending_orders(limit: int = 200):
+    """Read-only snapshot for runtime pending orders tracked by execution manager."""
+    safe_limit = max(1, min(1000, int(limit)))
+    execution_status = await _run_blocking(_runtime_execution_status)
+
+    pending_orders: List[Dict[str, Any]] = []
+    try:
+        from src.api import server as api_server
+
+        execution_manager = getattr(api_server, "_execution_manager", None)
+        if execution_manager is not None and hasattr(execution_manager, "get_pending_orders"):
+            pending_orders = list(execution_manager.get_pending_orders() or [])
+    except Exception:
+        pending_orders = []
+
+    return {
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "execution": execution_status,
+        "total": len(pending_orders),
+        "pendingOrders": pending_orders[:safe_limit],
+    }
+
+
 @router.post("/system/state-store/migrate")
-async def migrate_state_store(payload: StateMigrationPayload):
+async def migrate_state_store(request: Request, payload: StateMigrationPayload):
     """Run backend state migration from SQLite to Redis/PostgreSQL."""
+    _require_admin_operation(request, "State store migration")
+
     result = _state_store.run_state_backend_migration(
         clear_sqlite=bool(payload.clearSqlite)
     )
@@ -3603,8 +4147,14 @@ async def migrate_state_store(payload: StateMigrationPayload):
 
 
 @router.put("/brokers/feature-flags/{provider_id}", response_model=BrokerFeatureFlag)
-async def update_broker_feature_flag(provider_id: str, payload: BrokerFeatureFlagUpdatePayload):
+async def update_broker_feature_flag(
+    provider_id: str,
+    payload: BrokerFeatureFlagUpdatePayload,
+    request: Request,
+):
     """Update live/paper feature flags for broker providers."""
+    _require_admin_operation(request, "Broker feature-flag update")
+
     provider_key = provider_id.strip().lower()
     valid_provider_ids = {provider.id for provider in _available_broker_providers}
     if provider_key not in valid_provider_ids:
@@ -3634,8 +4184,10 @@ async def get_broker_connection():
 
 
 @router.post("/broker/connect")
-async def connect_broker(payload: BrokerConnectPayload):
+async def connect_broker(payload: BrokerConnectPayload, request: Request):
     """Connect broker using provider feature flags with paper fallback."""
+    _require_admin_operation(request, "Broker connect")
+
     provider_key = (payload.provider or "").strip().lower()
     provider = next((item for item in _available_broker_providers if item.id == provider_key), None)
     if not provider:
@@ -3767,8 +4319,10 @@ async def connect_broker(payload: BrokerConnectPayload):
 
 
 @router.post("/broker/disconnect")
-async def disconnect_broker():
+async def disconnect_broker(request: Request):
     """Disconnect active broker account and keep app in paper-only mode."""
+    _require_admin_operation(request, "Broker disconnect")
+
     disconnected_state = _state_store.set_broker_connection(
         {
             "connected": False,

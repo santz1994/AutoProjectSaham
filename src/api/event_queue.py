@@ -21,8 +21,8 @@ _SEEN_EVENT_MAX = 5000
 _BACKPLANE_POLL_MAX = 200
 _DEFAULT_CHANNEL = "autosaham:events"
 
-_queue = deque(maxlen=_QUEUE_MAX)
-_seen_event_ids = deque()
+_queue: deque[Dict[str, Any]] = deque(maxlen=_QUEUE_MAX)
+_seen_event_ids: deque[str] = deque()
 _seen_event_lookup: set[str] = set()
 _lock = threading.Lock()
 
@@ -89,7 +89,7 @@ def _init_backplane() -> None:
         return
 
     try:
-        import redis  # type: ignore
+        import redis
 
         client = redis.Redis.from_url(
             redis_url,

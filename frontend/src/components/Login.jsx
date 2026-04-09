@@ -18,7 +18,7 @@ export default function Login({ onLogin, onSwitchToRegister, onSwitchToForgotPas
 
     try {
       // SECURITY FIX: Use AuthService which handles httpOnly cookies securely
-      const result = await AuthService.login(username, password)
+      const result = await AuthService.login(username, password, rememberMe)
       
       if (result.ok) {
         toast.success(`Welcome back, ${username}! 🎉`)

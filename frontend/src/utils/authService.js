@@ -65,12 +65,12 @@ class AuthService {
    * @param {string} password 
    * @returns {Promise<{ok: boolean, error?: string}>}
    */
-  static async login(username, password) {
+  static async login(username, password, rememberMe = false) {
     try {
       const res = await fetch(`${getAPIBase()}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, rememberMe: Boolean(rememberMe) }),
         credentials: 'include', // Include & accept cookies
       })
       if (!res.ok) {

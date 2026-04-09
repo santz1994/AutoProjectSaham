@@ -39,10 +39,12 @@ if FASTAPI_AVAILABLE:
     from src.pipeline.runner import AutonomousPipeline
     from src.pipeline.scheduler import PipelineScheduler
     from src.brokers.paper_adapter import PaperBrokerAdapter
+    from src.execution.manager import ExecutionManager
     from src.api.state_store import SecureAppStateStore
     from src.api.auth import (
         register_user,
         authenticate_user,
+        get_session_context,
         get_user_from_token,
         invalidate_token,
         request_password_reset,
@@ -121,6 +123,7 @@ if FASTAPI_AVAILABLE:
     # single shared pipeline instance for the server
     pipeline = AutonomousPipeline()
     _scheduler: Optional[PipelineScheduler] = None
+    _execution_manager: Optional[ExecutionManager] = None
     # Background services (initialized on application startup)
     market_service = None
     ml_service = None
@@ -131,6 +134,14 @@ if FASTAPI_AVAILABLE:
         "activatedAt": None,
         "activatedBy": None,
     }
+
+    try:
+        starting_cash = float(os.getenv("PAPER_STARTING_CASH", "100000000"))
+        _execution_manager = ExecutionManager(
+            broker=PaperBrokerAdapter(starting_cash=starting_cash)
+        )
+    except Exception:
+        _execution_manager = None
     
     # Project root directory for data/models paths
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -314,6 +325,7 @@ if FASTAPI_AVAILABLE:
     class UserPayload(BaseModel):
         username: str
         password: str
+        rememberMe: Optional[bool] = False
 
     class RegisterPayload(BaseModel):
         username: str
@@ -341,11 +353,30 @@ if FASTAPI_AVAILABLE:
 
     @app.post("/auth/login")
     async def auth_login(payload: UserPayload):
-        token = authenticate_user(payload.username, payload.password)
+        default_ttl = int(os.getenv("AUTH_TTL_SECONDS", "86400"))
+        remember_ttl = int(os.getenv("AUTH_REMEMBER_ME_TTL_SECONDS", "2592000"))
+        session_ttl = remember_ttl if bool(payload.rememberMe) else default_ttl
+        session_ttl = max(300, min(int(session_ttl), 60 * 60 * 24 * 90))
+
+        token = authenticate_user(
+            payload.username,
+            payload.password,
+            ttl_seconds=session_ttl,
+        )
         if not token:
             raise HTTPException(status_code=401, detail="invalid_credentials")
+
+        session_context = get_session_context(token) or {}
+        csrf_token = str(session_context.get("csrfToken") or "").strip()
+
         # SECURITY FIX: Set token as httpOnly cookie (not in response body)
-        response = JSONResponse(content={"status": "ok"}, status_code=200)
+        response = JSONResponse(
+            content={
+                "status": "ok",
+                "rememberMe": bool(payload.rememberMe),
+            },
+            status_code=200,
+        )
         # In development (HTTP), disable secure flag; in production (HTTPS), enable it
         is_secure = os.getenv("ENV", "").lower() in ("prod", "production") or os.getenv("HTTPS") == "on"
         response.set_cookie(
@@ -354,9 +385,21 @@ if FASTAPI_AVAILABLE:
             httponly=True,  # Prevent JS access (XSS protection)
             secure=is_secure,  # Only send over HTTPS in production
             samesite="lax",  # CSRF protection (lax for local dev compatibility)
-            max_age=86400,  # 24 hours
+            max_age=session_ttl,
             path="/"
         )
+
+        if csrf_token:
+            # Double-submit CSRF token cookie for mutating endpoints.
+            response.set_cookie(
+                key="csrf_token",
+                value=csrf_token,
+                httponly=False,
+                secure=is_secure,
+                samesite="lax",
+                max_age=session_ttl,
+                path="/",
+            )
         return response
 
     @app.get("/auth/me")
@@ -366,11 +409,15 @@ if FASTAPI_AVAILABLE:
         if not token:
             # Not logged in - return 200 with empty response (JS will handle)
             return JSONResponse(content={}, status_code=200)
-        user = get_user_from_token(token)
-        if not user:
+        context = get_session_context(token)
+        if not context:
             # Token invalid/expired - return 200 with empty response
             return JSONResponse(content={}, status_code=200)
-        return {"username": user}
+
+        return {
+            "username": context.get("username"),
+            "role": context.get("role"),
+        }
 
     @app.post("/auth/logout")
     async def auth_logout(request: Request):
@@ -386,6 +433,13 @@ if FASTAPI_AVAILABLE:
             httponly=True,
             secure=is_secure,
             samesite="lax"
+        )
+        response.delete_cookie(
+            key="csrf_token",
+            path="/",
+            httponly=False,
+            secure=is_secure,
+            samesite="lax",
         )
         return response
 

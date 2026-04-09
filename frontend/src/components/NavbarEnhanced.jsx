@@ -294,6 +294,22 @@ export default function NavbarEnhanced({
     syncKillSwitchState();
   }, []);
 
+  const resolveChallengeCodeFromError = (error, actionLabel) => {
+    const message = String(error?.message || '').toLowerCase();
+    if (!message.includes('2fa')) {
+      return null;
+    }
+
+    const promptMessage = `2FA code required to ${actionLabel} kill switch. Enter challenge code:`;
+    const code = window.prompt(promptMessage, '');
+    if (code === null) {
+      return null;
+    }
+
+    const trimmed = String(code).trim();
+    return trimmed || null;
+  };
+
   const handleKillSwitch = async () => {
     if (killSwitchLoading) {
       return;
@@ -302,18 +318,46 @@ export default function NavbarEnhanced({
     setKillSwitchLoading(true);
     try {
       if (!killSwitchTriggered) {
-        const result = await apiService.activateKillSwitch(
-          'Emergency stop activated from navbar',
-          'ui-navbar',
-        );
+        let result;
+        try {
+          result = await apiService.activateKillSwitch(
+            'Emergency stop activated from navbar',
+            'ui-navbar',
+          );
+        } catch (firstError) {
+          const challengeCode = resolveChallengeCodeFromError(firstError, 'activate');
+          if (!challengeCode) {
+            throw firstError;
+          }
+          result = await apiService.activateKillSwitch(
+            'Emergency stop activated from navbar',
+            'ui-navbar',
+            { challengeCode },
+          );
+        }
+
         setKillSwitchState(true, result?.killSwitch?.activatedAt || result?.killSwitch?.updatedAt || null);
         setBotStatus('stopped');
         toast.error('Emergency stop activated! All trading halted.', { duration: 5000 });
       } else {
-        const result = await apiService.deactivateKillSwitch(
-          'Trading resumed from navbar',
-          'ui-navbar',
-        );
+        let result;
+        try {
+          result = await apiService.deactivateKillSwitch(
+            'Trading resumed from navbar',
+            'ui-navbar',
+          );
+        } catch (firstError) {
+          const challengeCode = resolveChallengeCodeFromError(firstError, 'deactivate');
+          if (!challengeCode) {
+            throw firstError;
+          }
+          result = await apiService.deactivateKillSwitch(
+            'Trading resumed from navbar',
+            'ui-navbar',
+            { challengeCode },
+          );
+        }
+
         setKillSwitchState(false, result?.killSwitch?.updatedAt || null);
         setBotStatus('idle');
         toast.success('Trading resumed successfully', { duration: 3000 });

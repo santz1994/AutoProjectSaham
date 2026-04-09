@@ -163,6 +163,7 @@ Ini sengaja menjaga UX tetap stabil saat data provider atau integrasi broker ter
   - POST /api/system/kill-switch/activate
   - POST /api/system/kill-switch/deactivate
   - GET /api/system/migration-control-center
+  - GET /api/system/execution/pending-orders
 - AI:
   - GET /api/ai/projection/{symbol}
   - GET /api/ai/overview
@@ -279,6 +280,32 @@ python -m src.main --api
 ./scripts/quick_regression.ps1 -SkipMutatingActions
 ```
 
+### Kill switch rehearsal drill
+
+```powershell
+./scripts/kill_switch_drill.ps1 -BaseUrl http://127.0.0.1:8000 -Actor ops-weekly-drill
+```
+
+Jika hardening auth kill-switch diaktifkan, sertakan token sesi admin dan challenge code:
+
+```powershell
+./scripts/kill_switch_drill.ps1 -BaseUrl http://127.0.0.1:8000 -Actor ops-weekly-drill -AuthToken "<session_token_cookie_value>" -ChallengeCode "123456"
+```
+
+Runbook rollback procedure tersedia di `docs/KILL_SWITCH_DRILL_RUNBOOK.md`.
+
+Automasi jadwal mingguan (Windows Task Scheduler):
+
+```powershell
+./scripts/register_kill_switch_drill_task.ps1 -TaskName AutoSaham-KillSwitchWeeklyDrill -DayOfWeek Sunday -At 07:00 -BaseUrl http://127.0.0.1:8000 -Actor ops-weekly-drill
+```
+
+### Local exchange chaos simulation
+
+```bash
+python scripts/simulate_exchange_chaos.py --orders 20 --seed 42
+```
+
 ### Frontend validation
 
 ```bash
@@ -303,6 +330,7 @@ Variabel penting:
 
 - Runtime: MARKET_SYMBOLS, TICKS_DB_PATH, MODELS_DIR, ML_TRAIN_INTERVAL
 - Market/news: NEWSAPI_KEY, ALPHAVANTAGE_API_KEY
+- ETL corporate actions: AUTOSAHAM_CORPORATE_ACTIONS_FILE (opsional, path JSON untuk backward adjustment split/dividen/rights issue pada data historis)
 - Broker: BROKER_API_KEY, BROKER_API_SECRET
 - Notifications: SLACK_WEBHOOK_URL, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
 - State store migration:
@@ -316,6 +344,20 @@ Variabel penting:
   - AUTOSAHAM_WS_BACKPLANE_CHANNEL (default: autosaham:events)
   - AUTOSAHAM_INSTANCE_ID (opsional untuk identitas publisher event lintas instance)
   - AUTH_EXPOSE_RESET_TOKEN (default: 0, aktifkan 1 hanya untuk smoke test reset password di dev)
+- Auth session:
+  - AUTH_TTL_SECONDS (default: 86400)
+  - AUTH_REMEMBER_ME_TTL_SECONDS (default: 2592000)
+- Kill switch auth hardening:
+  - AUTOSAHAM_KILL_SWITCH_REQUIRE_ADMIN (default: aktif pada ENV=prod/production)
+  - AUTOSAHAM_KILL_SWITCH_ADMIN_USERS (default: admin)
+  - AUTOSAHAM_KILL_SWITCH_ADMIN_ROLES (default: mengikuti AUTOSAHAM_ADMIN_ROLES)
+  - AUTOSAHAM_KILL_SWITCH_REQUIRE_2FA (default: aktif jika verifier tersedia)
+  - AUTOSAHAM_KILL_SWITCH_TOTP_SECRET (Base32 TOTP secret, prioritas utama)
+  - AUTOSAHAM_KILL_SWITCH_2FA_CODE (fallback static challenge code untuk environment terbatas)
+- Authz/CSRF guard endpoint mutating:
+  - AUTOSAHAM_ADMIN_GUARD_ENABLED (default: aktif pada ENV=prod/production)
+  - AUTOSAHAM_ADMIN_ROLES (default: admin)
+  - AUTOSAHAM_CSRF_PROTECTION_ENABLED (default: aktif pada ENV=prod/production)
 
 ## Docker and Observability
 
@@ -361,6 +403,11 @@ monitoring/        # Prometheus and alert configuration
 - Notification channel WebSocket berjalan realtime. Beberapa channel lain (email/push) masih pada level handler/queue/logging dan dapat diperluas sesuai kebutuhan produksi.
 - Global Kill Switch memblokir trigger eksekusi baru (bot start, deploy/backtest strategy, run ETL/training trigger) sampai status di-resume melalui endpoint kill switch.
 - Aktivasi kill switch melakukan best-effort penghentian scheduler lokal dan mengembalikan ringkasan runtimeActions pada respons API untuk audit operasional cepat.
+- Aktivasi kill switch juga mencoba membatalkan seluruh pending order yang sedang dilacak oleh runtime execution manager (best-effort, non-blocking), dan hasilnya dicatat pada runtimeActions.
+- Aktivasi kill switch kini juga mencoba cancel semua open order pada koneksi broker live yang didukung adapter (saat ini: indopremier, stockbit, ajaib) menggunakan kredensial terenkripsi di secure state; provider lain tetap fail-safe sebagai unsupported_provider.
+- Aktivasi/nonaktif kill switch kini mendukung guard admin session + challenge 2FA berbasis env flag (dengan kompatibilitas payload `actor` maupun `activatedBy` untuk klien lama).
+- Endpoint operasional mutating berisiko tinggi (bot control, broker connect/disconnect, state migration, broker feature-flag update) kini mendukung guard admin session + double-submit CSRF token berbasis env flag.
+- ETL historis mendukung corporate action backward adjustment berbasis file JSON (jika AUTOSAHAM_CORPORATE_ACTIONS_FILE dikonfigurasi) untuk membantu menjaga kontinuitas fitur ML saat stock split/dividen terjadi.
 
 ## Kontribusi
 
@@ -380,4 +427,4 @@ Prioritas update berikutnya yang direkomendasikan:
 
 ## Lisensi
 
-Gunakan lisensi internal tim/proyek sesuai kebijakan repository.
+Proyek ini menggunakan lisensi MIT. Lihat file LICENSE di root repository untuk detail lengkap.

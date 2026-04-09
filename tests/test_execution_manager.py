@@ -113,6 +113,47 @@ class ExecutionManagerTests(unittest.TestCase):
         self.assertIsNotNone(cancelled_ev)
         self.assertEqual(cancelled_ev.get("count"), 1)
 
+    def test_cancel_all_pending_orders_manual_reason(self):
+        events = []
+
+        def cb(ev):
+            events.append(ev)
+
+        from src.brokers.paper_adapter import PaperBrokerAdapter
+        from src.execution.manager import ExecutionManager
+
+        adapter = PaperBrokerAdapter(starting_cash=20000.0)
+        em = ExecutionManager(
+            broker=adapter,
+            max_position_per_symbol=100,
+            daily_loss_limit=0.5,
+            alert_callback=cb,
+        )
+        em.start_day({"TEST": 100.0})
+
+        # buy inventory then queue two pending sells
+        buy = em.place_order("TEST", "buy", 10, 100.0, previous_close=100.0)
+        self.assertEqual(buy.get("status"), "filled")
+        self.assertEqual(
+            em.place_limit_order("TEST", "sell", 5, 110.0, previous_close=100.0).get("status"),
+            "pending",
+        )
+        self.assertEqual(
+            em.place_limit_order("TEST", "sell", 5, 111.0, previous_close=100.0).get("status"),
+            "pending",
+        )
+
+        cancelled = em.cancel_all_pending_orders(reason="kill_switch")
+
+        self.assertEqual(cancelled, 2)
+        self.assertEqual(len(em.get_pending_orders()), 0)
+
+        cancelled_summary = [
+            ev for ev in events
+            if ev.get("type") == "pending_orders_cancelled" and ev.get("reason") == "kill_switch"
+        ]
+        self.assertTrue(cancelled_summary)
+
 
 if __name__ == "__main__":
     unittest.main()
