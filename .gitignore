@@ -74,8 +74,10 @@ data/.app_state.key
 *.sqlite3
 *.db-wal
 *.db-shm
+*.db-journal
 *.sqlite-wal
 *.sqlite-shm
+*.sqlite-journal
 db.sqlite3
 
 # Logs
@@ -174,6 +176,13 @@ data/cache/
 *.ohlcv_cache
 data/projection_learning_state.json
 data/users.json
+data/ticks.csv
+data/model_registry.json
+data/dataset/integration_dataset.csv
+data/*token*.json
+data/*secret*.json
+data/*credential*.json
+data/*session*.json
 data/prices/
 data/features/
 data/etl_*.json
