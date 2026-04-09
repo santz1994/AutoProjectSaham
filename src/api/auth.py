@@ -15,6 +15,7 @@ import os
 import secrets
 import time
 from typing import Any, Dict, Optional
+from urllib.parse import quote
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 _USERS_FILE = os.path.join(PROJECT_ROOT, "data", "users.json")
@@ -124,6 +125,21 @@ def _resolve_login_2fa_totp_secret(username: str, user_record: Dict[str, Any]) -
     if user_secret:
         return user_secret
 
+    normalized_username = "".join(
+        char if str(char).isalnum() else "_"
+        for char in str(username or "").strip().upper()
+    )
+    if normalized_username:
+        user_secret_env = _normalize_totp_secret(
+            os.getenv(f"AUTOSAHAM_LOGIN_2FA_TOTP_SECRET_{normalized_username}", "")
+        )
+        if user_secret_env:
+            return user_secret_env
+
+    return _resolve_login_2fa_env_totp_secret(username)
+
+
+def _resolve_login_2fa_env_totp_secret(username: str) -> str:
     normalized_username = "".join(
         char if str(char).isalnum() else "_"
         for char in str(username or "").strip().upper()
@@ -337,6 +353,10 @@ def is_login_2fa_required(username: str) -> bool:
     if _coerce_bool(user_record.get("twoFactorEnabled"), default=False):
         return True
 
+    return _is_login_2fa_policy_required(normalized_username, user_record)
+
+
+def _is_login_2fa_policy_required(username: str, user_record: Dict[str, Any]) -> bool:
     if not _env_flag("AUTOSAHAM_LOGIN_2FA_ENABLED", False):
         return False
 
@@ -346,7 +366,7 @@ def is_login_2fa_required(username: str) -> bool:
     if not required_roles:
         required_roles = {"admin"}
 
-    role = _normalize_role(user_record.get("role"), username=normalized_username)
+    role = _normalize_role(user_record.get("role"), username=username)
     return role in required_roles
 
 
@@ -379,6 +399,160 @@ def verify_login_2fa_code(username: str, code: str) -> bool:
         return hmac.compare_digest(fallback_code, normalized_code)
 
     return False
+
+
+def _generate_totp_secret(byte_length: int = 20) -> str:
+    safe_len = max(10, int(byte_length))
+    raw_secret = secrets.token_bytes(safe_len)
+    # Google Authenticator compatible Base32, without trailing padding.
+    return base64.b32encode(raw_secret).decode("ascii").rstrip("=")
+
+
+def _build_totp_uri(secret: str, username: str, issuer: str = "AutoSaham") -> str:
+    normalized_secret = _normalize_totp_secret(secret)
+    normalized_username = str(username or "").strip() or "user"
+    normalized_issuer = str(issuer or "AutoSaham").strip() or "AutoSaham"
+
+    label = quote(f"{normalized_issuer}:{normalized_username}")
+    encoded_issuer = quote(normalized_issuer)
+    return (
+        f"otpauth://totp/{label}?secret={normalized_secret}"
+        f"&issuer={encoded_issuer}&algorithm=SHA1&digits=6&period=30"
+    )
+
+
+def get_login_2fa_status(username: str) -> Dict[str, Any]:
+    normalized_username = str(username or "").strip()
+    if not normalized_username:
+        return {
+            "enabled": False,
+            "required": False,
+            "policyRequired": False,
+            "configured": False,
+            "hasUserSecret": False,
+            "enrollmentPending": False,
+            "method": "none",
+        }
+
+    users = _load_users()
+    user_record = users.get(normalized_username) or {}
+
+    has_user_secret = bool(_normalize_totp_secret(user_record.get("twoFactorSecret")))
+    enabled = _coerce_bool(user_record.get("twoFactorEnabled"), default=False)
+    policy_required = _is_login_2fa_policy_required(normalized_username, user_record)
+
+    resolved_totp_secret = _resolve_login_2fa_totp_secret(normalized_username, user_record)
+    fallback_code = _resolve_login_2fa_fallback_code()
+    configured = bool(resolved_totp_secret or fallback_code)
+
+    if resolved_totp_secret:
+        method = "totp"
+    elif fallback_code:
+        method = "fallback_code"
+    else:
+        method = "none"
+
+    return {
+        "enabled": enabled,
+        "required": bool(enabled or policy_required),
+        "policyRequired": policy_required,
+        "configured": configured,
+        "hasUserSecret": has_user_secret,
+        "enrollmentPending": bool(has_user_secret and not enabled),
+        "method": method,
+    }
+
+
+def begin_login_2fa_enrollment(username: str, issuer: str = "AutoSaham") -> Dict[str, str]:
+    normalized_username = str(username or "").strip()
+    if not normalized_username:
+        raise RuntimeError("invalid_username")
+
+    users = _load_users()
+    user_record = users.get(normalized_username)
+    if not user_record:
+        raise RuntimeError("user_not_found")
+
+    secret = _generate_totp_secret()
+    users[normalized_username] = {
+        **user_record,
+        "twoFactorEnabled": False,
+        "twoFactorSecret": secret,
+    }
+    _save_users(users)
+
+    return {
+        "secret": secret,
+        "otpauthUri": _build_totp_uri(secret, normalized_username, issuer),
+    }
+
+
+def confirm_login_2fa_enrollment(username: str, code: str) -> bool:
+    normalized_username = str(username or "").strip()
+    normalized_code = str(code or "").strip()
+    if not normalized_username:
+        raise RuntimeError("invalid_username")
+    if not normalized_code:
+        return False
+
+    users = _load_users()
+    user_record = users.get(normalized_username)
+    if not user_record:
+        raise RuntimeError("user_not_found")
+
+    secret = _normalize_totp_secret(user_record.get("twoFactorSecret"))
+    if not secret:
+        raise RuntimeError("two_factor_not_initialized")
+
+    if not _verify_totp_code(secret, normalized_code):
+        return False
+
+    users[normalized_username] = {
+        **user_record,
+        "twoFactorEnabled": True,
+        "twoFactorSecret": secret,
+    }
+    _save_users(users)
+    return True
+
+
+def disable_login_2fa(username: str, code: str) -> bool:
+    normalized_username = str(username or "").strip()
+    if not normalized_username:
+        raise RuntimeError("invalid_username")
+
+    users = _load_users()
+    user_record = users.get(normalized_username)
+    if not user_record:
+        raise RuntimeError("user_not_found")
+
+    user_secret = _normalize_totp_secret(user_record.get("twoFactorSecret"))
+    enabled = _coerce_bool(user_record.get("twoFactorEnabled"), default=False)
+
+    if enabled:
+        normalized_code = str(code or "").strip()
+        if not normalized_code:
+            return False
+
+        if user_secret:
+            if not _verify_totp_code(user_secret, normalized_code):
+                return False
+        elif not verify_login_2fa_code(normalized_username, normalized_code):
+            return False
+
+    policy_required = _is_login_2fa_policy_required(normalized_username, user_record)
+    env_totp_secret = _resolve_login_2fa_env_totp_secret(normalized_username)
+    fallback_code = _resolve_login_2fa_fallback_code()
+    if policy_required and not (env_totp_secret or fallback_code):
+        raise RuntimeError("two_factor_required_by_policy")
+
+    users[normalized_username] = {
+        **user_record,
+        "twoFactorEnabled": False,
+        "twoFactorSecret": None,
+    }
+    _save_users(users)
+    return True
 
 
 def get_user_role(username: str) -> str:
