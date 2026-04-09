@@ -100,6 +100,17 @@ Code Quality
 - [ ] Update dokumentasi kontribusi (CONTRIBUTING.md) untuk mencerminkan perubahan arsitektur, standar kode, dan proses pengembangan baru setelah migrasi ke state store terpusat dan task queue. (PARTIAL: beberapa bagian dokumentasi sudah diperbarui, namun audit menyeluruh seluruh bagian kontribusi masih diperlukan untuk memastikan semua perubahan arsitektur dan proses tercermin dengan jelas)
 - [ ] Update .gitignore untuk memastikan file sementara, log, dan artefak build yang tidak relevan tidak masuk ke repository, terutama setelah penambahan Redis/PostgreSQL dan task queue. (PARTIAL: beberapa entri baru sudah ditambahkan untuk Redis dump, Celery logs, dan PostgreSQL artifacts, namun audit menyeluruh seluruh .gitignore masih diperlukan untuk memastikan tidak ada file sensitif atau sementara yang terlewat)
 
+Documentation simpan dalam /docs kecuali untuk dokumentasi kontribusi (CONTRIBUTING.md) dan README.md yang berada di root repository.
+- [x] Dokumentasi API state store (Redis/PostgreSQL) dan task queue (Celery) untuk penggunaan dan konfigurasi sudah ditambahkan di docs/api_state_store.md.
+- [x] Dokumentasi penggunaan dan konfigurasi rate limiting di Kong untuk paid/free tier sudah ditambahkan di docs/CICD_DEPLOYMENT_GUIDE.md.
+- [ ] Update dokumentasi kontribusi (CONTRIBUTING.md) untuk mencerminkan perubahan arsitektur, standar kode, dan proses pengembangan baru setelah migrasi ke state store terpusat dan task queue. (PARTIAL: beberapa bagian dokumentasi sudah diperbarui, namun audit menyeluruh seluruh bagian kontribusi masih diperlukan untuk memastikan semua perubahan arsitektur dan proses tercermin dengan jelas)
+- [ ] Update .gitignore untuk memastikan file sementara, log, dan artefak build yang tidak relevan tidak masuk ke repository, terutama setelah penambahan Redis/PostgreSQL dan task queue. (PARTIAL: beberapa entri baru sudah ditambahkan untuk Redis dump, Celery logs, dan PostgreSQL artifacts, namun audit menyeluruh seluruh .gitignore masih diperlukan untuk memastikan tidak ada file sensitif atau sementara yang terlewat)
+- [ ] Update README.md untuk mencerminkan perubahan arsitektur, setup environment, dan instruksi penggunaan baru setelah migrasi ke state store terpusat dan task queue. (PARTIAL: beberapa bagian README sudah diperbarui, namun audit menyeluruh seluruh README masih diperlukan untuk memastikan semua perubahan arsitektur, setup, dan instruksi tercermin dengan jelas)
+- [ ] Dokumentasi API state store (Redis/PostgreSQL) dan task queue (Celery) untuk penggunaan dan konfigurasi.
+- [ ] Dokumentasi penggunaan dan konfigurasi rate limiting di Kong untuk paid/free tier.
+- [ ] Dokumentasi kontribusi (CONTRIBUTING.md) untuk mencerminkan perubahan arsitektur, standar kode, dan proses pengembangan baru setelah migrasi ke state store terpusat dan task queue.
+- [ ] Dokumentasi setup environment dan instruksi penggunaan di README.md untuk mencerminkan perubahan arsitektur, setup environment, dan instruksi penggunaan baru setelah migrasi ke state store terpusat dan task queue.
+
 UI/UX & Accessibility
 - [ ] Migrasi bertahap CSS konvensional ke CSS Modules/utility-first approach untuk mengurangi collision. (PARTIAL: TradeLogsPage sudah dimigrasikan ke CSS Modules, halaman lain menyusul)
 - [ ] Optimistic UI pada seluruh alur eksekusi order/trade log. (PARTIAL: TradeLogsPage sudah punya optimistic refresh/report state, flow eksekusi order end-to-end masih perlu dituntaskan)
