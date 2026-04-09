@@ -43,8 +43,8 @@ src/ml, src/pipeline, src/data
 | Trade Logs | Filter/sort trades, summary analytics, export CSV, trigger report performa |
 | AI Monitor | AI overview (model/dataset/pipeline), AI activity logs, auto refresh, manual checkpoint log |
 | AI Graph | Live chart + projection overlay, market switch (stocks/forex/crypto/index/all), prediction style preset (Scalping/Daily Trader/Trader), prediction lock ON/OFF, rationale + news context |
-| Profile | Edit profil, risk profile, daily report schedule, 2FA toggle UI, broker connection summary |
-| Settings | Theme preference, notification toggles, risk settings, preferred universe, broker connect/disconnect, broker feature flags |
+| Profile | Edit profil, risk profile, daily report schedule, status keamanan akun, broker connection summary |
+| Settings | Theme preference, notification toggles, risk settings, preferred universe, broker connect/disconnect, broker feature flags, 2FA enrollment/verify/disable |
 | Auth | Login, Register, Forgot Password, Logout via secure cookie flow |
 
 ### Fitur lintas halaman
@@ -349,6 +349,7 @@ Variabel penting:
   - AUTH_REMEMBER_ME_TTL_SECONDS (default: 2592000)
   - AUTOSAHAM_LOGIN_2FA_ENABLED (default: 0)
   - AUTOSAHAM_LOGIN_2FA_REQUIRED_ROLES (default: admin)
+  - AUTOSAHAM_LOGIN_2FA_ISSUER (default: AutoSaham, label issuer untuk enrollment URI authenticator)
   - AUTOSAHAM_LOGIN_2FA_TOTP_SECRET (global TOTP Base32 secret)
   - AUTOSAHAM_LOGIN_2FA_TOTP_SECRET_<USERNAME> (opsional secret per user)
   - AUTOSAHAM_LOGIN_2FA_CODE (fallback static code)
@@ -365,6 +366,10 @@ Variabel penting:
   - AUTOSAHAM_ADMIN_ROLES (default: admin)
   - AUTOSAHAM_CSRF_PROTECTION_ENABLED (default: aktif pada ENV=prod/production)
   - AUTOSAHAM_ROLE_GUARD_ENABLED (default: aktif pada ENV=prod/production)
+  - AUTOSAHAM_ROLE_ETL_WRITE_ROLES (default: trader,developer)
+  - AUTOSAHAM_ROLE_SCHEDULER_WRITE_ROLES (default: developer)
+  - AUTOSAHAM_ROLE_MODEL_REGISTRY_WRITE_ROLES (default: developer)
+  - AUTOSAHAM_ROLE_ALERT_WRITE_ROLES (default: admin,developer)
   - AUTOSAHAM_ROLE_STRATEGY_WRITE_ROLES (default: trader,developer)
   - AUTOSAHAM_ROLE_SETTINGS_WRITE_ROLES (default: viewer,trader,developer)
   - AUTOSAHAM_ROLE_AI_LOG_WRITE_ROLES (default: trader,developer)
@@ -418,7 +423,9 @@ monitoring/        # Prometheus and alert configuration
 - Aktivasi/nonaktif kill switch kini mendukung guard admin session + challenge 2FA berbasis env flag (dengan kompatibilitas payload `actor` maupun `activatedBy` untuk klien lama).
 - Endpoint operasional mutating berisiko tinggi (bot control, broker connect/disconnect, state migration, broker feature-flag update) kini mendukung guard admin session + double-submit CSRF token berbasis env flag.
 - Endpoint mutating strategi/profile/log AI kini mendukung role-guard granular berbasis env (trader/developer/admin) dengan admin override dan validasi CSRF saat guard diaktifkan.
+- Endpoint mutating server non-router (`/run_etl`, `/scheduler/start`, `/scheduler/stop`, `/api/training/registry/active`, `/alert`) kini ikut role-guard berbasis env + validasi CSRF saat role guard diaktifkan.
 - Login kini mendukung challenge two-factor authentication (2FA) untuk role yang dikonfigurasi (TOTP atau fallback static code), di samping opsi rememberMe TTL session.
+- Endpoint auth 2FA (`/auth/2fa/status`, `/auth/2fa/enroll`, `/auth/2fa/verify`, `/auth/2fa/disable`) kini aktif untuk enrollment per-user TOTP dari Settings, dengan proteksi CSRF untuk operasi mutating.
 - ETL historis mendukung corporate action backward adjustment berbasis file JSON (jika AUTOSAHAM_CORPORATE_ACTIONS_FILE dikonfigurasi) untuk membantu menjaga kontinuitas fitur ML saat stock split/dividen terjadi.
 
 ## Kontribusi

@@ -276,3 +276,39 @@ def test_two_factor_disable_blocked_when_policy_requires_without_fallback(
     )
     assert disable_response.status_code == 409
     assert disable_response.json().get("detail") == "two_factor_required_by_policy"
+
+
+def test_role_guard_protects_run_etl_when_enabled(monkeypatch, client: TestClient):
+    monkeypatch.setenv("AUTOSAHAM_ROLE_GUARD_ENABLED", "true")
+    monkeypatch.setenv("AUTOSAHAM_CSRF_PROTECTION_ENABLED", "true")
+    monkeypatch.setenv("AUTOSAHAM_ROLE_ETL_WRITE_ROLES", "trader,developer")
+    monkeypatch.setattr(
+        server.pipeline,
+        "run",
+        lambda symbols, fetch_prices=True, persist_db=None: {
+            "status": "ok",
+            "symbols": symbols,
+            "fetch_prices": bool(fetch_prices),
+            "persist_db": persist_db,
+        },
+    )
+
+    payload = {
+        "symbols": ["BBCA.JK"],
+        "fetch_prices": False,
+    }
+
+    unauthenticated = client.post("/run_etl", json=payload)
+    assert unauthenticated.status_code == 401
+
+    username = f"auth_user_{uuid.uuid4().hex[:8]}"
+    _register(client, username)
+    login_response = _login(client, username)
+    assert login_response.status_code == 200
+
+    missing_csrf = client.post("/run_etl", json=payload)
+    assert missing_csrf.status_code == 403
+
+    authorized = client.post("/run_etl", json=payload, headers=_csrf_headers(client))
+    assert authorized.status_code == 200
+    assert authorized.json().get("status") == "ok"

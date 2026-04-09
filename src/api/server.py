@@ -214,6 +214,83 @@ if FASTAPI_AVAILABLE:
 
         return session_context
 
+    def _parse_csv_set(value: Any) -> set[str]:
+        return {
+            item.strip().lower()
+            for item in str(value or "").split(",")
+            if item.strip()
+        }
+
+    def _is_admin_session(session_context: Optional[Dict[str, Any]]) -> bool:
+        if not session_context:
+            return False
+
+        session_user = str(session_context.get("username") or "").strip().lower()
+        session_role = str(session_context.get("role") or "").strip().lower()
+
+        admin_users = _parse_csv_set(os.getenv("AUTOSAHAM_ADMIN_USERS", ""))
+        if not admin_users:
+            admin_users = _parse_csv_set(
+                os.getenv("AUTOSAHAM_KILL_SWITCH_ADMIN_USERS", "admin")
+            )
+        if not admin_users:
+            admin_users = {"admin"}
+
+        admin_roles = _parse_csv_set(os.getenv("AUTOSAHAM_ADMIN_ROLES", "admin"))
+        if not admin_roles:
+            admin_roles = {"admin"}
+
+        return (session_user in admin_users) or (session_role in admin_roles)
+
+    def _require_role_operation(
+        request: Request,
+        operation: str,
+        *,
+        allowed_roles: set[str],
+        allow_admin_override: bool = True,
+    ) -> Dict[str, Any]:
+        require_role_default = str(os.getenv("ENV", "")).strip().lower() in {
+            "prod",
+            "production",
+        }
+        require_role_guard = _env_flag(
+            "AUTOSAHAM_ROLE_GUARD_ENABLED",
+            require_role_default,
+        )
+
+        if not require_role_guard:
+            return {
+                "username": "api",
+                "role": "system",
+                "csrfToken": "",
+            }
+
+        session_context = _require_authenticated_session(
+            request,
+            operation,
+            require_csrf=True,
+        )
+
+        if allow_admin_override and _is_admin_session(session_context):
+            return session_context
+
+        normalized_allowed = {
+            str(role).strip().lower()
+            for role in allowed_roles
+            if str(role).strip()
+        }
+        session_role = str(session_context.get("role") or "").strip().lower()
+        if session_role not in normalized_allowed:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    f"{operation} requires one of roles: "
+                    f"{', '.join(sorted(normalized_allowed))}"
+                ),
+            )
+
+        return session_context
+
     def _is_kill_switch_active() -> bool:
         try:
             state = _runtime_state_store.get_system_control(_system_control_defaults)
@@ -284,9 +361,16 @@ if FASTAPI_AVAILABLE:
         return {"status": "ok"}
 
     @app.post("/run_etl")
-    async def run_etl(payload: RunPayload):
+    async def run_etl(payload: RunPayload, request: Request):
         start = time()
         try:
+            _require_role_operation(
+                request,
+                "ETL run",
+                allowed_roles=_parse_csv_set(
+                    os.getenv("AUTOSAHAM_ROLE_ETL_WRITE_ROLES", "trader,developer")
+                ),
+            )
             _assert_runtime_not_halted("ETL run")
             run_async = bool(payload.async_run or payload.asyncRun or _celery_enabled())
 
@@ -316,6 +400,13 @@ if FASTAPI_AVAILABLE:
             except Exception:
                 pass
             return res
+        except HTTPException:
+            duration = time() - start
+            try:
+                monitoring.record_etl_run(duration_seconds=duration, success=False)
+            except Exception:
+                pass
+            raise
         except Exception as e:
             duration = time() - start
             try:
@@ -766,7 +857,18 @@ if FASTAPI_AVAILABLE:
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post("/api/training/registry/active")
-    async def api_training_registry_set_active(payload: ModelRegistryActivatePayload):
+    async def api_training_registry_set_active(
+        payload: ModelRegistryActivatePayload,
+        request: Request,
+    ):
+        _require_role_operation(
+            request,
+            "Model registry activate",
+            allowed_roles=_parse_csv_set(
+                os.getenv("AUTOSAHAM_ROLE_MODEL_REGISTRY_WRITE_ROLES", "developer")
+            ),
+        )
+
         try:
             from src.ml.model_registry import set_active_model
 
@@ -783,7 +885,15 @@ if FASTAPI_AVAILABLE:
         level: Optional[str] = "info"
 
     @app.post("/alert")
-    async def alert_endpoint(payload: AlertPayload):
+    async def alert_endpoint(payload: AlertPayload, request: Request):
+        _require_role_operation(
+            request,
+            "Alert dispatch",
+            allowed_roles=_parse_csv_set(
+                os.getenv("AUTOSAHAM_ROLE_ALERT_WRITE_ROLES", "admin,developer")
+            ),
+        )
+
         try:
             payload_body = {
                 "message": payload.message,
@@ -799,8 +909,20 @@ if FASTAPI_AVAILABLE:
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post("/scheduler/start")
-    async def start_scheduler(symbols: List[str], interval_seconds: float = 3600.0):
+    async def start_scheduler(
+        request: Request,
+        symbols: List[str],
+        interval_seconds: float = 3600.0,
+    ):
         global _scheduler
+        _require_role_operation(
+            request,
+            "Scheduler start",
+            allowed_roles=_parse_csv_set(
+                os.getenv("AUTOSAHAM_ROLE_SCHEDULER_WRITE_ROLES", "developer")
+            ),
+        )
+
         _assert_runtime_not_halted("Scheduler start")
         if (
             _scheduler
@@ -817,8 +939,16 @@ if FASTAPI_AVAILABLE:
         return {"status": "started"}
 
     @app.post("/scheduler/stop")
-    async def stop_scheduler():
+    async def stop_scheduler(request: Request):
         global _scheduler
+        _require_role_operation(
+            request,
+            "Scheduler stop",
+            allowed_roles=_parse_csv_set(
+                os.getenv("AUTOSAHAM_ROLE_SCHEDULER_WRITE_ROLES", "developer")
+            ),
+        )
+
         if not _scheduler:
             raise HTTPException(status_code=400, detail="Scheduler not running")
         _scheduler.stop()
