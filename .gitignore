@@ -47,6 +47,27 @@ ENV/
 .env.local
 .env.*.local
 
+# Secrets & local credentials
+.envrc
+*.pem
+*.key
+*.crt
+*.cer
+*.csr
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+secrets/
+.secret/
+*.secret
+*.token
+data/.app_state.key
+
 # Database
 *.db
 *.sqlite
@@ -60,6 +81,17 @@ logs/
 # Testing
 .pytest_cache/
 .coverage
+.coverage.*
+coverage/
+coverage.xml
+junit*.xml
+nosetests.xml
+pytestdebug.log
+test-results/
+playwright-report/
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
 htmlcov/
 .tox/
 
@@ -74,9 +106,24 @@ tests/load_tests/*.csv
 tests/load_tests/*.html
 .benchmarks/
 benchmark_results.json
+benchmark.json
+benchmark-*.json
+benchmarks/
 *.prof
 performance_report.txt
 slow_operations.log
+
+# Training/experiment runtime artifacts
+mlruns/
+wandb/
+ray_results/
+lightning_logs/
+tensorboard/
+tb_logs/
+artifacts/
+checkpoints/
+data/backtests/
+data/reports/
 
 # Chart caching & WebSocket logs
 src/api/chart_cache/
@@ -171,5 +218,4 @@ celerybeat-schedule.*
 # Misc
 .cache/
 prompt.md
-promptv2.md
-PROMPTV2_AUDIT_COMPLETE.md
+Progress.md
