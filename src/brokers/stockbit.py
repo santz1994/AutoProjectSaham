@@ -28,7 +28,7 @@ except ImportError:
 from src.data.idx_api_client import get_jakarta_now, JAKARTA_TZ
 from .base_broker import (
     BaseBroker, AccountInfo, Position, OrderResult, Trade,
-    ExecutionStatus, TimeInForce, AccountType,
+    ExecutionStatus, TimeInForce, AccountType, map_execution_status,
 )
 
 
@@ -164,13 +164,17 @@ class StockbitBroker(BaseBroker):
         **kwargs,
     ) -> Optional[Dict[str, Any]]:
         """Make authenticated API request."""
-        try:
-            url = f"{self.base_url}{endpoint}"
-            headers = {
-                "Authorization": f"Bearer {self.access_token}",
-                "Content-Type": "application/json",
-            }
-            
+        if not self.session:
+            logger.error("Request failed: session not initialized")
+            return None
+
+        url = f"{self.base_url}{endpoint}"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+
+        async def _request_once() -> Dict[str, Any]:
             async with self.session.request(
                 method,
                 url,
@@ -180,12 +184,15 @@ class StockbitBroker(BaseBroker):
             ) as response:
                 if response.status in [200, 201]:
                     return await response.json()
-                else:
-                    logger.error(f"Request failed: {response.status}")
-                    return None
-        
+                raise RuntimeError(f"HTTP {response.status}")
+
+        try:
+            return await self._call_with_retry(
+                f"stockbit:{method}:{endpoint}",
+                _request_once,
+            )
         except Exception as e:
-            logger.error(f"Request error: {e}")
+            logger.error("Request error: %s", e)
             return None
     
     # ========================================================================
@@ -333,20 +340,7 @@ class StockbitBroker(BaseBroker):
             
             order = data["order"]
             
-            # Map status
-            status_map = {
-                "pending": ExecutionStatus.PENDING,
-                "accepted": ExecutionStatus.ACCEPTED,
-                "partially_filled": ExecutionStatus.PARTIALLY_FILLED,
-                "filled": ExecutionStatus.FILLED,
-                "cancelled": ExecutionStatus.CANCELLED,
-                "rejected": ExecutionStatus.REJECTED,
-            }
-            
-            status = status_map.get(
-                order.get("status", "pending"),
-                ExecutionStatus.PENDING,
-            )
+            status = map_execution_status(order.get("status", "pending"))
             
             return OrderResult(
                 order_id=order["order_id"],
@@ -401,15 +395,6 @@ class StockbitBroker(BaseBroker):
             
             order = data["order"]
             
-            status_map = {
-                "pending": ExecutionStatus.PENDING,
-                "accepted": ExecutionStatus.ACCEPTED,
-                "partially_filled": ExecutionStatus.PARTIALLY_FILLED,
-                "filled": ExecutionStatus.FILLED,
-                "cancelled": ExecutionStatus.CANCELLED,
-                "rejected": ExecutionStatus.REJECTED,
-            }
-            
             return OrderResult(
                 order_id=order_id,
                 broker="stockbit",
@@ -418,10 +403,7 @@ class StockbitBroker(BaseBroker):
                 quantity=int(order["quantity"]),
                 filled_quantity=int(order.get("filled_qty", 0)),
                 avg_fill_price=float(order.get("avg_fill_price", 0)),
-                status=status_map.get(
-                    order.get("status"),
-                    ExecutionStatus.PENDING,
-                ),
+                status=map_execution_status(order.get("status")),
             )
         
         except Exception as e:

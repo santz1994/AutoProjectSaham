@@ -210,6 +210,7 @@ class BrokerConnectPayload(BaseModel):
     provider: str
     accountId: str
     apiKey: Optional[str] = ""
+    apiSecret: Optional[str] = ""
     tradingMode: str = "paper"
 
 
@@ -225,6 +226,10 @@ class BrokerFeatureFlagUpdatePayload(BaseModel):
     liveEnabled: Optional[bool] = None
     paperEnabled: Optional[bool] = None
     integrationReady: Optional[bool] = None
+
+
+class StateMigrationPayload(BaseModel):
+    clearSqlite: bool = False
 
 
 class AILogPayload(BaseModel):
@@ -3224,6 +3229,32 @@ async def get_broker_feature_flags():
     return _state_store.list_feature_flags()
 
 
+@router.get("/system/state-store/status")
+async def get_state_store_status():
+    """Inspect migration readiness across SQLite, Redis, and PostgreSQL backends."""
+    return _state_store.get_state_migration_status()
+
+
+@router.post("/system/state-store/migrate")
+async def migrate_state_store(payload: StateMigrationPayload):
+    """Run backend state migration from SQLite to Redis/PostgreSQL."""
+    result = _state_store.run_state_backend_migration(
+        clear_sqlite=bool(payload.clearSqlite)
+    )
+
+    _state_store.append_ai_log(
+        level="info",
+        event_type="state_store_migration",
+        message="State store backend migration executed.",
+        payload={
+            "clearSqlite": bool(payload.clearSqlite),
+            "secureMigrated": result.get("secureState", {}).get("migrated", 0),
+            "aiLogsMigrated": result.get("aiLogs", {}).get("migrated", 0),
+        },
+    )
+    return result
+
+
 @router.put("/brokers/feature-flags/{provider_id}", response_model=BrokerFeatureFlag)
 async def update_broker_feature_flag(provider_id: str, payload: BrokerFeatureFlagUpdatePayload):
     """Update live/paper feature flags for broker providers."""
@@ -3317,8 +3348,22 @@ async def connect_broker(payload: BrokerConnectPayload):
 
     masked_key = "****"
     api_key = (payload.apiKey or "").strip()
+    api_secret = (payload.apiSecret or "").strip()
     if api_key:
         masked_key = f"{api_key[:4]}****"
+
+    if api_key or api_secret:
+        _state_store.set_broker_credentials(
+            {
+                "provider": provider.id,
+                "accountId": account_id,
+                "apiKey": api_key or None,
+                "apiSecret": api_secret or None,
+                "storedAt": datetime.now().isoformat(),
+            }
+        )
+    else:
+        _state_store.clear_broker_credentials()
 
     next_connection = _state_store.set_broker_connection(
         {
@@ -3413,6 +3458,8 @@ async def disconnect_broker():
         message="Broker connection disconnected and execution switched to paper mode.",
         payload={},
     )
+
+    _state_store.clear_broker_credentials()
 
     return {
         "status": "disconnected",

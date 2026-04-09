@@ -9,8 +9,17 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Dict, Iterable, List
+import asyncio
+import logging
+import queue
 import time
 import random
+import threading
+
+from src.data.idx_api_client import BEIWebSocketClient, Tick
+
+
+logger = logging.getLogger(__name__)
 
 
 class MarketDataAdapter(ABC):
@@ -32,6 +41,142 @@ class MarketDataAdapter(ABC):
     @abstractmethod
     def disconnect(self) -> None:
         raise NotImplementedError()
+
+
+class IDXMarketDataAdapter(MarketDataAdapter):
+    """Streaming-native IDX adapter backed by BEI websocket client.
+
+    The internal BEI client is async while `MarketDataService` expects a
+    synchronous iterator. This adapter bridges both via a thread-safe queue.
+    """
+
+    def __init__(
+        self,
+        symbols: List[str] | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        queue_size: int = 5000,
+    ):
+        super().__init__(symbols=symbols)
+        self.username = str(username or "").strip()
+        self.password = str(password or "").strip()
+        self.queue_size = int(max(500, queue_size))
+
+        self._running = False
+        self._event_queue: queue.Queue = queue.Queue(maxsize=self.queue_size)
+        self._worker: threading.Thread | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._client: BEIWebSocketClient | None = None
+
+    def configured(self) -> bool:
+        return bool(self.username and self.password)
+
+    def connect(self) -> bool:
+        if not self.configured():
+            logger.warning(
+                "IDX websocket credentials missing; stream adapter not started"
+            )
+            return False
+
+        if self._running:
+            return True
+
+        self._running = True
+        self._worker = threading.Thread(target=self._run_worker, daemon=True)
+        self._worker.start()
+        return True
+
+    def subscribe(self, symbols: List[str]) -> None:
+        self.symbols = [str(item or "").strip() for item in symbols if str(item or "").strip()]
+
+    def _run_worker(self) -> None:
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
+        try:
+            self._loop.run_until_complete(self._stream_loop())
+        except Exception as exc:
+            logger.error("IDX stream worker failed: %s", exc)
+        finally:
+            try:
+                if self._loop is not None and not self._loop.is_closed():
+                    self._loop.close()
+            except Exception:
+                pass
+
+    async def _stream_loop(self) -> None:
+        self._client = BEIWebSocketClient(self.username, self.password)
+
+        connected = False
+        try:
+            connected = await self._client.connect()
+        except Exception as exc:
+            logger.error("IDX websocket connect failed: %s", exc)
+
+        if not connected:
+            self._running = False
+            return
+
+        symbols = self.symbols or ["BBCA"]
+
+        def _on_tick(tick: Tick) -> None:
+            payload = {
+                "type": "tick",
+                "symbol": tick.symbol,
+                "ts": int(tick.timestamp.timestamp()),
+                "price": float(tick.price),
+                "size": int(tick.quantity),
+                "side": str(tick.side or ""),
+                "raw": {
+                    "trade_id": tick.trade_id,
+                    "buyer": tick.buyer,
+                    "seller": tick.seller,
+                },
+            }
+            try:
+                self._event_queue.put_nowait(payload)
+            except queue.Full:
+                try:
+                    _ = self._event_queue.get_nowait()
+                except queue.Empty:
+                    pass
+                try:
+                    self._event_queue.put_nowait(payload)
+                except queue.Full:
+                    pass
+
+        try:
+            await self._client.stream_ticks(symbols, _on_tick)
+        except Exception as exc:
+            logger.error("IDX websocket stream failed: %s", exc)
+        finally:
+            try:
+                await self._client.disconnect()
+            except Exception:
+                pass
+            self._running = False
+
+    def listen(self):
+        while self._running or not self._event_queue.empty():
+            try:
+                message = self._event_queue.get(timeout=0.25)
+                yield message
+            except queue.Empty:
+                continue
+
+    def disconnect(self) -> None:
+        self._running = False
+
+        loop = self._loop
+        client = self._client
+        if loop and client and not loop.is_closed():
+            try:
+                future = asyncio.run_coroutine_threadsafe(client.disconnect(), loop)
+                future.result(timeout=2)
+            except Exception:
+                pass
+
+        if self._worker and self._worker.is_alive():
+            self._worker.join(timeout=2)
 
 
 class AlpacaMarketDataAdapter(MarketDataAdapter):

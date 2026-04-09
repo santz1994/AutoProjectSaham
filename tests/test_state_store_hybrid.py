@@ -269,6 +269,94 @@ def test_redis_primary_namespace_can_shadow_write_sqlite(tmp_path):
     assert fake_redis.get("autosaham:test:secure:broker_connection")
 
 
+def test_broker_credentials_secure_namespace_roundtrip_and_clear(tmp_path):
+    db_path = tmp_path / "app_state.db"
+    key_path = tmp_path / ".app_state.key"
+
+    store = SecureAppStateStore(
+        db_path=str(db_path),
+        key_path=str(key_path),
+    )
+
+    store.set_broker_credentials(
+        {
+            "provider": "indopremier",
+            "accountId": "ACC-001",
+            "apiKey": "test-api-key",
+            "apiSecret": "test-api-secret",
+        }
+    )
+
+    loaded = store.get_broker_credentials()
+    assert loaded["provider"] == "indopremier"
+    assert loaded["accountId"] == "ACC-001"
+    assert loaded["apiKey"] == "test-api-key"
+    assert loaded["apiSecret"] == "test-api-secret"
+    assert _sqlite_has_secure_state_row(db_path, "broker_credentials")
+
+    cleared = store.clear_broker_credentials()
+    assert cleared["provider"] is None
+    assert cleared["apiKey"] is None
+    assert cleared["apiSecret"] is None
+
+
+def test_migrate_secure_state_to_redis_from_sqlite(tmp_path):
+    db_path = tmp_path / "app_state.db"
+    key_path = tmp_path / ".app_state.key"
+
+    sqlite_store = SecureAppStateStore(
+        db_path=str(db_path),
+        key_path=str(key_path),
+    )
+    sqlite_store.set_user_settings({"theme": "dark", "notifications": True})
+    sqlite_store.set_broker_connection({"provider": "stockbit", "status": "connected"})
+
+    fake_redis = FakeRedisClient()
+    migration_store = SecureAppStateStore(
+        db_path=str(db_path),
+        key_path=str(key_path),
+        redis_client=fake_redis,
+        redis_prefix="autosaham:test",
+    )
+
+    result = migration_store.migrate_secure_state_to_redis()
+    assert result["status"] == "ok"
+    assert result["migrated"] >= 2
+    assert fake_redis.get("autosaham:test:secure:user_settings")
+    assert fake_redis.get("autosaham:test:secure:broker_connection")
+
+
+def test_migrate_ai_logs_to_postgres(tmp_path):
+    db_path = tmp_path / "app_state.db"
+    key_path = tmp_path / ".app_state.key"
+
+    sqlite_store = SecureAppStateStore(
+        db_path=str(db_path),
+        key_path=str(key_path),
+    )
+    sqlite_store.append_ai_log(
+        level="info",
+        event_type="migration",
+        message="first event",
+        payload={"n": 1},
+        created_at="2026-04-09T00:00:00+00:00",
+    )
+
+    fake_postgres = FakePostgresClient()
+    migration_store = SecureAppStateStore(
+        db_path=str(db_path),
+        key_path=str(key_path),
+        postgres_client=fake_postgres,
+        postgres_ai_logs_enabled=True,
+        postgres_ai_logs_shadow_sqlite=False,
+    )
+
+    result = migration_store.migrate_ai_logs_to_postgres()
+    assert result["status"] == "ok"
+    assert result["migrated"] >= 1
+    assert len(fake_postgres.logs) >= 1
+
+
 def test_redis_primary_default_shadow_sqlite_is_enabled(tmp_path):
     db_path = tmp_path / "app_state.db"
     key_path = tmp_path / ".app_state.key"

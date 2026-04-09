@@ -702,6 +702,32 @@ class SecureAppStateStore:
     def set_broker_connection(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         return self._set_secure_payload("broker_connection", payload)
 
+    def get_broker_credentials(
+        self,
+        defaults: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        default_payload = defaults or {
+            "provider": None,
+            "accountId": None,
+            "apiKey": None,
+            "apiSecret": None,
+        }
+        return self._get_secure_payload("broker_credentials", default_payload)
+
+    def set_broker_credentials(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        return self._set_secure_payload("broker_credentials", payload)
+
+    def clear_broker_credentials(self) -> Dict[str, Any]:
+        return self._set_secure_payload(
+            "broker_credentials",
+            {
+                "provider": None,
+                "accountId": None,
+                "apiKey": None,
+                "apiSecret": None,
+            },
+        )
+
     def get_regime_state(self, defaults: Dict[str, Any]) -> Dict[str, Any]:
         return self._get_secure_payload("ai_regime_state", defaults)
 
@@ -826,6 +852,239 @@ class SecureAppStateStore:
                 connection.commit()
 
         return merged
+
+    def get_state_migration_status(self) -> Dict[str, Any]:
+        with self._lock:
+            with self._connect() as connection:
+                cursor = connection.cursor()
+                cursor.execute(
+                    "SELECT namespace, updated_at FROM secure_state ORDER BY namespace"
+                )
+                secure_rows = cursor.fetchall()
+                cursor.execute("SELECT COUNT(1) AS total FROM ai_activity_logs")
+                sqlite_ai_logs_row = cursor.fetchone()
+
+        secure_namespaces = [str(row["namespace"]) for row in secure_rows]
+        redis_cached = 0
+        for namespace in secure_namespaces:
+            if self._redis_read_secure_payload(namespace):
+                redis_cached += 1
+
+        postgres_ai_logs = self._count_ai_logs_postgres()
+
+        return {
+            "secureState": {
+                "sqliteCount": len(secure_rows),
+                "redisCachedCount": redis_cached,
+                "namespaces": secure_namespaces,
+                "redisPrimaryNamespaces": sorted(list(self._redis_primary_namespaces)),
+                "redisPrimaryShadowSqlite": bool(self._redis_primary_shadow_sqlite),
+                "redisAvailable": self._redis_client is not None,
+            },
+            "aiLogs": {
+                "sqliteCount": int(sqlite_ai_logs_row["total"]) if sqlite_ai_logs_row else 0,
+                "postgresCount": postgres_ai_logs,
+                "postgresEnabled": bool(self._postgres_ai_logs_enabled),
+                "postgresAvailable": self._postgres_client is not None,
+                "postgresShadowSqlite": bool(self._postgres_ai_logs_shadow_sqlite),
+            },
+        }
+
+    def migrate_secure_state_to_redis(
+        self,
+        namespaces: Optional[Iterable[str]] = None,
+        *,
+        clear_sqlite: bool = False,
+    ) -> Dict[str, Any]:
+        if self._redis_client is None:
+            return {
+                "status": "skipped",
+                "reason": "redis_unavailable",
+                "processed": 0,
+                "migrated": 0,
+                "deletedFromSqlite": 0,
+            }
+
+        if namespaces is None:
+            target_namespaces = None
+        else:
+            target_namespaces = {
+                str(item or "").strip().lower()
+                for item in namespaces
+                if str(item or "").strip()
+            }
+
+        with self._lock:
+            with self._connect() as connection:
+                cursor = connection.cursor()
+                cursor.execute(
+                    "SELECT namespace, payload, updated_at FROM secure_state ORDER BY namespace"
+                )
+                rows = cursor.fetchall()
+
+                processed = 0
+                migrated = 0
+                deleted = 0
+
+                for row in rows:
+                    namespace = str(row["namespace"] or "").strip().lower()
+                    if not namespace:
+                        continue
+                    if target_namespaces is not None and namespace not in target_namespaces:
+                        continue
+
+                    processed += 1
+                    written = self._redis_write_secure_payload(
+                        namespace,
+                        str(row["payload"] or ""),
+                        str(row["updated_at"] or _utc_now_iso()),
+                    )
+                    if not written:
+                        continue
+                    migrated += 1
+
+                    if clear_sqlite:
+                        cursor.execute(
+                            "DELETE FROM secure_state WHERE namespace = ?",
+                            (namespace,),
+                        )
+                        deleted += int(cursor.rowcount or 0)
+
+                if clear_sqlite:
+                    connection.commit()
+
+        return {
+            "status": "ok",
+            "processed": processed,
+            "migrated": migrated,
+            "deletedFromSqlite": deleted,
+            "clearSqlite": bool(clear_sqlite),
+        }
+
+    def _postgres_ai_log_exists(
+        self,
+        *,
+        event_type: str,
+        message: str,
+        created_at: str,
+    ) -> bool:
+        row = self._postgres_execute_sql(
+            """
+            SELECT id
+            FROM ai_activity_logs
+            WHERE event_type = %s AND message = %s AND created_at = %s
+            LIMIT 1
+            """,
+            (event_type, message, created_at),
+            fetchone=True,
+        )
+        return row is not None
+
+    def migrate_ai_logs_to_postgres(
+        self,
+        *,
+        clear_sqlite: bool = False,
+        limit: int = 20000,
+    ) -> Dict[str, Any]:
+        if not self._postgres_ai_logs_enabled or self._postgres_client is None:
+            return {
+                "status": "skipped",
+                "reason": "postgres_unavailable",
+                "processed": 0,
+                "migrated": 0,
+                "duplicates": 0,
+                "deletedFromSqlite": 0,
+            }
+
+        with self._lock:
+            with self._connect() as connection:
+                cursor = connection.cursor()
+                cursor.execute(
+                    """
+                    SELECT id, level, event_type, message, payload_json, created_at
+                    FROM ai_activity_logs
+                    ORDER BY id ASC
+                    LIMIT ?
+                    """,
+                    (max(1, int(limit)),),
+                )
+                rows = cursor.fetchall()
+
+                processed = 0
+                migrated = 0
+                duplicates = 0
+                deleted = 0
+
+                for row in rows:
+                    processed += 1
+                    level = str(row["level"] or "info")
+                    event_type = str(row["event_type"] or "system")
+                    message = str(row["message"] or "AI event")
+                    payload_json = str(row["payload_json"] or "{}")
+                    created_at = str(row["created_at"] or _utc_now_iso())
+
+                    if self._postgres_ai_log_exists(
+                        event_type=event_type,
+                        message=message,
+                        created_at=created_at,
+                    ):
+                        duplicates += 1
+                        if clear_sqlite:
+                            cursor.execute(
+                                "DELETE FROM ai_activity_logs WHERE id = ?",
+                                (int(row["id"]),),
+                            )
+                            deleted += int(cursor.rowcount or 0)
+                        continue
+
+                    inserted = self._insert_ai_log_postgres(
+                        level=level,
+                        event_type=event_type,
+                        message=message,
+                        payload_json=payload_json,
+                        created_at=created_at,
+                    )
+                    if inserted is None:
+                        continue
+
+                    migrated += 1
+                    if clear_sqlite:
+                        cursor.execute(
+                            "DELETE FROM ai_activity_logs WHERE id = ?",
+                            (int(row["id"]),),
+                        )
+                        deleted += int(cursor.rowcount or 0)
+
+                if clear_sqlite:
+                    connection.commit()
+
+        return {
+            "status": "ok",
+            "processed": processed,
+            "migrated": migrated,
+            "duplicates": duplicates,
+            "deletedFromSqlite": deleted,
+            "clearSqlite": bool(clear_sqlite),
+        }
+
+    def run_state_backend_migration(
+        self,
+        *,
+        clear_sqlite: bool = False,
+    ) -> Dict[str, Any]:
+        secure_result = self.migrate_secure_state_to_redis(
+            clear_sqlite=clear_sqlite
+        )
+        ai_logs_result = self.migrate_ai_logs_to_postgres(
+            clear_sqlite=clear_sqlite
+        )
+        return {
+            "status": "ok",
+            "clearSqlite": bool(clear_sqlite),
+            "secureState": secure_result,
+            "aiLogs": ai_logs_result,
+            "postMigration": self.get_state_migration_status(),
+        }
 
     def append_ai_log(
         self,

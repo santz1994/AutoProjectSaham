@@ -25,7 +25,7 @@ if FASTAPI_AVAILABLE:
     import os
     import traceback
     from time import time
-    from typing import List, Optional
+    from typing import Any, Dict, List, Optional
 
     from fastapi import WebSocket, WebSocketDisconnect, Header, Request
     from fastapi.responses import Response, RedirectResponse, JSONResponse
@@ -127,10 +127,64 @@ if FASTAPI_AVAILABLE:
     # Project root directory for data/models paths
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
+    def _env_flag(name: str, default: bool = False) -> bool:
+        value = str(os.getenv(name, "")).strip().lower()
+        if not value:
+            return default
+        return value in {"1", "true", "yes", "on"}
+
+    def _celery_enabled() -> bool:
+        return _env_flag("AUTOSAHAM_USE_CELERY", False)
+
+    def _dispatch_celery_task(
+        task_name: str,
+        *,
+        args: tuple[Any, ...] = (),
+        kwargs: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        try:
+            from src.tasks import app as celery_app
+
+            async_result = celery_app.send_task(
+                task_name,
+                args=args,
+                kwargs=kwargs or {},
+            )
+            return {
+                "task": task_name,
+                "taskId": async_result.id,
+                "broker": "celery",
+            }
+        except Exception:
+            return None
+
+    def _get_celery_task_status(task_id: str) -> Optional[Dict[str, Any]]:
+        try:
+            from celery.result import AsyncResult
+            from src.tasks import app as celery_app
+
+            result = AsyncResult(task_id, app=celery_app)
+            payload: Dict[str, Any] = {
+                "taskId": task_id,
+                "state": result.state,
+                "ready": bool(result.ready()),
+                "successful": bool(result.successful()) if result.ready() else False,
+            }
+            if result.ready():
+                try:
+                    payload["result"] = result.result
+                except Exception:
+                    payload["result"] = None
+            return payload
+        except Exception:
+            return None
+
     class RunPayload(BaseModel):
         symbols: List[str]
         fetch_prices: Optional[bool] = True
         persist_db: Optional[str] = None
+        async_run: Optional[bool] = False
+        asyncRun: Optional[bool] = False
 
     @app.get("/health")
     async def health():
@@ -140,6 +194,23 @@ if FASTAPI_AVAILABLE:
     async def run_etl(payload: RunPayload):
         start = time()
         try:
+            run_async = bool(payload.async_run or payload.asyncRun or _celery_enabled())
+
+            if run_async:
+                task = _dispatch_celery_task(
+                    "autosaham.run_etl",
+                    args=(payload.symbols,),
+                    kwargs={
+                        "fetch_prices": bool(payload.fetch_prices),
+                        "persist_db": payload.persist_db,
+                    },
+                )
+                if task:
+                    return {
+                        "status": "queued",
+                        **task,
+                    }
+
             res = pipeline.run(
                 payload.symbols,
                 fetch_prices=payload.fetch_prices,
@@ -158,6 +229,16 @@ if FASTAPI_AVAILABLE:
             except Exception:
                 pass
             raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/tasks/{task_id}")
+    async def get_task_status(task_id: str):
+        payload = _get_celery_task_status(task_id)
+        if payload is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Task status unavailable (Celery disabled or worker offline).",
+            )
+        return payload
 
     @app.get("/metrics")
     async def metrics_endpoint():
@@ -400,6 +481,50 @@ if FASTAPI_AVAILABLE:
                     continue
 
             return {"runs": runs}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    class ModelRegistryActivatePayload(BaseModel):
+        model_id: str
+
+    @app.get("/api/training/registry")
+    async def api_training_registry(limit: int = 100):
+        try:
+            from src.ml.model_registry import get_registry_snapshot
+
+            return get_registry_snapshot(limit=limit)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/api/training/registry/active")
+    async def api_training_registry_active():
+        try:
+            from src.ml.model_registry import get_active_model
+
+            active = get_active_model()
+            return {"active": active}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/api/training/registry/best")
+    async def api_training_registry_best(metric: str = "roc_auc"):
+        try:
+            from src.ml.model_registry import get_best_model
+
+            best = get_best_model(metric_key=metric)
+            return {"metric": metric, "best": best}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/api/training/registry/active")
+    async def api_training_registry_set_active(payload: ModelRegistryActivatePayload):
+        try:
+            from src.ml.model_registry import set_active_model
+
+            active = set_active_model(payload.model_id)
+            return {"active": active}
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -678,14 +803,23 @@ if FASTAPI_AVAILABLE:
             # REAL DATA: Default to IDX symbols (Indonesian stock exchange)
             symbols_env = os.getenv("MARKET_SYMBOLS", "BBCA,USIM,KLBF,ASII,UNVR")
             symbols = [s.strip() for s in symbols_env.split(",") if s.strip()]
-            
-            # Try to use IDX API first, fall back to Alpaca if needed
-            try:
-                from src.brokers.marketdata import IDXMarketDataAdapter
-                adapter = IDXMarketDataAdapter(symbols=symbols)
-            except Exception:
-                # Fall back to Alpaca if IDX adapter unavailable
-                from src.brokers.marketdata import AlpacaMarketDataAdapter
+
+            # Prefer streaming-native IDX websocket feed when credentials are set.
+            from src.brokers.marketdata import (
+                AlpacaMarketDataAdapter,
+                IDXMarketDataAdapter,
+            )
+
+            bei_ws_username = str(os.getenv("BEI_WS_USERNAME", "")).strip()
+            bei_ws_password = str(os.getenv("BEI_WS_PASSWORD", "")).strip()
+
+            if bei_ws_username and bei_ws_password:
+                adapter = IDXMarketDataAdapter(
+                    symbols=symbols,
+                    username=bei_ws_username,
+                    password=bei_ws_password,
+                )
+            else:
                 adapter = AlpacaMarketDataAdapter(symbols=symbols)
             
             from src.marketdata.service import MarketDataService
@@ -700,13 +834,16 @@ if FASTAPI_AVAILABLE:
         try:
             from src.ml.service import MLTrainerService
 
-            interval = int(os.getenv("ML_TRAIN_INTERVAL", str(24 * 3600)))
-            mls = MLTrainerService(schedule_seconds=interval, db_path=os.path.join(project_root, "data", "ticks.db"), models_dir=os.path.join(project_root, "models"))
-            # PERFORMANCE FIX: Run ML training in background thread pool via executor
-            # This prevents blocking the event loop during long training operations
-            loop = asyncio.get_event_loop()
-            loop.run_in_executor(None, mls.start)
-            ml_service = mls
+            if _celery_enabled():
+                print("[Startup] AUTOSAHAM_USE_CELERY enabled: local ML trainer service skipped")
+            else:
+                interval = int(os.getenv("ML_TRAIN_INTERVAL", str(24 * 3600)))
+                mls = MLTrainerService(schedule_seconds=interval, db_path=os.path.join(project_root, "data", "ticks.db"), models_dir=os.path.join(project_root, "models"))
+                # PERFORMANCE FIX: Run ML training in background thread pool via executor
+                # This prevents blocking the event loop during long training operations
+                loop = asyncio.get_event_loop()
+                loop.run_in_executor(None, mls.start)
+                ml_service = mls
         except Exception:
             pass
 
@@ -733,13 +870,19 @@ if FASTAPI_AVAILABLE:
             pass
 
     @app.post("/api/training/trigger")
-    async def api_training_trigger():
+    async def api_training_trigger(async_run: bool = False):
         """Trigger an immediate training run. The run is executed in a
         threadpool so the endpoint returns promptly.
         """
         global ml_service
         try:
             import asyncio
+
+            run_async = bool(async_run or _celery_enabled())
+            if run_async:
+                task = _dispatch_celery_task("autosaham.retrain_model")
+                if task:
+                    return {"status": "queued", **task}
 
             if ml_service:
                 await asyncio.get_event_loop().run_in_executor(None, ml_service.run_once)

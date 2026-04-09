@@ -92,6 +92,14 @@ shap_outputs/
 model_explanations/
 *.pkl  # Pickled models & explainers
 
+# Large ML artifacts (generated during training)
+models/*.joblib
+models/*.onnx
+models/*.pt
+models/*.pth
+models/checkpoints/
+models/exports/
+
 # Frontend build & node modules
 node_modules/
 .next/
@@ -114,6 +122,10 @@ data/temp/
 data/cache/
 *.ohlcv_cache
 data/projection_learning_state.json
+data/prices/
+data/features/
+data/etl_*.json
+data/**/features/
 
 # Temporary files
 *.tmp
@@ -150,6 +162,11 @@ alert_artifacts/
 notification_*.tmp
 delivery_queue_*.json
 failed_deliveries_*.log
+
+# Task queue runtime artifacts
+celerybeat-schedule
+celerybeat-schedule.*
+*.pid
 
 # Misc
 .cache/

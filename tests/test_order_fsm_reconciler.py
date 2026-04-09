@@ -101,3 +101,68 @@ async def test_reconciler_aggregates_multi_fill_to_final_filled():
     assert db.updates[0]["status"] == "FILLED"
     assert db.updates[0]["filled_qty"] == 100
     assert db.updates[0]["filled_price"] == pytest.approx(107.0)
+
+
+@pytest.mark.asyncio
+async def test_reconciler_emits_double_entry_journal_for_partial_buy():
+    class DummyDB:
+        def __init__(self):
+            self.updates = []
+
+        async def get_orders_by_status(self, status):
+            return [{"id": "ORD-300", "symbol": "BBCA", "quantity": 100, "side": "buy", "price": 15000.0}]
+
+        async def update_order_status(self, order_id, **kwargs):
+            self.updates.append({"order_id": order_id, **kwargs})
+
+    class DummyBroker:
+        async def get_active_orders(self):
+            return []
+
+        async def get_trade_history(self, symbol):
+            return [{"order_id": "ORD-300", "price": 15000.0, "volume": 40}]
+
+    db = DummyDB()
+    broker = DummyBroker()
+
+    reconciler = TradeReconciler(broker, db)
+    await reconciler.reconcile_unsettled_orders()
+
+    journal = reconciler.get_ledger_journal()
+    assert len(journal) == 1
+    assert journal[0]["status"] == "PARTIALLY_FILLED"
+    assert journal[0]["debit"]["locked_margin"] == pytest.approx(1500000.0)
+    assert journal[0]["credit"]["asset_inventory"] == pytest.approx(600000.0)
+    assert journal[0]["credit"]["free_margin"] == pytest.approx(900000.0)
+
+
+@pytest.mark.asyncio
+async def test_reconciler_rejected_buy_releases_locked_margin():
+    class DummyDB:
+        def __init__(self):
+            self.updates = []
+
+        async def get_orders_by_status(self, status):
+            return [{"id": "ORD-301", "symbol": "BBCA", "quantity": 200, "side": "buy", "price": 100.0}]
+
+        async def update_order_status(self, order_id, **kwargs):
+            self.updates.append({"order_id": order_id, **kwargs})
+
+    class DummyBroker:
+        async def get_active_orders(self):
+            return []
+
+        async def get_trade_history(self, symbol):
+            return []
+
+    db = DummyDB()
+    broker = DummyBroker()
+
+    reconciler = TradeReconciler(broker, db)
+    await reconciler.reconcile_unsettled_orders()
+
+    journal = reconciler.get_ledger_journal()
+    assert len(journal) == 1
+    assert journal[0]["status"] == "REJECTED"
+    assert journal[0]["debit"]["locked_margin"] == pytest.approx(20000.0)
+    assert journal[0]["credit"]["free_margin"] == pytest.approx(20000.0)

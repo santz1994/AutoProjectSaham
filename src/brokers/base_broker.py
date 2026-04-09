@@ -10,6 +10,8 @@ All prices: IDR (Rupiah)
 Exchange: IDX/IHSG
 """
 
+import asyncio
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
@@ -17,6 +19,9 @@ from enum import Enum
 from typing import Dict, List, Optional, Tuple, Any
 
 from src.data.idx_api_client import get_jakarta_now, to_jakarta_time, JAKARTA_TZ
+
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -47,6 +52,38 @@ class AccountType(Enum):
     CASH = "cash"
     MARGIN = "margin"
     DEMO = "demo"
+
+
+def map_execution_status(
+    raw_status: Any,
+    aliases: Optional[Dict[str, ExecutionStatus]] = None,
+    default: ExecutionStatus = ExecutionStatus.PENDING,
+) -> ExecutionStatus:
+    """Normalize broker-specific order status strings to ExecutionStatus.
+
+    Broker APIs expose slightly different status values (e.g. "new", "open").
+    This helper keeps mapping behavior consistent across all adapters.
+    """
+    normalized = str(raw_status or "").strip().lower().replace(" ", "_")
+    base_map: Dict[str, ExecutionStatus] = {
+        "new": ExecutionStatus.PENDING,
+        "pending": ExecutionStatus.PENDING,
+        "accepted": ExecutionStatus.ACCEPTED,
+        "open": ExecutionStatus.ACCEPTED,
+        "partially_filled": ExecutionStatus.PARTIALLY_FILLED,
+        "partial": ExecutionStatus.PARTIALLY_FILLED,
+        "filled": ExecutionStatus.FILLED,
+        "cancelled": ExecutionStatus.CANCELLED,
+        "canceled": ExecutionStatus.CANCELLED,
+        "rejected": ExecutionStatus.REJECTED,
+        "failed": ExecutionStatus.FAILED,
+    }
+    if aliases:
+        for key, value in aliases.items():
+            alias_key = str(key or "").strip().lower().replace(" ", "_")
+            if alias_key:
+                base_map[alias_key] = value
+    return base_map.get(normalized, default)
 
 
 # ============================================================================
@@ -277,6 +314,44 @@ class BaseBroker(ABC):
     def _validate_side(self, side: str) -> bool:
         """Validate order side."""
         return side.lower() in ["buy", "sell"]
+
+    async def _call_with_retry(
+        self,
+        operation: str,
+        request_fn,
+        *,
+        max_retries: int = 3,
+        initial_delay: float = 0.2,
+        backoff: float = 2.0,
+    ) -> Any:
+        """Execute async request with bounded retries and exponential backoff."""
+        retries = max(1, int(max_retries))
+        delay = max(0.0, float(initial_delay))
+        multiplier = max(1.0, float(backoff))
+        last_error: Optional[Exception] = None
+
+        for attempt in range(1, retries + 1):
+            try:
+                return await request_fn()
+            except Exception as exc:  # noqa: PERF203 - explicit retry boundary
+                last_error = exc
+                if attempt >= retries:
+                    break
+
+                logger.warning(
+                    "Broker request retry %s attempt %d/%d failed: %s",
+                    operation,
+                    attempt,
+                    retries,
+                    exc,
+                )
+                if delay > 0:
+                    await asyncio.sleep(delay)
+                delay = delay * multiplier if delay > 0 else 0.0
+
+        if last_error is not None:
+            raise last_error
+        return None
 
 
 if __name__ == "__main__":

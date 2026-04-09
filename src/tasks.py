@@ -43,7 +43,7 @@ def retrain_model():
 
 
 @app.task(name='autosaham.run_etl')
-def run_etl(symbols=None):
+def run_etl(symbols=None, fetch_prices=True, persist_db=None):
     """Async ETL pipeline task."""
     try:
         from src.pipeline.orchestrator import AutonomousPipeline
@@ -54,8 +54,18 @@ def run_etl(symbols=None):
             news_api_key=os.getenv('NEWSAPI_KEY'),
             interval_minutes=60
         )
-        result = pipeline.run(symbols, fetch_prices=True)
-        return {'status': 'success', 'result': result}
+        result = pipeline.run(
+            symbols,
+            fetch_prices=bool(fetch_prices),
+            persist_db=persist_db,
+        )
+        return {
+            'status': 'success',
+            'symbols': symbols,
+            'fetch_prices': bool(fetch_prices),
+            'persist_db': persist_db,
+            'result': result,
+        }
     except Exception as e:
         return {'status': 'failed', 'error': str(e)}
 

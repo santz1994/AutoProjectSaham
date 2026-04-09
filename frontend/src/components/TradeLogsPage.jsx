@@ -3,7 +3,7 @@ import Button from './Button'
 import toast from '../store/toastStore'
 import { CardSkeleton } from './LoadingSkeletons'
 import apiService from '../utils/apiService'
-import '../styles/tradelogs.css'
+import styles from './TradeLogsPage.module.css'
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value)
@@ -71,20 +71,30 @@ export default function TradeLogsPage() {
   const [sortBy, setSortBy] = useState('date')
   const [trades, setTrades] = useState([])
   const [loading, setLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false)
   const [error, setError] = useState(null)
 
-  const loadTradeLogs = async () => {
-    setLoading(true)
+  const loadTradeLogs = async ({ background = false } = {}) => {
+    const hasExistingTrades = trades.length > 0
+    if (background && hasExistingTrades) {
+      setIsRefreshing(true)
+    } else {
+      setLoading(true)
+    }
     setError(null)
     try {
       const data = await apiService.getTradeLogs()
       setTrades(Array.isArray(data) ? data : [])
     } catch (err) {
       const errorMsg = err.message || 'Failed to load trade logs'
-      setError(errorMsg)
+      if (!background || !hasExistingTrades) {
+        setError(errorMsg)
+      }
       toast.error(errorMsg)
     } finally {
       setLoading(false)
+      setIsRefreshing(false)
     }
   }
 
@@ -160,19 +170,23 @@ export default function TradeLogsPage() {
   }
 
   const handleGenerateReport = async () => {
+    setIsGeneratingReport(true)
     try {
       const report = await apiService.getPerformanceReport('today')
       const reportTrades = report?.trades ?? stats.totalTrades
       const reportPL = report?.totalP_L ?? stats.totalProfit
       toast.success(`Report generated: ${reportTrades} trades, P/L IDR ${toNumber(reportPL).toLocaleString('id-ID')}`)
+      void loadTradeLogs({ background: true })
     } catch (err) {
       toast.warning('Backend report unavailable. Displaying current on-screen analytics only.')
+    } finally {
+      setIsGeneratingReport(false)
     }
   }
 
   if (loading) {
     return (
-      <div className="tradelogs-page">
+      <div className={styles['tradelogs-page']}>
         <h1>Trade Logs & Analytics</h1>
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
           <CardSkeleton />
@@ -187,7 +201,7 @@ export default function TradeLogsPage() {
 
   if (error) {
     return (
-      <div className="tradelogs-page">
+      <div className={styles['tradelogs-page']}>
         <h1>Trade Logs & Analytics</h1>
         <div style={{
           textAlign: 'center',
@@ -210,7 +224,7 @@ export default function TradeLogsPage() {
 
   if (normalizedTrades.length === 0) {
     return (
-      <div className="tradelogs-page">
+      <div className={styles['tradelogs-page']}>
         <h1>Trade Logs & Analytics</h1>
         <div style={{
           textAlign: 'center',
@@ -231,7 +245,7 @@ export default function TradeLogsPage() {
   }
 
   return (
-    <div className="tradelogs-page">
+    <div className={styles['tradelogs-page']}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1>Trade Logs & Analytics</h1>
         <div style={{ display: 'flex', gap: '1rem' }}>
@@ -246,42 +260,45 @@ export default function TradeLogsPage() {
             variant="primary"
             icon={<span>📊</span>}
             onClick={handleGenerateReport}
+            loading={isGeneratingReport}
           >
             Generate Report
           </Button>
           <Button 
             variant="secondary"
             icon={<span>🔄</span>}
-            onClick={loadTradeLogs}
+            onClick={() => loadTradeLogs({ background: true })}
+            loading={isRefreshing}
           >
             Refresh
           </Button>
         </div>
       </div>
+      {isRefreshing && <div className={styles['sync-hint']}>Syncing latest trades...</div>}
 
       {/* Stats Overview */}
-      <div className="stats-overview">
-        <div className="stat-card">
-          <div className="stat-label">Total Trades</div>
-          <div className="stat-value">{stats.totalTrades}</div>
+      <div className={styles['stats-overview']}>
+        <div className={styles['stat-card']}>
+          <div className={styles['stat-label']}>Total Trades</div>
+          <div className={styles['stat-value']}>{stats.totalTrades}</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">Win Rate</div>
-          <div className="stat-value positive">{stats.winRate}%</div>
+        <div className={styles['stat-card']}>
+          <div className={styles['stat-label']}>Win Rate</div>
+          <div className={`${styles['stat-value']} ${styles.positive}`}>{stats.winRate}%</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">Total Profit</div>
-          <div className="stat-value positive">IDR {(stats.totalProfit / 1000).toFixed(1)}K</div>
+        <div className={styles['stat-card']}>
+          <div className={styles['stat-label']}>Total Profit</div>
+          <div className={`${styles['stat-value']} ${styles.positive}`}>IDR {(stats.totalProfit / 1000).toFixed(1)}K</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">Avg Profit/Trade</div>
-          <div className="stat-value positive">IDR {(stats.avgProfit / 1000).toFixed(1)}K</div>
+        <div className={styles['stat-card']}>
+          <div className={styles['stat-label']}>Avg Profit/Trade</div>
+          <div className={`${styles['stat-value']} ${styles.positive}`}>IDR {(stats.avgProfit / 1000).toFixed(1)}K</div>
         </div>
       </div>
 
       {/* Filters & Sorting */}
-      <div className="controls">
-        <div className="filter-group">
+      <div className={styles.controls}>
+        <div className={styles['filter-group']}>
           <label>Filter by Type</label>
           <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
             <option value="all">All Trades</option>
@@ -289,7 +306,7 @@ export default function TradeLogsPage() {
             <option value="SELL">Sell Orders</option>
           </select>
         </div>
-        <div className="sort-group">
+        <div className={styles['sort-group']}>
           <label>Sort by</label>
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
             <option value="date">Recent First</option>
@@ -300,8 +317,8 @@ export default function TradeLogsPage() {
       </div>
 
       {/* Trades Table */}
-      <div className="trades-table-container">
-        <table className="trades-table">
+      <div className={styles['trades-table-container']}>
+        <table className={styles['trades-table']}>
           <thead>
             <tr>
               <th>Symbol</th>
@@ -318,27 +335,34 @@ export default function TradeLogsPage() {
           </thead>
           <tbody>
             {filteredTrades.map((trade) => (
-              <tr key={trade.id} className={`trade-row ${trade.profit > 0 ? 'profitable' : trade.profit < 0 ? 'loss' : 'neutral'}`}>
-                <td className="symbol">{trade.symbol}</td>
-                <td className={`type ${trade.type.toLowerCase()}`}>{trade.type}</td>
+              <tr
+                key={trade.id}
+                className={`${styles['trade-row']} ${trade.profit > 0 ? styles.profitable : trade.profit < 0 ? styles.loss : styles.neutral}`}
+              >
+                <td className={styles.symbol}>{trade.symbol}</td>
+                <td className={`${styles.type} ${trade.type === 'BUY' ? styles.buy : trade.type === 'SELL' ? styles.sell : ''}`}>
+                  {trade.type}
+                </td>
                 <td>{trade.quantity}</td>
                 <td>IDR {trade.entryPrice.toLocaleString('id-ID')}</td>
                 <td>{trade.exitPrice > 0 ? `IDR ${trade.exitPrice.toLocaleString('id-ID')}` : '-'}</td>
-                <td className="profit">
-                  <span className={trade.profit > 0 ? 'positive' : trade.profit < 0 ? 'negative' : ''}>
+                <td className={styles.profit}>
+                  <span className={trade.profit > 0 ? styles.positive : trade.profit < 0 ? styles.negative : ''}>
                     {trade.profit > 0 ? '+' : ''}IDR {trade.profit.toLocaleString('id-ID')}
                   </span>
                 </td>
-                <td className="return">
-                  <span className={trade.profitPct > 0 ? 'positive' : trade.profitPct < 0 ? 'negative' : ''}>
+                <td className={styles.return}>
+                  <span className={trade.profitPct > 0 ? styles.positive : trade.profitPct < 0 ? styles.negative : ''}>
                     {trade.profitPct > 0 ? '+' : ''}
                     {trade.profitPct.toFixed(2)}%
                   </span>
                 </td>
-                <td className="date">{new Date(trade.date).toLocaleDateString('id-ID')} {new Date(trade.date).toLocaleTimeString('id-ID').slice(0, 5)}</td>
-                <td className="duration">{trade.duration}</td>
-                <td className="status">
-                  <span className={`status-badge ${trade.status.toLowerCase()}`}>
+                <td className={styles.date}>{new Date(trade.date).toLocaleDateString('id-ID')} {new Date(trade.date).toLocaleTimeString('id-ID').slice(0, 5)}</td>
+                <td className={styles.duration}>{trade.duration}</td>
+                <td className={styles.status}>
+                  <span
+                    className={`${styles['status-badge']} ${trade.status === 'OPEN' ? styles.open : trade.status === 'CLOSED' || trade.status === 'EXECUTED' ? styles.closed : ''}`}
+                  >
                     {trade.status}
                   </span>
                 </td>

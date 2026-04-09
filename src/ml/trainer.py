@@ -322,6 +322,24 @@ def train_model(
     except Exception:
         pass  # ONNX export is optional; continue if unavailable
 
+    try:
+        from src.ml.model_registry import register_model_artifact
+
+        register_model_artifact(
+            model_out,
+            source="trainer",
+            framework=("lightgbm" if "LGBM" in type(model).__name__ else "sklearn"),
+            architecture="tabular_classifier",
+            metrics={
+                "roc_auc": auc,
+                "accuracy": report.get("accuracy") if isinstance(report, dict) else None,
+            },
+            tags=["multimodal" if enable_multimodal else "tabular"],
+        )
+    except Exception:
+        # Registry should never break the training path.
+        pass
+
     return {
         "model_path": model_out,
         "report": report,

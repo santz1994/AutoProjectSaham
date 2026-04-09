@@ -26,7 +26,7 @@ except ImportError:
 from src.data.idx_api_client import get_jakarta_now, JAKARTA_TZ
 from .base_broker import (
     BaseBroker, AccountInfo, Position, OrderResult, Trade,
-    ExecutionStatus, TimeInForce, AccountType,
+    ExecutionStatus, TimeInForce, AccountType, map_execution_status,
 )
 
 
@@ -147,13 +147,17 @@ class IndoPremierBroker(BaseBroker):
         **kwargs,
     ) -> Optional[Dict[str, Any]]:
         """Make authenticated API request."""
-        try:
-            url = f"{self.base_url}{endpoint}"
-            headers = {
-                "sessionID": self.access_token,
-                "Content-Type": "application/json",
-            }
-            
+        if not self.session:
+            logger.error("Request failed: session not initialized")
+            return None
+
+        url = f"{self.base_url}{endpoint}"
+        headers = {
+            "sessionID": self.access_token,
+            "Content-Type": "application/json",
+        }
+
+        async def _request_once() -> Dict[str, Any]:
             async with self.session.request(
                 method,
                 url,
@@ -163,12 +167,15 @@ class IndoPremierBroker(BaseBroker):
             ) as response:
                 if response.status in [200, 201]:
                     return await response.json()
-                else:
-                    logger.error(f"Request failed: {response.status}")
-                    return None
-        
+                raise RuntimeError(f"HTTP {response.status}")
+
+        try:
+            return await self._call_with_retry(
+                f"indopremier:{method}:{endpoint}",
+                _request_once,
+            )
         except Exception as e:
-            logger.error(f"Request error: {e}")
+            logger.error("Request error: %s", e)
             return None
     
     # ========================================================================
@@ -319,19 +326,7 @@ class IndoPremierBroker(BaseBroker):
             
             order = data["order"]
             
-            # Map status
-            status_map = {
-                "new": ExecutionStatus.PENDING,
-                "partially_filled": ExecutionStatus.PARTIALLY_FILLED,
-                "filled": ExecutionStatus.FILLED,
-                "cancelled": ExecutionStatus.CANCELLED,
-                "rejected": ExecutionStatus.REJECTED,
-            }
-            
-            status = status_map.get(
-                order.get("status", "new").lower(),
-                ExecutionStatus.PENDING,
-            )
+            status = map_execution_status(order.get("status", "new"))
             
             return OrderResult(
                 order_id=order["orderID"],
@@ -385,14 +380,6 @@ class IndoPremierBroker(BaseBroker):
             
             order = data["order"]
             
-            status_map = {
-                "new": ExecutionStatus.PENDING,
-                "partially_filled": ExecutionStatus.PARTIALLY_FILLED,
-                "filled": ExecutionStatus.FILLED,
-                "cancelled": ExecutionStatus.CANCELLED,
-                "rejected": ExecutionStatus.REJECTED,
-            }
-            
             return OrderResult(
                 order_id=order_id,
                 broker="indopremier",
@@ -401,10 +388,7 @@ class IndoPremierBroker(BaseBroker):
                 quantity=int(order["qty"]),
                 filled_quantity=int(order.get("filledQty", 0)),
                 avg_fill_price=float(order.get("avgPrice", 0)),
-                status=status_map.get(
-                    order.get("status", "new").lower(),
-                    ExecutionStatus.PENDING,
-                ),
+                status=map_execution_status(order.get("status", "new")),
             )
         
         except Exception as e:
