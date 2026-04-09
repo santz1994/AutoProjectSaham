@@ -15,7 +15,7 @@
     "react-dom": "^18.2.0",
     "chart.js": "^4.4.0",
     "react-chartjs-2": "^5.2.0",
-    "zustand": "^4.4.0",
+    "zustand": "^5.0.12",
     "lightweight-charts": "^4.0.0"
   },
   "devDependencies": {
