@@ -16,7 +16,7 @@
     "chart.js": "^4.4.0",
     "react-chartjs-2": "^5.2.0",
     "zustand": "^4.4.0",
-    "lightweight-charts": "^4.0.0"
+    "lightweight-charts": "^5.1.0"
   },
   "devDependencies": {
     "vite": "^5.0.0",
