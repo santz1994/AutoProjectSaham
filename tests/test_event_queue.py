@@ -1,6 +1,6 @@
 import time
 
-from src.api.event_queue import pop_events, push_event
+from src.api.event_queue import get_backplane_health, pop_events, push_event
 
 
 def _drain_events():
@@ -36,3 +36,18 @@ def test_push_event_deduplicates_same_event_id():
     matched = [item for item in events if item.get("type") == "unit_test" and item.get("value") == 1]
 
     assert len(matched) == 1
+
+
+def test_backplane_health_snapshot_shape():
+    _drain_events()
+    push_event({"type": "health_probe", "value": 1})
+
+    payload = get_backplane_health()
+
+    assert isinstance(payload, dict)
+    assert "queueDepth" in payload
+    assert "queueCapacity" in payload
+    assert "backplane" in payload
+    assert isinstance(payload["backplane"], dict)
+    assert "enabled" in payload["backplane"]
+    assert "redisConnected" in payload["backplane"]

@@ -70,6 +70,7 @@ System & Architecture
 - [-] Update README.md untuk mencerminkan perubahan arsitektur, setup environment, dan instruksi penggunaan baru setelah migrasi ke state store terpusat dan task queue. (PARTIAL: endpoint kill switch, env websocket backplane, dan catatan kontribusi sudah ditambahkan; audit keseluruhan isi README masih berjalan)
 - [-] Redis Pub/Sub untuk Scaling WebSocket Gunakan pola Redis Pub/Sub. Semua market data di-publish ke Redis, dan setiap instance FastAPI men-subscribe Redis tersebut untuk di-broadcast ke klien WebSocket masing-masing. Ini memungkinkan horizontal scaling dengan banyak instance API yang tetap menerima data real-time tanpa harus mengandalkan sticky session atau load balancer khusus WebSocket. (PARTIAL: backplane Redis Pub/Sub opsional sudah diimplementasikan pada src/api/event_queue.py dengan env AUTOSAHAM_WS_BACKPLANE_ENABLED, rollout/monitoring produksi multi-instance masih perlu)
 - [ ] Data Retention & Archival Strategy (Hot vs Cold Data) Buat aturan archival. Data 3 bulan terakhir simpan di PostgreSQL (Hot Storage). Data lebih dari 3 bulan di- dump ke format Parquet/CSV dan disimpan di S3/Cloud Storage (Cold Storage) untuk keperluan training (menggunakan DuckDB atau Polars untuk membacanya).
+- [x] Add license file (MIT License) untuk memastikan hak cipta dan penggunaan kode yang jelas bagi kontributor dan pengguna.
 
 User Authentication & UAC
 - [ ] Implementasi sistem autentikasi dan otorisasi pengguna yang kuat, termasuk manajemen session dan token.
@@ -123,6 +124,9 @@ UI/UX & Accessibility
 - [x] Implementasi utilitas a11y untuk memastikan standar aksesibilitas terpenuhi (keyboard navigation, ARIA roles, dll).
 - [ ] PWA readiness: Aplikasi trading sangat bergantung pada data real-time. Menyediakan dukungan offline (kecuali untuk melihat log historis) bisa memberikan rasa aman palsu kepada trader. Jika koneksi terputus, UI harus langsung memblokir aksi dan menampilkan peringatan Disconnected, bukan menyimpan data di cache offline. (PARTIAL: service worker sudah terpasang, namun audit menyeluruh seluruh jalur data dan aksi saat offline masih diperlukan untuk memastikan tidak ada celah yang bisa menyebabkan user melakukan aksi trading saat koneksi terputus)
 - [ ] Komponen UI/UX disetiap halaman (dashboard, market, portfolio) sudah dioptimasi untuk responsivitas dan performa pada perangkat mobile, dengan penyeragaman desain dan testing lintas device. Agar tampilan menjadi konsisten dan user-friendly di berbagai ukuran layar, professional UI/UX audit dan penyesuaian desain mungkin diperlukan untuk memastikan elemen interaktif tetap mudah diakses dan navigasi tetap intuitif pada smartphone dan tablet.
+- [ ] Update tampilan dan interaksi pada halaman eksekusi order dan trade log untuk memberikan feedback instan kepada pengguna, seperti status "Processing..." saat order dikirim, dan pembaruan real-time pada log setelah konfirmasi dari backend, untuk meningkatkan pengalaman pengguna dan kepercayaan terhadap sistem.
+- [ ] Update tampilan setiap halaman (dashboard, market, portfolio) untuk memastikan konsistensi desain, responsivitas, dan performa pada perangkat mobile, dengan penyesuaian elemen UI agar tetap mudah diakses dan navigasi tetap intuitif di berbagai ukuran layar.
+- [ ] Kesesuaian frontend dan backend, jangan sampai ada fitur yang didukung di backend tapi tidak terefleksi di UI, atau sebaliknya. Pastikan setiap endpoint API yang relevan memiliki representasi yang jelas di UI, dan setiap elemen interaktif di UI memiliki dukungan backend yang memadai.
 
 Security Financial Logic
 - [x] Penguatan Order FSM untuk skenario partial fill dan transisi kuantitas terisi.
@@ -161,21 +165,23 @@ Github
 
 Financial & Data
 - [ ] Penanganan Corporate Actions (Stock Splits, Dividen, Rights Issue) Ini adalah "pembunuh" model ML nomor satu. Jika saham BBCA melakukan stock split 1:2, harganya akan turun 50% di grafik. Jika data historis tidak di-adjust secara otomatis, fitur ML Anda (MACD, RSI) akan rusak, dan Autoencoder Anomali Anda akan membunyikan alarm palsu atau agen RL akan melakukan cut-loss massal. Anda wajib punya mekanisme ETL untuk melakukan backward adjustment terhadap data harga dan volume.
-- [-] Global Kill Switch (Panic Button) Dampak: Algoritma bisa saja mengalami looping error atau pasar mengalami Flash Crash (seperti IHSG anjlok mendadak). Tanpa mekanisme kill switch, kerugian bisa membengkak dalam hitungan detik. Solusi: Implementasikan endpoint API "Panic Button" yang bisa mematikan semua aktivitas trading secara instan (membatalkan order terbuka, menghentikan eksekusi baru) dengan otorisasi super ketat (mis. 2FA + role admin). Solusi: Harus ada endpoint dan tombol UI fisik berupa "Global Kill Switch" yang jika ditekan akan: 1) Men- suspend semua cron/task AI, 2) Membatalkan (Cancel) semua Open Orders di bursa, 3) (Opsional) Mengirim market order untuk melikuidasi semua posisi ke cash. (PARTIAL: endpoint kill switch backend + integrasi tombol UI + guard untuk bot start/strategy deploy/backtest/run_etl/training sudah aktif; pembatalan open order massal, 2FA, dan forced liquidation belum selesai)
+- [-] Global Kill Switch (Panic Button) Dampak: Algoritma bisa saja mengalami looping error atau pasar mengalami Flash Crash (seperti IHSG anjlok mendadak). Tanpa mekanisme kill switch, kerugian bisa membengkak dalam hitungan detik. Solusi: Implementasikan endpoint API "Panic Button" yang bisa mematikan semua aktivitas trading secara instan (membatalkan order terbuka, menghentikan eksekusi baru) dengan otorisasi super ketat (mis. 2FA + role admin). Solusi: Harus ada endpoint dan tombol UI fisik berupa "Global Kill Switch" yang jika ditekan akan: 1) Men- suspend semua cron/task AI, 2) Membatalkan (Cancel) semua Open Orders di bursa, 3) (Opsional) Mengirim market order untuk melikuidasi semua posisi ke cash. (PARTIAL: endpoint kill switch backend + integrasi tombol UI + guard untuk bot start/strategy deploy/backtest/run_etl/training sudah aktif; aktivasi kill switch kini best-effort menghentikan scheduler lokal dan mengembalikan runtimeActions untuk audit; pembatalan open order massal lintas broker, 2FA, dan forced liquidation belum selesai)
 
 8. Better Ideas for Review (Proposed)
-- [/] Tambahkan "Migration Control Center" endpoint kecil (read-only dashboard JSON) yang merangkum status Redis/PostgreSQL shadow write, error counter, dan last successful migration timestamp per namespace.
+- [x] Tambahkan "Migration Control Center" endpoint kecil (read-only dashboard JSON) yang merangkum status Redis/PostgreSQL shadow write, error counter, dan last successful migration timestamp per namespace.
 - [/] Terapkan contract test per broker adapter (schema response + retry contract) agar perubahan API broker tidak langsung merusak production flow.
 - [/] Tambahkan simulasi exchange lokal untuk chaos testing (latency spike, partial fill acak, cancel race condition) sebelum fitur eksekusi baru diaktifkan ke akun real.
 - [/] Integrasikan OpenTelemetry tracing untuk request API -> broker adapter -> state_store agar bottleneck latency mudah dilacak lintas komponen.
 - [/] Terapkan feature flag rollout untuk path kritikal (streaming adapter, celery async training, state migration) sehingga release bisa canary per environment/user group.
-- [/] Tambahkan endpoint read-only "Migration Control Center" versi v2 yang menyertakan kill switch state, queue backlog, dan ws backplane health dalam satu payload operasional.
+- [x] Tambahkan endpoint read-only "Migration Control Center" versi v2 yang menyertakan kill switch state, queue backlog, dan ws backplane health dalam satu payload operasional.
+- [/] Tambahkan drill otomatis kill-switch (chaos rehearsal mingguan) + runbook rollback untuk memastikan panic flow dapat diuji tanpa menyentuh akun live.
 
 9. Temuan Lainnya
 - [-] Status Berjalan (PARTIAL) & Ruang Perbaikan (Improvement)
-  [ ] A. Asinkronisasi ML/RL vs Event Loop FastAPI
+  [-] A. Asinkronisasi ML/RL vs Event Loop FastAPI
         Kondisi Kode: Anda memiliki src/tasks.py dan integrasi Celery. Namun, pada modul inferensi real-time (src/ml/service.py atau src/rl/agent_integration.py), jika model PyTorch dieksekusi secara sinkronus di dalam route FastAPI saat data masuk, Event Loop Python akan terblokir.
         Improvement: Inferensi ML tidak harus melalui Celery (karena Celery menambah latensi antrean). Untuk inferensi real-time yang cepat, pastikan Anda menggunakan asyncio.to_thread() untuk mendelegasikan kalkulasi tensor ke OS thread pool agar API tidak stalling, ATAU gunakan ONNX Runtime secara penuh.
+        Status Update 2026-04-09: route /api/signals, /api/ai/projection/{symbol}, /api/ai/overview, dan /api/bot/status kini menjalankan jalur blocking melalui helper _run_blocking (asyncio.to_thread / executor fallback) untuk mengurangi risiko event-loop stall; audit jalur inferensi lain masih berjalan.
   [ ] B. Sistem AI / Regim Pasar (Regime Detection)
         Kondisi Kode: Terdapat file src/ml/regime_detector.py dan src/ml/regime_router.py. Ini adalah lompatan brilian! Model bisa membedakan pasar Bullish/Bearish.
         Improvement: Hati-hati dengan Lag Indicator. Metode deteksi rezim (misal HMM atau K-Means pada return historis) seringkali terlambat menyadari perubahan pasar (pasar sudah crash 2 hari, model baru switch ke rezim Bearish). Anda perlu memasukkan fitur Order Book Imbalance (mikrostruktur pasar) ke dalam regime_detector.py sebagai leading indicator agar bot bisa bereaksi dalam hitungan menit, bukan hari.
@@ -191,7 +197,8 @@ Financial & Data
         Di Progress.md, Anda berencana menggunakan Kong dan me-scale aplikasi secara horizontal (berjalan di banyak server/kontainer sekaligus).
         Jika Anda menggunakan WebSocket bawaan FastAPI (hooks/useWebSocket.ts), klien A mungkin terhubung ke Server 1, sedangkan data bursa baru saja ditangkap oleh Server 2. Klien A tidak akan mendapat harga update.
         Status Update 2026-04-09: Backplane opsional sudah diimplementasikan di src/api/event_queue.py (publish+subscribe+dedupe event lintas instance) dengan env AUTOSAHAM_WS_BACKPLANE_ENABLED.
-        Aksi Lanjutan: aktifkan default di staging/production, tambah metrik health channel, dan jalankan soak test multi-instance.
+      Status Update 2026-04-09 (lanjutan): endpoint /api/system/migration-control-center kini menyertakan ws backplane health + websocket queue depth + queue backlog Celery untuk observability operasional cepat.
+      Aksi Lanjutan: aktifkan default di staging/production, tambah metrik health channel (Prometheus), dan jalankan soak test multi-instance.
 
 - [ ] Machine Learning Pipeline Aspect (Akurasi & MLOps)
       Sistem ini memiliki pipeline ML yang sangat kaya (mulai dari ETL, Feature Store, hingga Walk-Forward Validation). Namun, ketangguhan di backtest belum tentu menjamin profit di live market.

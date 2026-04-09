@@ -162,6 +162,7 @@ Ini sengaja menjaga UX tetap stabil saat data provider atau integrasi broker ter
   - GET /api/system/kill-switch
   - POST /api/system/kill-switch/activate
   - POST /api/system/kill-switch/deactivate
+  - GET /api/system/migration-control-center
 - AI:
   - GET /api/ai/projection/{symbol}
   - GET /api/ai/overview
@@ -359,6 +360,7 @@ monitoring/        # Prometheus and alert configuration
   Untuk akses UI, jalankan Vite dev server (localhost:5173) atau host build frontend secara terpisah.
 - Notification channel WebSocket berjalan realtime. Beberapa channel lain (email/push) masih pada level handler/queue/logging dan dapat diperluas sesuai kebutuhan produksi.
 - Global Kill Switch memblokir trigger eksekusi baru (bot start, deploy/backtest strategy, run ETL/training trigger) sampai status di-resume melalui endpoint kill switch.
+- Aktivasi kill switch melakukan best-effort penghentian scheduler lokal dan mengembalikan ringkasan runtimeActions pada respons API untuk audit operasional cepat.
 
 ## Kontribusi
 

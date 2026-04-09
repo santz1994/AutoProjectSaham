@@ -34,6 +34,8 @@ _backplane_channel = str(
 _redis_init_attempted = False
 _redis_client = None
 _redis_pubsub = None
+_last_backplane_error: Optional[str] = None
+_last_backplane_error_ts: Optional[float] = None
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -45,6 +47,14 @@ def _env_flag(name: str, default: bool = False) -> bool:
 
 def _backplane_enabled() -> bool:
     return _env_flag("AUTOSAHAM_WS_BACKPLANE_ENABLED", False)
+
+
+def _set_backplane_error(message: str) -> None:
+    global _last_backplane_error
+    global _last_backplane_error_ts
+
+    _last_backplane_error = str(message or "unknown_backplane_error")[:500]
+    _last_backplane_error_ts = time.time()
 
 
 def _resolve_redis_url() -> str:
@@ -64,6 +74,8 @@ def _init_backplane() -> None:
     global _redis_init_attempted
     global _redis_client
     global _redis_pubsub
+    global _last_backplane_error
+    global _last_backplane_error_ts
 
     if _redis_init_attempted:
         return
@@ -90,9 +102,12 @@ def _init_backplane() -> None:
         pubsub.subscribe(_backplane_channel)
         _redis_client = client
         _redis_pubsub = pubsub
+        _last_backplane_error = None
+        _last_backplane_error_ts = None
     except Exception:
         _redis_client = None
         _redis_pubsub = None
+        _set_backplane_error("init_failed")
 
 
 def _normalize_event(ev: Any) -> Dict[str, Any]:
@@ -148,7 +163,7 @@ def _publish_backplane(ev: Dict[str, Any]) -> None:
             json.dumps(ev, separators=(",", ":"), ensure_ascii=True),
         )
     except Exception:
-        pass
+        _set_backplane_error("publish_failed")
 
 
 def _pull_backplane_events() -> List[Dict[str, Any]]:
@@ -182,6 +197,7 @@ def _pull_backplane_events() -> List[Dict[str, Any]]:
             _mark_seen(event_id)
             incoming.append(payload)
     except Exception:
+        _set_backplane_error("pull_failed")
         return []
 
     return incoming
@@ -224,3 +240,39 @@ def pop_events() -> List[Any]:
         return out
     except Exception:
         return []
+
+
+def get_backplane_health() -> Dict[str, Any]:
+    """Return websocket queue/backplane health for operational diagnostics."""
+    _init_backplane()
+
+    redis_url = _resolve_redis_url()
+    if _last_backplane_error_ts:
+        last_error_at = time.strftime(
+            "%Y-%m-%dT%H:%M:%SZ",
+            time.gmtime(float(_last_backplane_error_ts)),
+        )
+    else:
+        last_error_at = None
+
+    with _lock:
+        queue_depth = len(_queue)
+        seen_cache_size = len(_seen_event_ids)
+
+    return {
+        "instanceId": _instance_id,
+        "queueDepth": queue_depth,
+        "queueCapacity": _QUEUE_MAX,
+        "seenEventCacheSize": seen_cache_size,
+        "seenEventCacheCapacity": _SEEN_EVENT_MAX,
+        "backplane": {
+            "enabled": _backplane_enabled(),
+            "channel": _backplane_channel,
+            "redisUrlConfigured": bool(redis_url),
+            "redisConnected": _redis_client is not None,
+            "subscriberReady": _redis_pubsub is not None,
+            "initAttempted": bool(_redis_init_attempted),
+            "lastError": _last_backplane_error,
+            "lastErrorAt": last_error_at,
+        },
+    }

@@ -8,6 +8,7 @@ import csv
 import json
 import math
 import os
+from functools import partial
 from types import SimpleNamespace
 from threading import Lock
 from fastapi import APIRouter, HTTPException
@@ -2577,6 +2578,16 @@ def _format_runtime_uptime(total_seconds: int) -> str:
     return f"{minutes}m"
 
 
+async def _run_blocking(func: Any, *args: Any, **kwargs: Any) -> Any:
+    """Run blocking work in a thread to keep async routes responsive."""
+    call = partial(func, *args, **kwargs)
+    try:
+        return await asyncio.to_thread(call)
+    except AttributeError:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, call)
+
+
 async def _resolve_runtime_portfolio_snapshot() -> Portfolio:
     starting_cash = float(
         _safe_float(os.getenv("PAPER_STARTING_CASH"), default=100_000_000.0)
@@ -2767,6 +2778,157 @@ def _emit_kill_switch_event(active: bool, reason: str, actor: str) -> None:
     except Exception:
         pass
 
+
+def _runtime_scheduler_status() -> Dict[str, Any]:
+    status: Dict[str, Any] = {
+        "available": False,
+        "running": False,
+    }
+    try:
+        from src.api import server as api_server
+
+        scheduler = getattr(api_server, "_scheduler", None)
+        if scheduler is None:
+            return status
+
+        thread = getattr(scheduler, "_thread", None)
+        status.update(
+            {
+                "available": True,
+                "running": bool(thread and thread.is_alive()),
+            }
+        )
+    except Exception as exc:
+        status["error"] = str(exc)
+
+    return status
+
+
+def _suspend_runtime_services() -> Dict[str, Any]:
+    """Best-effort stop for local scheduler after kill switch activation."""
+    actions: Dict[str, Any] = {
+        "schedulerStopRequested": False,
+        "schedulerWasRunning": False,
+        "schedulerStopped": False,
+        "errors": [],
+    }
+
+    try:
+        from src.api import server as api_server
+
+        scheduler = getattr(api_server, "_scheduler", None)
+        if scheduler is None:
+            return actions
+
+        actions["schedulerStopRequested"] = True
+        thread = getattr(scheduler, "_thread", None)
+        was_running = bool(thread and thread.is_alive())
+        actions["schedulerWasRunning"] = was_running
+
+        if was_running:
+            scheduler.stop(timeout=2.0)
+            thread_after = getattr(scheduler, "_thread", None)
+            actions["schedulerStopped"] = not bool(thread_after and thread_after.is_alive())
+        else:
+            actions["schedulerStopped"] = True
+    except Exception as exc:
+        actions["errors"].append(str(exc))
+
+    return actions
+
+
+def _celery_queue_backlog_snapshot() -> Dict[str, Any]:
+    enabled = str(os.getenv("AUTOSAHAM_USE_CELERY", "")).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if not enabled:
+        return {
+            "enabled": False,
+            "available": False,
+            "connectedWorkers": [],
+            "reservedCount": 0,
+            "scheduledCount": 0,
+            "activeCount": 0,
+            "backlogEstimate": 0,
+        }
+
+    try:
+        from src.tasks import app as celery_app
+
+        inspector = celery_app.control.inspect(timeout=0.75)
+        reserved = inspector.reserved() or {}
+        scheduled = inspector.scheduled() or {}
+        active = inspector.active() or {}
+
+        workers = sorted(set(reserved.keys()) | set(scheduled.keys()) | set(active.keys()))
+        reserved_count = sum(len(items or []) for items in reserved.values())
+        scheduled_count = sum(len(items or []) for items in scheduled.values())
+        active_count = sum(len(items or []) for items in active.values())
+
+        return {
+            "enabled": True,
+            "available": True,
+            "connectedWorkers": workers,
+            "reservedCount": int(reserved_count),
+            "scheduledCount": int(scheduled_count),
+            "activeCount": int(active_count),
+            "backlogEstimate": int(reserved_count + scheduled_count),
+        }
+    except Exception as exc:
+        return {
+            "enabled": True,
+            "available": False,
+            "connectedWorkers": [],
+            "reservedCount": 0,
+            "scheduledCount": 0,
+            "activeCount": 0,
+            "backlogEstimate": 0,
+            "error": str(exc),
+        }
+
+
+def _ws_backplane_health_snapshot() -> Dict[str, Any]:
+    try:
+        from src.api.event_queue import get_backplane_health
+
+        return get_backplane_health()
+    except Exception as exc:
+        return {
+            "instanceId": None,
+            "queueDepth": 0,
+            "queueCapacity": 0,
+            "seenEventCacheSize": 0,
+            "seenEventCacheCapacity": 0,
+            "backplane": {
+                "enabled": False,
+                "channel": None,
+                "redisUrlConfigured": False,
+                "redisConnected": False,
+                "subscriberReady": False,
+                "initAttempted": False,
+                "lastError": str(exc),
+                "lastErrorAt": None,
+            },
+        }
+
+
+def _last_state_migration_timestamp(limit: int = 200) -> Optional[str]:
+    try:
+        logs = _state_store.list_ai_logs(limit=limit)
+    except Exception:
+        return None
+
+    for item in logs:
+        if str(item.get("eventType") or "").strip().lower() != "state_store_migration":
+            continue
+        candidate = str(item.get("timestamp") or "").strip()
+        if candidate:
+            return candidate
+    return None
+
 # ============== Routes ==============
 
 @router.get("/portfolio", response_model=Portfolio)
@@ -2783,7 +2945,7 @@ async def refresh_portfolio():
 @router.get("/bot/status", response_model=BotStatus)
 async def get_bot_status():
     """Get runtime bot status from AI activity logs and broker connection state."""
-    return _resolve_runtime_bot_status()
+    return await _run_blocking(_resolve_runtime_bot_status)
 
 @router.post("/bot/start")
 async def start_bot():
@@ -2810,17 +2972,20 @@ async def get_signals(limit: int = 10):
     settings = _state_store.get_user_settings(_default_user_settings)
     preferred_universe = settings.get("preferredUniverse", [])
 
-    transformer_signals = _infer_signals_from_transformer(
-        limit=safe_limit,
-        preferred_universe=preferred_universe,
+    transformer_signals = await _run_blocking(
+        _infer_signals_from_transformer,
+        safe_limit,
+        preferred_universe,
     )
     if transformer_signals:
         return transformer_signals[:safe_limit]
 
-    return _build_fallback_signals(
-        limit=safe_limit,
-        preferred_universe=preferred_universe,
-    )[:safe_limit]
+    fallback_signals = await _run_blocking(
+        _build_fallback_signals,
+        safe_limit,
+        preferred_universe,
+    )
+    return fallback_signals[:safe_limit]
 
 @router.get("/market/sentiment", response_model=MarketSentiment)
 async def get_market_sentiment():
@@ -3309,6 +3474,7 @@ async def activate_kill_switch(payload: Optional[KillSwitchPayload] = None):
     reason = str((payload.reason if payload else "") or "Manual emergency stop").strip()
     actor = str((payload.actor if payload else "") or "api").strip()
     now_iso = datetime.now().isoformat()
+    runtime_actions = await _run_blocking(_suspend_runtime_services)
 
     current_state = _kill_switch_state()
     updated_state = _state_store.set_system_control(
@@ -3328,6 +3494,7 @@ async def activate_kill_switch(payload: Optional[KillSwitchPayload] = None):
         payload={
             "reason": reason,
             "actor": actor,
+            "runtimeActions": runtime_actions,
         },
     )
     _emit_kill_switch_event(True, reason, actor)
@@ -3335,6 +3502,7 @@ async def activate_kill_switch(payload: Optional[KillSwitchPayload] = None):
     return {
         "status": "activated",
         "killSwitch": updated_state,
+        "runtimeActions": runtime_actions,
     }
 
 
@@ -3376,6 +3544,42 @@ async def deactivate_kill_switch(payload: Optional[KillSwitchPayload] = None):
 async def get_state_store_status():
     """Inspect migration readiness across SQLite, Redis, and PostgreSQL backends."""
     return _state_store.get_state_migration_status()
+
+
+@router.get("/system/migration-control-center")
+async def get_migration_control_center():
+    """Read-only operational view for migration, queue backlog, and kill switch state."""
+    state_store_status = _state_store.get_state_migration_status()
+    kill_switch = _kill_switch_state()
+    broker_connection = _state_store.get_broker_connection(_default_broker_connection)
+
+    ws_health = await _run_blocking(_ws_backplane_health_snapshot)
+    celery_backlog = await _run_blocking(_celery_queue_backlog_snapshot)
+    scheduler_status = await _run_blocking(_runtime_scheduler_status)
+
+    websocket_queue = {
+        "depth": int(ws_health.get("queueDepth") or 0),
+        "capacity": int(ws_health.get("queueCapacity") or 0),
+        "seenCacheSize": int(ws_health.get("seenEventCacheSize") or 0),
+        "seenCacheCapacity": int(ws_health.get("seenEventCacheCapacity") or 0),
+    }
+
+    return {
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "lastStateStoreMigrationAt": _last_state_migration_timestamp(limit=200),
+        "killSwitch": kill_switch,
+        "stateStore": state_store_status,
+        "queueBacklog": {
+            "celery": celery_backlog,
+            "websocket": websocket_queue,
+        },
+        "websocketBackplane": ws_health.get("backplane", {}),
+        "runtime": {
+            "scheduler": scheduler_status,
+            "brokerConnection": broker_connection,
+        },
+    }
 
 
 @router.post("/system/state-store/migrate")
@@ -3628,7 +3832,11 @@ async def get_ai_projection(
         raise HTTPException(status_code=400, detail="Unsupported timeframe")
 
     safe_horizon = max(4, min(120, int(horizon)))
-    seed = _predict_projection_seed(normalized_symbol, market=normalized_market)
+    seed = await _run_blocking(
+        _predict_projection_seed,
+        normalized_symbol,
+        normalized_market,
+    )
 
     market_seed = None
     seed_confidence = float(max(0.0, min(1.0, seed.get("confidence") or 0.0)))
@@ -3794,15 +4002,15 @@ async def get_ai_overview():
     """Return AI workflow status, learning pipeline state, and key ML metrics."""
     settings = _state_store.get_user_settings(_default_user_settings)
     regime_state = _state_store.get_regime_state(_default_regime_state)
-    model_meta = _get_latest_model_artifact()
+    model_meta = await _run_blocking(_get_latest_model_artifact)
     dataset_path = _resolve_dataset_csv_path()
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    dataset_rows = _count_csv_rows(dataset_path)
+    dataset_rows = await _run_blocking(_count_csv_rows, dataset_path)
     dataset_updated_at = None
     if os.path.exists(dataset_path):
         dataset_updated_at = datetime.fromtimestamp(os.path.getmtime(dataset_path)).isoformat()
     recent_logs = _state_store.list_ai_logs(limit=50)
-    bot_status = _resolve_runtime_bot_status()
+    bot_status = await _run_blocking(_resolve_runtime_bot_status)
 
     warning_count = sum(1 for item in recent_logs if item.get("level") == "warning")
     error_count = sum(1 for item in recent_logs if item.get("level") == "error")
