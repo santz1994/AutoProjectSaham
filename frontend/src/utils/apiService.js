@@ -41,6 +41,14 @@ function isMutatingMethod(method) {
   return normalized === 'POST' || normalized === 'PUT' || normalized === 'PATCH' || normalized === 'DELETE';
 }
 
+function normalizeTierHint(value) {
+  const candidate = String(value || '').trim().toLowerCase();
+  if (candidate === 'free' || candidate === 'basic' || candidate === 'pro') {
+    return candidate;
+  }
+  return '';
+}
+
 class ApiService {
   constructor() {
     this.baseURL = getAPIBase();
@@ -51,12 +59,14 @@ class ApiService {
     const url = `${this.baseURL}${endpoint}`;
     const method = String(options.method || 'GET').trim().toUpperCase();
     const csrfToken = isMutatingMethod(method) ? readCookieValue('csrf_token') : '';
+    const tierHint = normalizeTierHint(readCookieValue('autosaham_tier')) || 'free';
 
     const defaultOptions = {
       credentials: 'include', // Include cookies for auth
       headers: {
         'Content-Type': 'application/json',
         ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+        'X-Autosaham-Tier': tierHint,
         ...options.headers,
       },
     };

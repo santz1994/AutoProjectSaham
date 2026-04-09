@@ -173,6 +173,22 @@ SLACK_WEBHOOK_URL=...
 GRAFANA_PASSWORD=...
 ```
 
+### Kong Tiered Rate Limiting (Free/Basic/Pro)
+
+Kong declarative config di [kong/kong.yml](kong/kong.yml) sekarang memisahkan policy rate limit berdasarkan header `X-Autosaham-Tier`:
+
+- `free`: fallback/default policy
+- `basic`: limits menengah
+- `pro`: limits tertinggi
+
+Route tiered tersedia untuk jalur:
+
+- `/api` (generic API)
+- `/api/signals`, `/api/ai/projection`, `/api/ai/logs` (AI inference)
+- `/api/broker/connect`, `/api/broker/disconnect`, `/api/strategies`, `/api/trades` (execution)
+
+Backend melakukan validasi `X-Autosaham-Tier` terhadap role sesi (`viewer->free`, `trader->basic`, `developer/admin->pro`) untuk mencegah spoofing tier. Frontend otomatis mengirim header ini dari cookie `autosaham_tier`.
+
 ## Monitoring & Alerts
 
 ### Prometheus Targets

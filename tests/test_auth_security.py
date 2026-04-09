@@ -79,12 +79,56 @@ def test_auth_login_sets_csrf_cookie_and_role_claim(client: TestClient):
     assert login_response.status_code == 200
     assert "auth_token" in login_response.cookies
     assert "csrf_token" in login_response.cookies
+    assert login_response.cookies.get("autosaham_tier") == "basic"
 
     me_response = client.get("/auth/me")
     assert me_response.status_code == 200
     me_payload = me_response.json()
     assert me_payload["username"] == username
     assert me_payload["role"] == "trader"
+    assert me_payload["tier"] == "basic"
+
+
+def test_api_tier_hint_guard_blocks_mismatch_and_invalid_values(client: TestClient):
+    username = f"auth_user_{uuid.uuid4().hex[:8]}"
+    _register(client, username)
+
+    login_response = _login(client, username)
+    assert login_response.status_code == 200
+
+    ok_response = client.get(
+        "/api/system/migration-control-center",
+        headers={"X-Autosaham-Tier": "basic"},
+    )
+    assert ok_response.status_code == 200
+
+    mismatch_response = client.get(
+        "/api/system/migration-control-center",
+        headers={"X-Autosaham-Tier": "pro"},
+    )
+    assert mismatch_response.status_code == 403
+    assert "does not match" in str(mismatch_response.json().get("detail") or "")
+
+    invalid_hint_response = client.get(
+        "/api/system/migration-control-center",
+        headers={"X-Autosaham-Tier": "enterprise"},
+    )
+    assert invalid_hint_response.status_code == 400
+
+    logout_response = client.post("/auth/logout")
+    assert logout_response.status_code == 200
+
+    anonymous_pro_response = client.get(
+        "/api/system/migration-control-center",
+        headers={"X-Autosaham-Tier": "pro"},
+    )
+    assert anonymous_pro_response.status_code == 403
+
+    anonymous_free_response = client.get(
+        "/api/system/migration-control-center",
+        headers={"X-Autosaham-Tier": "free"},
+    )
+    assert anonymous_free_response.status_code == 200
 
 
 def test_auth_login_remember_me_extends_session_ttl(monkeypatch, client: TestClient):

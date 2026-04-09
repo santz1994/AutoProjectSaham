@@ -248,18 +248,25 @@ def list_quota_usage_snapshots(limit: int = 100) -> List[Dict[str, Any]]:
     safe_limit = max(1, min(5000, int(limit)))
 
     with _LOCK:
-        records = [
-            _build_snapshot(user_key, entry, fallback_tier=str(entry.get("tier") or "free"))
-            for user_key, entry in _USER_USAGE.items()
-        ]
+        ordered_records: List[tuple[float, Dict[str, Any]]] = []
+        for user_key, entry in _USER_USAGE.items():
+            last_request = entry.get("lastRequest") if isinstance(entry, dict) else None
+            last_ts = 0.0
+            if isinstance(last_request, dict):
+                try:
+                    last_ts = float(last_request.get("timestamp") or 0.0)
+                except (TypeError, ValueError):
+                    last_ts = 0.0
 
-    records.sort(
-        key=lambda item: (
-            item.get("lastRequest", {}) or {}
-        ).get("timestamp") or "",
-        reverse=True,
-    )
-    return records[:safe_limit]
+            snapshot = _build_snapshot(
+                user_key,
+                entry,
+                fallback_tier=str(entry.get("tier") or "free"),
+            )
+            ordered_records.append((last_ts, snapshot))
+
+    ordered_records.sort(key=lambda item: item[0], reverse=True)
+    return [snapshot for _, snapshot in ordered_records[:safe_limit]]
 
 
 def reset_usage_for_tests() -> None:

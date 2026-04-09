@@ -37,6 +37,7 @@ if FASTAPI_AVAILABLE:
     from src.api.event_queue import pop_events
     from src.api.quota_usage import record_request, resolve_tier_from_role
     from src.monitoring import metrics as monitoring
+    from src.monitoring.tracing import get_tracer, init_tracing
     from src.pipeline.persistence import read_etl_runs
     from src.pipeline.runner import AutonomousPipeline
     from src.pipeline.scheduler import PipelineScheduler
@@ -130,24 +131,130 @@ if FASTAPI_AVAILABLE:
         expose_headers=["Set-Cookie"],             # Expose cookie header
     )
 
+    _tracing_service_name = str(
+        os.getenv("AUTOSAHAM_TRACING_SERVICE_NAME", "autosaham-api")
+    ).strip() or "autosaham-api"
+    init_tracing(service_name=_tracing_service_name)
+
+    _SUPPORTED_QUOTA_TIERS = {"free", "basic", "pro"}
+
+    def _normalize_quota_tier(value: Any) -> str:
+        candidate = str(value or "").strip().lower()
+        if candidate in _SUPPORTED_QUOTA_TIERS:
+            return candidate
+        return ""
+
+    def _is_quota_tier_path(path: str) -> bool:
+        normalized = str(path or "").strip()
+        return normalized.startswith("/api")
+
+    def _validate_tier_hint(
+        *,
+        request_path: str,
+        raw_tier_hint: str,
+        normalized_tier_hint: str,
+        session_context: Optional[Dict[str, Any]],
+        resolved_tier: str,
+    ) -> Optional[JSONResponse]:
+        if not _is_quota_tier_path(request_path):
+            return None
+
+        if not raw_tier_hint:
+            return None
+
+        if not normalized_tier_hint:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "detail": "Invalid X-Autosaham-Tier header. Use free/basic/pro.",
+                },
+            )
+
+        if session_context is None and normalized_tier_hint != "free":
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "detail": "Anonymous requests can only use free tier hint.",
+                },
+            )
+
+        if session_context is not None and normalized_tier_hint != resolved_tier:
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "detail": "X-Autosaham-Tier does not match authenticated role tier.",
+                },
+            )
+
+        return None
+
+    @app.middleware("http")
+    async def _request_tracing_middleware(request: Request, call_next):
+        tracer = get_tracer()
+        if tracer is None:
+            return await call_next(request)
+
+        token = str(request.cookies.get("auth_token") or "").strip()
+        session_context = get_session_context(token) if token else None
+
+        span_name = f"{request.method} {request.url.path}"
+        with tracer.start_as_current_span(span_name) as span:
+            try:
+                span.set_attribute("http.method", str(request.method or "GET"))
+                span.set_attribute("http.path", str(request.url.path or "/"))
+                if session_context and session_context.get("username"):
+                    span.set_attribute(
+                        "enduser.id",
+                        str(session_context.get("username") or ""),
+                    )
+            except Exception:
+                pass
+
+            response = await call_next(request)
+
+            try:
+                status_code = int(response.status_code)
+                span.set_attribute("http.status_code", status_code)
+
+                trace_id = format(span.get_span_context().trace_id, "032x")
+                if trace_id and trace_id != ("0" * 32):
+                    response.headers["X-Trace-Id"] = trace_id
+            except Exception:
+                pass
+
+            return response
+
     @app.middleware("http")
     async def _quota_usage_middleware(request: Request, call_next):
+        request_path = str(request.url.path or "")
+        token = str(request.cookies.get("auth_token") or "").strip()
+        session_context = get_session_context(token) if token else None
+        role = str((session_context or {}).get("role") or "viewer").strip().lower()
+        tier = resolve_tier_from_role(role)
+
+        tier_hint_raw = str(request.headers.get("x-autosaham-tier") or "").strip()
+        tier_hint = _normalize_quota_tier(tier_hint_raw)
+
+        tier_hint_violation = _validate_tier_hint(
+            request_path=request_path,
+            raw_tier_hint=tier_hint_raw,
+            normalized_tier_hint=tier_hint,
+            session_context=session_context,
+            resolved_tier=tier,
+        )
+        if tier_hint_violation is not None:
+            return tier_hint_violation
+
         response = await call_next(request)
 
         try:
-            request_path = str(request.url.path or "")
             if request_path == "/metrics":
                 return response
-
-            token = str(request.cookies.get("auth_token") or "").strip()
-            session_context = get_session_context(token) if token else None
 
             username = (
                 str((session_context or {}).get("username") or "").strip().lower()
                 or "anonymous"
             )
-            role = str((session_context or {}).get("role") or "viewer").strip().lower()
-            tier = resolve_tier_from_role(role)
 
             record_request(
                 username=username,
@@ -156,6 +263,9 @@ if FASTAPI_AVAILABLE:
                 method=request.method,
                 status_code=int(response.status_code),
             )
+
+            if _is_quota_tier_path(request_path):
+                response.headers.setdefault("X-Autosaham-Resolved-Tier", tier)
         except Exception:
             # Observability path should never break normal API flow.
             pass
@@ -576,6 +686,8 @@ if FASTAPI_AVAILABLE:
 
         session_context = get_session_context(token) or {}
         csrf_token = str(session_context.get("csrfToken") or "").strip()
+        session_role = str(session_context.get("role") or "viewer").strip().lower()
+        session_tier = resolve_tier_from_role(session_role)
 
         # SECURITY FIX: Set token as httpOnly cookie (not in response body)
         response = JSONResponse(
@@ -595,6 +707,16 @@ if FASTAPI_AVAILABLE:
             samesite="lax",  # CSRF protection (lax for local dev compatibility)
             max_age=session_ttl,
             path="/"
+        )
+        # Non-sensitive tier hint cookie used by the frontend for Kong routing.
+        response.set_cookie(
+            key="autosaham_tier",
+            value=session_tier,
+            httponly=False,
+            secure=is_secure,
+            samesite="lax",
+            max_age=session_ttl,
+            path="/",
         )
 
         if csrf_token:
@@ -623,11 +745,13 @@ if FASTAPI_AVAILABLE:
             return JSONResponse(content={}, status_code=200)
 
         username = str(context.get("username") or "").strip()
+        role = str(context.get("role") or "viewer").strip().lower()
         two_factor_status = get_login_2fa_status(username)
 
         return {
             "username": username,
-            "role": context.get("role"),
+            "role": role,
+            "tier": resolve_tier_from_role(role),
             "twoFactorEnabled": bool(two_factor_status.get("enabled")),
             "twoFactorRequired": bool(two_factor_status.get("required")),
         }
@@ -732,6 +856,13 @@ if FASTAPI_AVAILABLE:
             httponly=True,
             secure=is_secure,
             samesite="lax"
+        )
+        response.delete_cookie(
+            key="autosaham_tier",
+            path="/",
+            httponly=False,
+            secure=is_secure,
+            samesite="lax",
         )
         response.delete_cookie(
             key="csrf_token",
@@ -1248,8 +1379,6 @@ if FASTAPI_AVAILABLE:
             print(f"[Startup] Warning: execution startup sync failed: {e}")
         
         try:
-            import os
-
             # REAL DATA: Default to IDX symbols (Indonesian stock exchange)
             symbols_env = os.getenv("MARKET_SYMBOLS", "BBCA,USIM,KLBF,ASII,UNVR")
             symbols = [s.strip() for s in symbols_env.split(",") if s.strip()]

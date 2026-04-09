@@ -163,6 +163,7 @@ Ini sengaja menjaga UX tetap stabil saat data provider atau integrasi broker ter
   - POST /api/system/kill-switch/activate
   - POST /api/system/kill-switch/deactivate
   - GET /api/system/migration-control-center
+  - GET /api/system/quota/usage
   - GET /api/system/execution/pending-orders
 - AI:
   - GET /api/ai/projection/{symbol}
@@ -374,6 +375,12 @@ Variabel penting:
   - AUTOSAHAM_ROLE_STRATEGY_WRITE_ROLES (default: trader,developer)
   - AUTOSAHAM_ROLE_SETTINGS_WRITE_ROLES (default: viewer,trader,developer)
   - AUTOSAHAM_ROLE_AI_LOG_WRITE_ROLES (default: trader,developer)
+- Quota tier & Kong tier routing:
+  - AUTOSAHAM_QUOTA_ROLE_TIERS (default: viewer=free,trader=basic,developer=pro,admin=pro)
+  - AUTOSAHAM_QUOTA_FREE_PER_MINUTE, AUTOSAHAM_QUOTA_FREE_PER_HOUR
+  - AUTOSAHAM_QUOTA_BASIC_PER_MINUTE, AUTOSAHAM_QUOTA_BASIC_PER_HOUR
+  - AUTOSAHAM_QUOTA_PRO_PER_MINUTE, AUTOSAHAM_QUOTA_PRO_PER_HOUR
+  - Frontend otomatis mengirim header X-Autosaham-Tier (free/basic/pro) dari cookie autosaham_tier.
 
 ## Docker and Observability
 
@@ -426,6 +433,8 @@ monitoring/        # Prometheus and alert configuration
 - Endpoint mutating strategi/profile/log AI kini mendukung role-guard granular berbasis env (trader/developer/admin) dengan admin override dan validasi CSRF saat guard diaktifkan.
 - Endpoint mutating server non-router (`/run_etl`, `/scheduler/start`, `/scheduler/stop`, `/api/training/registry/active`, `/alert`) kini ikut role-guard berbasis env + validasi CSRF saat role guard diaktifkan.
 - Endpoint `/api/system/execution/orders` kini tersedia untuk submit order runtime (market/limit) dari UI Market orderbook, dijaga role-guard + CSRF saat guard aktif.
+- Kong kini memiliki policy route bertingkat free/basic/pro untuk `/api`, `/api/signals|/api/ai/*`, dan jalur eksekusi; request tanpa header tier jatuh ke policy free sebagai fallback non-breaking.
+- Backend memvalidasi header X-Autosaham-Tier terhadap role sesi terautentikasi untuk mencegah spoof tier lintas role.
 - Login kini mendukung challenge two-factor authentication (2FA) untuk role yang dikonfigurasi (TOTP atau fallback static code), di samping opsi rememberMe TTL session.
 - Endpoint auth 2FA (`/auth/2fa/status`, `/auth/2fa/enroll`, `/auth/2fa/verify`, `/auth/2fa/disable`) kini aktif untuk enrollment per-user TOTP dari Settings, dengan proteksi CSRF untuk operasi mutating.
 - ETL historis mendukung corporate action backward adjustment berbasis file JSON (jika AUTOSAHAM_CORPORATE_ACTIONS_FILE dikonfigurasi) untuk membantu menjaga kontinuitas fitur ML saat stock split/dividen terjadi.
