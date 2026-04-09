@@ -63,6 +63,7 @@ class ExecutionManager:
         max_position_per_symbol: int = 1000,
         max_total_notional: float = 1e9,
         daily_loss_limit: float = 0.05,
+        require_startup_sync: bool = False,
         alert_callback: Optional[Callable[[dict], None]] = None,
         alert_webhooks: Optional[list] = None,
         logger: Optional[logging.Logger] = None,
@@ -95,6 +96,18 @@ class ExecutionManager:
         # expected state tracked locally for reconciliation checks
         self._expected_positions: Dict[str, int] = {}
         self._expected_cash: Optional[float] = None
+        # startup synchronization state (open orders from broker)
+        self._startup_sync_required = bool(require_startup_sync)
+        self._startup_sync_completed = not bool(require_startup_sync)
+        self._startup_sync_report: Dict[str, Any] = {
+            "required": bool(require_startup_sync),
+            "completed": not bool(require_startup_sync),
+            "status": "not_required" if not require_startup_sync else "pending",
+            "sourceOpenOrders": 0,
+            "importedPending": 0,
+            "skipped": 0,
+            "error": None,
+        }
         # reconciliation background loop
         self._recon_thread: Optional[threading.Thread] = None
         self._recon_stop_event = threading.Event()
@@ -194,6 +207,174 @@ class ExecutionManager:
                 self._expected_positions = {}
                 self._expected_cash = None
 
+    def get_startup_sync_status(self) -> Dict[str, Any]:
+        with self._state_lock:
+            return dict(self._startup_sync_report)
+
+    def sync_open_orders_on_startup(self, limit: int = 500) -> Dict[str, Any]:
+        """Import broker open orders into runtime pending queue.
+
+        This prevents new trading signals from being accepted before the
+        runtime has a baseline snapshot of open orders after process restart.
+        """
+        safe_limit = max(1, min(5000, int(limit)))
+        report: Dict[str, Any] = {
+            "required": bool(self._startup_sync_required),
+            "completed": False,
+            "status": "pending",
+            "sourceOpenOrders": 0,
+            "importedPending": 0,
+            "skipped": 0,
+            "error": None,
+        }
+
+        if not self._startup_sync_required:
+            report.update({"completed": True, "status": "not_required"})
+            with self._state_lock:
+                self._startup_sync_completed = True
+                self._startup_sync_report = dict(report)
+            return report
+
+        if self.broker is None:
+            report.update({"completed": True, "status": "no_broker"})
+            with self._state_lock:
+                self._startup_sync_completed = True
+                self._startup_sync_report = dict(report)
+            return report
+
+        if not hasattr(self.broker, "get_active_orders"):
+            report.update(
+                {
+                    "completed": True,
+                    "status": "broker_active_orders_api_unavailable",
+                }
+            )
+            with self._state_lock:
+                self._startup_sync_completed = True
+                self._startup_sync_report = dict(report)
+            return report
+
+        try:
+            source_orders = self.broker.get_active_orders()
+        except Exception as exc:
+            report.update({"completed": False, "status": "error", "error": str(exc)})
+            with self._state_lock:
+                self._startup_sync_completed = False
+                self._startup_sync_report = dict(report)
+            return report
+
+        if hasattr(source_orders, "__await__"):
+            # Keep startup non-blocking for adapters exposing async-only API.
+            report.update(
+                {
+                    "completed": True,
+                    "status": "unsupported_async_active_orders_api",
+                }
+            )
+            with self._state_lock:
+                self._startup_sync_completed = True
+                self._startup_sync_report = dict(report)
+            return report
+
+        if not isinstance(source_orders, list):
+            source_orders = []
+
+        def _to_int(value: Any) -> int:
+            try:
+                return max(0, int(value))
+            except (TypeError, ValueError):
+                return 0
+
+        def _to_float(value: Any) -> float:
+            try:
+                return max(0.0, float(value))
+            except (TypeError, ValueError):
+                return 0.0
+
+        imported_orders: Dict[str, Dict[str, Any]] = {}
+        skipped = 0
+
+        for raw in source_orders[:safe_limit]:
+            if not isinstance(raw, dict):
+                skipped += 1
+                continue
+
+            status_text = str(raw.get("status") or "").strip().lower()
+            if status_text in {
+                "filled",
+                "cancelled",
+                "canceled",
+                "rejected",
+                "done",
+                "closed",
+            }:
+                skipped += 1
+                continue
+
+            symbol = str(raw.get("symbol") or "").strip().upper()
+            side = str(raw.get("side") or raw.get("action") or "").strip().lower()
+            qty = _to_int(raw.get("qty") or raw.get("quantity") or raw.get("volume"))
+            limit_price = _to_float(
+                raw.get("limit_price")
+                or raw.get("price")
+                or raw.get("entry_price")
+            )
+
+            if not symbol or side not in {"buy", "sell"} or qty <= 0 or limit_price <= 0:
+                skipped += 1
+                continue
+
+            order_id = str(raw.get("order_id") or raw.get("id") or "").strip()
+            if not order_id:
+                order_id = self._generate_order_id()
+
+            imported_orders[order_id] = {
+                "order_id": order_id,
+                "symbol": symbol,
+                "side": side,
+                "qty": qty,
+                "limit_price": limit_price,
+                "previous_close": raw.get("previous_close"),
+            }
+
+        with self._state_lock:
+            self.pending_orders = imported_orders
+
+            max_generated_suffix = 0
+            for order_id in self.pending_orders.keys():
+                if not str(order_id).startswith("lim-"):
+                    continue
+                try:
+                    max_generated_suffix = max(
+                        max_generated_suffix,
+                        int(str(order_id).split("-", 1)[1]),
+                    )
+                except Exception:
+                    continue
+            self._next_order_id = max(self._next_order_id, max_generated_suffix + 1)
+
+            self._startup_sync_completed = True
+
+        report.update(
+            {
+                "completed": True,
+                "status": "ok",
+                "sourceOpenOrders": len(source_orders),
+                "importedPending": len(imported_orders),
+                "skipped": int(skipped),
+            }
+        )
+        with self._state_lock:
+            self._startup_sync_report = dict(report)
+
+        try:
+            if PENDING_ORDERS:
+                PENDING_ORDERS.set(len(imported_orders))
+        except Exception:
+            pass
+
+        return report
+
     def _check_daily_loss(self, price_map: dict | None = None) -> bool:
         with self._state_lock:
             start_balance = self._start_balance
@@ -259,6 +440,8 @@ class ExecutionManager:
         previous_close: Optional[float] = None,
     ) -> tuple[bool, str]:
         with self._state_lock:
+            if self._startup_sync_required and not self._startup_sync_completed:
+                return False, "startup sync pending: open orders are not synchronized yet"
             if self._frozen:
                 return False, f"Execution frozen: {self._frozen_reason}"
 

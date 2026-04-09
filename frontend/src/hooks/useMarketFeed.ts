@@ -6,6 +6,20 @@ const TICK_FLUSH_MS = 250
 const ORDERBOOK_FLUSH_MS = 120
 const MARKER_FLUSH_MS = 250
 
+function emitMarketFeedStatus(status: 'connected' | 'disconnected', reason = '') {
+  try {
+    window.dispatchEvent(new CustomEvent('autosaham:market-feed-status', {
+      detail: {
+        status,
+        reason,
+        timestamp: new Date().toISOString(),
+      },
+    }))
+  } catch {
+    // Ignore event dispatch issues to keep feed loop resilient.
+  }
+}
+
 function toSec(t: any) {
   try {
     if (typeof t === 'number') {
@@ -120,6 +134,10 @@ export default function startMarketFeed() {
   const wsUrl = `${proto}://${backendHost}/ws/events`
   const ws = new WebSocket(wsUrl)
 
+  ws.onopen = () => {
+    emitMarketFeedStatus('connected')
+  }
+
   ws.onmessage = (event) => {
     let ev: any = null
 
@@ -182,7 +200,12 @@ export default function startMarketFeed() {
   }
 
   ws.onerror = () => {
+    emitMarketFeedStatus('disconnected', 'websocket_error')
     // Keep silent here; app pages should continue without market feed.
+  }
+
+  ws.onclose = () => {
+    emitMarketFeedStatus('disconnected', 'websocket_closed')
   }
 
   return () => {
@@ -208,5 +231,7 @@ export default function startMarketFeed() {
     } catch {
       // Ignore close failures
     }
+
+    emitMarketFeedStatus('disconnected', 'feed_stopped')
   }
 }

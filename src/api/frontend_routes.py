@@ -21,6 +21,11 @@ from pydantic import BaseModel
 from datetime import datetime, timedelta
 
 from src.api.auth import get_session_context, get_user_from_token
+from src.api.quota_usage import (
+    get_quota_usage_snapshot,
+    list_quota_usage_snapshots,
+    resolve_tier_from_role,
+)
 from src.api.state_store import SecureAppStateStore
 from src.brokers.paper_adapter import PaperBrokerAdapter
 
@@ -3184,6 +3189,11 @@ def _runtime_execution_status() -> Dict[str, Any]:
     status: Dict[str, Any] = {
         "available": False,
         "pendingOrders": 0,
+        "startupSync": {
+            "required": False,
+            "completed": True,
+            "status": "not_required",
+        },
     }
     try:
         from src.api import server as api_server
@@ -3196,10 +3206,20 @@ def _runtime_execution_status() -> Dict[str, Any]:
         if hasattr(execution_manager, "get_pending_orders"):
             pending_orders = list(execution_manager.get_pending_orders() or [])
 
+        startup_sync_status = status.get("startupSync")
+        if hasattr(execution_manager, "get_startup_sync_status"):
+            candidate = execution_manager.get_startup_sync_status()
+            if isinstance(candidate, dict):
+                startup_sync_status = {
+                    **(startup_sync_status or {}),
+                    **candidate,
+                }
+
         status.update(
             {
                 "available": True,
                 "pendingOrders": len(pending_orders),
+                "startupSync": startup_sync_status,
             }
         )
     except Exception as exc:
@@ -4176,6 +4196,7 @@ async def get_migration_control_center():
     celery_backlog = await _run_blocking(_celery_queue_backlog_snapshot)
     scheduler_status = await _run_blocking(_runtime_scheduler_status)
     execution_status = await _run_blocking(_runtime_execution_status)
+    quota_snapshots = list_quota_usage_snapshots(limit=5)
 
     websocket_queue = {
         "depth": int(ws_health.get("queueDepth") or 0),
@@ -4195,11 +4216,76 @@ async def get_migration_control_center():
             "websocket": websocket_queue,
         },
         "websocketBackplane": ws_health.get("backplane", {}),
+        "quotaUsage": {
+            "trackedUsers": len(quota_snapshots),
+            "topUsers": quota_snapshots,
+        },
         "runtime": {
             "scheduler": scheduler_status,
             "execution": execution_status,
             "brokerConnection": broker_connection,
         },
+    }
+
+
+@router.get("/system/quota/usage")
+async def get_quota_usage(
+    request: Request,
+    scope: str = "self",
+    user: Optional[str] = None,
+    limit: int = 100,
+):
+    """Read quota usage counters for authenticated user (or all users for admins)."""
+    session_context = _require_role_operation(
+        request,
+        "Quota usage read",
+        allowed_roles=_parse_csv_set(
+            os.getenv(
+                "AUTOSAHAM_ROLE_QUOTA_READ_ROLES",
+                "viewer,trader,developer,admin",
+            )
+        ),
+    )
+
+    requester = str(session_context.get("username") or "").strip().lower() or "anonymous"
+    requester_role = str(session_context.get("role") or "viewer").strip().lower()
+    requester_tier = resolve_tier_from_role(requester_role)
+    admin_session = _is_admin_session(session_context)
+
+    normalized_scope = str(scope or "self").strip().lower()
+    requested_user = str(user or "").strip().lower()
+
+    if normalized_scope == "all":
+        if not admin_session:
+            raise HTTPException(
+                status_code=403,
+                detail="Quota all-users view requires admin role.",
+            )
+
+        safe_limit = max(1, min(5000, int(limit)))
+        snapshots = list_quota_usage_snapshots(limit=safe_limit)
+        return {
+            "status": "ok",
+            "scope": "all",
+            "total": len(snapshots),
+            "usage": snapshots,
+        }
+
+    target_user = requested_user or requester
+    if target_user != requester and not admin_session:
+        raise HTTPException(
+            status_code=403,
+            detail="Quota self view can only access your own usage.",
+        )
+
+    snapshot = get_quota_usage_snapshot(
+        target_user,
+        fallback_tier=requester_tier,
+    )
+    return {
+        "status": "ok",
+        "scope": "self",
+        "usage": snapshot,
     }
 
 

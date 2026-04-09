@@ -142,6 +142,22 @@ class ApiService {
     return this.request(`/api/system/execution/pending-orders?limit=${safeLimit}`);
   }
 
+  async getQuotaUsage(scope = 'self', options = {}) {
+    const normalizedScope = String(scope || 'self').trim().toLowerCase() === 'all' ? 'all' : 'self';
+    const safeLimit = Math.max(1, Math.min(5000, Number(options?.limit) || 100));
+    const safeUser = String(options?.user || '').trim();
+
+    const query = new URLSearchParams({
+      scope: normalizedScope,
+      limit: String(safeLimit),
+    });
+    if (safeUser) {
+      query.set('user', safeUser);
+    }
+
+    return this.request(`/api/system/quota/usage?${query.toString()}`);
+  }
+
   async submitExecutionOrder(payload) {
     return this.request('/api/system/execution/orders', {
       method: 'POST',

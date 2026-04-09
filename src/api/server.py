@@ -35,6 +35,7 @@ if FASTAPI_AVAILABLE:
 
     from src.alerts.webhook import send_alert_webhook
     from src.api.event_queue import pop_events
+    from src.api.quota_usage import record_request, resolve_tier_from_role
     from src.monitoring import metrics as monitoring
     from src.pipeline.persistence import read_etl_runs
     from src.pipeline.runner import AutonomousPipeline
@@ -129,6 +130,38 @@ if FASTAPI_AVAILABLE:
         expose_headers=["Set-Cookie"],             # Expose cookie header
     )
 
+    @app.middleware("http")
+    async def _quota_usage_middleware(request: Request, call_next):
+        response = await call_next(request)
+
+        try:
+            request_path = str(request.url.path or "")
+            if request_path == "/metrics":
+                return response
+
+            token = str(request.cookies.get("auth_token") or "").strip()
+            session_context = get_session_context(token) if token else None
+
+            username = (
+                str((session_context or {}).get("username") or "").strip().lower()
+                or "anonymous"
+            )
+            role = str((session_context or {}).get("role") or "viewer").strip().lower()
+            tier = resolve_tier_from_role(role)
+
+            record_request(
+                username=username,
+                tier=tier,
+                path=request_path,
+                method=request.method,
+                status_code=int(response.status_code),
+            )
+        except Exception:
+            # Observability path should never break normal API flow.
+            pass
+
+        return response
+
     # single shared pipeline instance for the server
     pipeline = AutonomousPipeline()
     _scheduler: Optional[PipelineScheduler] = None
@@ -146,8 +179,12 @@ if FASTAPI_AVAILABLE:
 
     try:
         starting_cash = float(os.getenv("PAPER_STARTING_CASH", "100000000"))
+        require_startup_sync = str(
+            os.getenv("AUTOSAHAM_EXECUTION_REQUIRE_STARTUP_SYNC", "1")
+        ).strip().lower() in {"1", "true", "yes", "on"}
         _execution_manager = ExecutionManager(
-            broker=PaperBrokerAdapter(starting_cash=starting_cash)
+            broker=PaperBrokerAdapter(starting_cash=starting_cash),
+            require_startup_sync=require_startup_sync,
         )
     except Exception:
         _execution_manager = None
@@ -1165,7 +1202,7 @@ if FASTAPI_AVAILABLE:
         
         Uses REAL IDX market data (Bursa Efek Indonesia) by default.
         """
-        global market_service, ml_service
+        global market_service, ml_service, _execution_manager
         
         # Initialize test user for demo purposes
         try:
@@ -1176,6 +1213,39 @@ if FASTAPI_AVAILABLE:
                 print("[Startup] Created test user: demo / demo123")
         except Exception as e:
             print(f"[Startup] Warning: Could not create test user: {e}")
+
+        try:
+            if _execution_manager is not None and hasattr(
+                _execution_manager,
+                "sync_open_orders_on_startup",
+            ):
+                sync_limit = max(
+                    1,
+                    min(
+                        5000,
+                        int(
+                            os.getenv(
+                                "AUTOSAHAM_EXECUTION_STARTUP_SYNC_LIMIT",
+                                "500",
+                            )
+                        ),
+                    ),
+                )
+                sync_report = _execution_manager.sync_open_orders_on_startup(
+                    limit=sync_limit
+                )
+
+                try:
+                    _runtime_state_store.append_ai_log(
+                        level="info",
+                        event_type="execution_startup_sync",
+                        message="Execution startup sync completed.",
+                        payload=sync_report,
+                    )
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"[Startup] Warning: execution startup sync failed: {e}")
         
         try:
             import os

@@ -418,6 +418,58 @@
   font-weight: 600;
 }
 
+/* ===== QUOTA USAGE CARD ===== */
+.quota-usage-card {
+  grid-column: span 1;
+}
+
+.quota-tier {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #bfdbfe;
+  background: rgba(59, 130, 246, 0.2);
+  margin-bottom: 0.9rem;
+}
+
+.quota-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.9rem;
+}
+
+.quota-item {
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: rgba(100, 116, 139, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.quota-item label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  font-weight: 600;
+}
+
+.quota-item .value {
+  margin-top: 0.35rem;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.quota-item small {
+  display: block;
+  margin-top: 0.3rem;
+  color: #cbd5e1;
+}
+
 /* ===== SIGNALS CARD ===== */
 .signals-card {
   grid-column: 1 / -1;

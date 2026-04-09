@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 // Enhanced Components
 import NavbarEnhanced from './components/NavbarEnhanced'
 import SidebarEnhanced from './components/SidebarEnhanced'
@@ -42,6 +42,9 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [authPage, setAuthPage] = useState('login') // 'login', 'register', 'forgot-password'
   const [isInitializing, setIsInitializing] = useState(true)
+  const [connectionHardBlocked, setConnectionHardBlocked] = useState(false)
+  const [connectionBlockReason, setConnectionBlockReason] = useState('')
+  const connectionGraceTimeoutRef = useRef(null)
   const [themePreference, setThemePreference] = useState(() => {
     if (typeof window === 'undefined') return 'auto'
     return localStorage.getItem('autosaham.theme') || 'auto'
@@ -190,13 +193,108 @@ export default function App() {
 
   // Start market feed once after mount and clean up on unmount.
   useEffect(() => {
+    if (!user) {
+      if (connectionGraceTimeoutRef.current !== null) {
+        window.clearTimeout(connectionGraceTimeoutRef.current)
+        connectionGraceTimeoutRef.current = null
+      }
+      setConnectionHardBlocked(false)
+      setConnectionBlockReason('')
+      return undefined
+    }
+
+    let marketFeedConnected = false
+
+    const clearGraceTimeout = () => {
+      if (connectionGraceTimeoutRef.current !== null) {
+        window.clearTimeout(connectionGraceTimeoutRef.current)
+        connectionGraceTimeoutRef.current = null
+      }
+    }
+
+    const blockTradingUi = (reason) => {
+      setConnectionHardBlocked(true)
+      setConnectionBlockReason(reason)
+    }
+
+    const unblockTradingUi = () => {
+      setConnectionHardBlocked(false)
+      setConnectionBlockReason('')
+    }
+
+    const scheduleDisconnectedBlock = (reason) => {
+      clearGraceTimeout()
+      connectionGraceTimeoutRef.current = window.setTimeout(() => {
+        if (!marketFeedConnected && window.navigator.onLine) {
+          blockTradingUi(reason)
+        }
+      }, 2000)
+    }
+
+    const handleOffline = () => {
+      clearGraceTimeout()
+      blockTradingUi('Koneksi internet terputus. Semua aksi trading diblokir.')
+    }
+
+    const handleOnline = () => {
+      if (marketFeedConnected) {
+        unblockTradingUi()
+        return
+      }
+
+      scheduleDisconnectedBlock('WebSocket market data belum terhubung lebih dari 2 detik. Semua aksi trading diblokir.')
+    }
+
+    const handleMarketFeedStatus = (event) => {
+      const status = String(event?.detail?.status || '').trim().toLowerCase()
+      if (status === 'connected') {
+        marketFeedConnected = true
+        clearGraceTimeout()
+        unblockTradingUi()
+        return
+      }
+
+      if (status === 'disconnected') {
+        marketFeedConnected = false
+        if (!window.navigator.onLine) {
+          blockTradingUi('Koneksi internet terputus. Semua aksi trading diblokir.')
+          return
+        }
+
+        scheduleDisconnectedBlock('WebSocket market data terputus lebih dari 2 detik. Semua aksi trading diblokir.')
+      }
+    }
+
+    window.addEventListener('offline', handleOffline)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('autosaham:market-feed-status', handleMarketFeedStatus)
+
+    if (!window.navigator.onLine) {
+      handleOffline()
+    } else {
+      scheduleDisconnectedBlock('WebSocket market data belum terhubung lebih dari 2 detik. Semua aksi trading diblokir.')
+    }
+
+    return () => {
+      clearGraceTimeout()
+      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('autosaham:market-feed-status', handleMarketFeedStatus)
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (!user) {
+      return undefined
+    }
+
     const stopFeed = startMarketFeed()
     return () => {
       if (typeof stopFeed === 'function') {
         stopFeed()
       }
     }
-  }, [])
+  }, [user])
 
   // Handle login with toast notification
   const handleLogin = (username) => {
@@ -283,6 +381,16 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div className="app-container" style={cssVariables} data-theme={darkMode ? 'dark' : 'light'}>
+        {connectionHardBlocked && (
+          <div className="connection-hard-block-overlay" role="alert" aria-live="assertive">
+            <div className="connection-hard-block-card">
+              <h2>Koneksi Terputus</h2>
+              <p>{connectionBlockReason || 'Koneksi market tidak stabil. Semua aksi trading diblokir untuk mencegah ghost orders.'}</p>
+              <p className="connection-hard-block-hint">Pastikan koneksi internet dan websocket kembali normal sebelum melanjutkan trading.</p>
+            </div>
+          </div>
+        )}
+
         {/* Enhanced Navigation Bar */}
         <NavbarEnhanced
           user={user}

@@ -272,6 +272,70 @@ function ExecutionQueueWidget() {
   )
 }
 
+function QuotaUsageWidget() {
+  const [snapshot, setSnapshot] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+
+    const loadQuotaUsage = async () => {
+      try {
+        const data = await apiService.getQuotaUsage('self')
+        if (active) {
+          setSnapshot(data)
+        }
+      } catch (error) {
+        if (active) {
+          console.error('Failed to load quota usage:', error)
+        }
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadQuotaUsage()
+    const interval = setInterval(loadQuotaUsage, 15000)
+
+    return () => {
+      active = false
+      clearInterval(interval)
+    }
+  }, [])
+
+  if (loading) {
+    return <CardSkeleton />
+  }
+
+  const usage = snapshot?.usage || {}
+  const requests = usage.requests || {}
+  const limits = usage.limits || {}
+  const utilization = usage.utilizationPercent || {}
+  const tier = String(usage.tier || 'free').toUpperCase()
+
+  return (
+    <div className="card quota-usage-card">
+      <h2>API Quota Usage</h2>
+      <div className="quota-tier">Tier: {tier}</div>
+
+      <div className="quota-grid">
+        <div className="quota-item">
+          <label>Last Minute</label>
+          <div className="value">{requests.lastMinute || 0} / {limits.perMinute || 0}</div>
+          <small>{(utilization.minute || 0).toFixed(2)}%</small>
+        </div>
+        <div className="quota-item">
+          <label>Last Hour</label>
+          <div className="value">{requests.lastHour || 0} / {limits.perHour || 0}</div>
+          <small>{(utilization.hour || 0).toFixed(2)}%</small>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function TopSignalsWidget() {
   const [signals, setSignals] = useState([])
   const [loading, setLoading] = useState(true)
@@ -448,6 +512,10 @@ export default function DashboardPage({ onNavigate }) {
 
         <div className="grid-item">
           <ExecutionQueueWidget />
+        </div>
+
+        <div className="grid-item">
+          <QuotaUsageWidget />
         </div>
 
         <div className="grid-item span-full">
