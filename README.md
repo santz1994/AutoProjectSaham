@@ -347,6 +347,11 @@ Variabel penting:
 - Auth session:
   - AUTH_TTL_SECONDS (default: 86400)
   - AUTH_REMEMBER_ME_TTL_SECONDS (default: 2592000)
+  - AUTOSAHAM_LOGIN_2FA_ENABLED (default: 0)
+  - AUTOSAHAM_LOGIN_2FA_REQUIRED_ROLES (default: admin)
+  - AUTOSAHAM_LOGIN_2FA_TOTP_SECRET (global TOTP Base32 secret)
+  - AUTOSAHAM_LOGIN_2FA_TOTP_SECRET_<USERNAME> (opsional secret per user)
+  - AUTOSAHAM_LOGIN_2FA_CODE (fallback static code)
 - Kill switch auth hardening:
   - AUTOSAHAM_KILL_SWITCH_REQUIRE_ADMIN (default: aktif pada ENV=prod/production)
   - AUTOSAHAM_KILL_SWITCH_ADMIN_USERS (default: admin)
@@ -356,8 +361,13 @@ Variabel penting:
   - AUTOSAHAM_KILL_SWITCH_2FA_CODE (fallback static challenge code untuk environment terbatas)
 - Authz/CSRF guard endpoint mutating:
   - AUTOSAHAM_ADMIN_GUARD_ENABLED (default: aktif pada ENV=prod/production)
+  - AUTOSAHAM_ADMIN_USERS (opsional allowlist username admin global)
   - AUTOSAHAM_ADMIN_ROLES (default: admin)
   - AUTOSAHAM_CSRF_PROTECTION_ENABLED (default: aktif pada ENV=prod/production)
+  - AUTOSAHAM_ROLE_GUARD_ENABLED (default: aktif pada ENV=prod/production)
+  - AUTOSAHAM_ROLE_STRATEGY_WRITE_ROLES (default: trader,developer)
+  - AUTOSAHAM_ROLE_SETTINGS_WRITE_ROLES (default: viewer,trader,developer)
+  - AUTOSAHAM_ROLE_AI_LOG_WRITE_ROLES (default: trader,developer)
 
 ## Docker and Observability
 
@@ -407,6 +417,8 @@ monitoring/        # Prometheus and alert configuration
 - Aktivasi kill switch kini juga mencoba cancel semua open order pada koneksi broker live yang didukung adapter (saat ini: indopremier, stockbit, ajaib) menggunakan kredensial terenkripsi di secure state; provider lain tetap fail-safe sebagai unsupported_provider.
 - Aktivasi/nonaktif kill switch kini mendukung guard admin session + challenge 2FA berbasis env flag (dengan kompatibilitas payload `actor` maupun `activatedBy` untuk klien lama).
 - Endpoint operasional mutating berisiko tinggi (bot control, broker connect/disconnect, state migration, broker feature-flag update) kini mendukung guard admin session + double-submit CSRF token berbasis env flag.
+- Endpoint mutating strategi/profile/log AI kini mendukung role-guard granular berbasis env (trader/developer/admin) dengan admin override dan validasi CSRF saat guard diaktifkan.
+- Login kini mendukung challenge two-factor authentication (2FA) untuk role yang dikonfigurasi (TOTP atau fallback static code), di samping opsi rememberMe TTL session.
 - ETL historis mendukung corporate action backward adjustment berbasis file JSON (jika AUTOSAHAM_CORPORATE_ACTIONS_FILE dikonfigurasi) untuk membantu menjaga kontinuitas fitur ML saat stock split/dividen terjadi.
 
 ## Kontribusi

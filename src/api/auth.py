@@ -7,7 +7,9 @@ database-backed identity provider and external reset email delivery.
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
+import hmac
 import json
 import os
 import secrets
@@ -20,6 +22,124 @@ _SESSIONS: Dict[str, Dict[str, Any]] = {}
 _RESET_TOKENS: Dict[str, Dict[str, Any]] = {}
 _DEFAULT_ROLE = "trader"
 _VALID_ROLES = {"admin", "trader", "viewer", "developer"}
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    raw = str(os.getenv(name, "")).strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _parse_csv_set(value: Any) -> set[str]:
+    return {
+        item.strip().lower()
+        for item in str(value or "").split(",")
+        if item.strip()
+    }
+
+
+def _coerce_bool(value: Any, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return bool(value)
+
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off", ""}:
+        return False
+    return default
+
+
+def _normalize_totp_secret(value: Any) -> str:
+    return "".join(str(value or "").strip().split()).upper()
+
+
+def _totp_code_at(
+    secret: str,
+    timestamp: int,
+    *,
+    step_seconds: int = 30,
+    digits: int = 6,
+) -> Optional[str]:
+    normalized_secret = _normalize_totp_secret(secret)
+    if not normalized_secret:
+        return None
+
+    try:
+        secret_bytes = base64.b32decode(normalized_secret, casefold=True)
+    except (binascii.Error, ValueError, TypeError):
+        return None
+
+    step = max(1, int(step_seconds))
+    counter = int(timestamp // step)
+    msg = counter.to_bytes(8, "big")
+    digest = hmac.new(secret_bytes, msg, hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+
+    binary_code = (
+        ((digest[offset] & 0x7F) << 24)
+        | (digest[offset + 1] << 16)
+        | (digest[offset + 2] << 8)
+        | digest[offset + 3]
+    )
+
+    modulus = 10 ** max(1, int(digits))
+    return str(binary_code % modulus).zfill(max(1, int(digits)))
+
+
+def _verify_totp_code(
+    secret: str,
+    code: str,
+    *,
+    step_seconds: int = 30,
+    window: int = 1,
+) -> bool:
+    normalized_code = str(code or "").strip()
+    if not normalized_code or not normalized_code.isdigit():
+        return False
+
+    now_ts = int(time.time())
+    valid_window = max(0, int(window))
+    for drift in range(-valid_window, valid_window + 1):
+        current_ts = now_ts + drift * int(step_seconds)
+        expected = _totp_code_at(
+            secret,
+            current_ts,
+            step_seconds=step_seconds,
+            digits=len(normalized_code),
+        )
+        if expected and hmac.compare_digest(expected, normalized_code):
+            return True
+
+    return False
+
+
+def _resolve_login_2fa_totp_secret(username: str, user_record: Dict[str, Any]) -> str:
+    user_secret = _normalize_totp_secret(user_record.get("twoFactorSecret"))
+    if user_secret:
+        return user_secret
+
+    normalized_username = "".join(
+        char if str(char).isalnum() else "_"
+        for char in str(username or "").strip().upper()
+    )
+    if normalized_username:
+        user_secret_env = _normalize_totp_secret(
+            os.getenv(f"AUTOSAHAM_LOGIN_2FA_TOTP_SECRET_{normalized_username}", "")
+        )
+        if user_secret_env:
+            return user_secret_env
+
+    return _normalize_totp_secret(os.getenv("AUTOSAHAM_LOGIN_2FA_TOTP_SECRET", ""))
+
+
+def _resolve_login_2fa_fallback_code() -> str:
+    return str(os.getenv("AUTOSAHAM_LOGIN_2FA_CODE", "")).strip()
 
 
 def _ensure_users_file() -> None:
@@ -47,6 +167,8 @@ def _normalize_user_record(payload: Any, username: Optional[str] = None) -> Dict
             "email": None,
             "createdAt": None,
             "role": _normalize_role(None, username=username),
+            "twoFactorEnabled": False,
+            "twoFactorSecret": None,
         }
 
     if isinstance(payload, dict):
@@ -54,11 +176,18 @@ def _normalize_user_record(payload: Any, username: Optional[str] = None) -> Dict
         email = str(payload.get("email") or "").strip().lower() or None
         created_at = str(payload.get("createdAt") or "").strip() or None
         role = _normalize_role(payload.get("role"), username=username)
+        two_factor_secret = _normalize_totp_secret(payload.get("twoFactorSecret"))
+        two_factor_enabled = _coerce_bool(
+            payload.get("twoFactorEnabled"),
+            default=bool(two_factor_secret),
+        )
         return {
             "password": password,
             "email": email,
             "createdAt": created_at,
             "role": role,
+            "twoFactorEnabled": two_factor_enabled,
+            "twoFactorSecret": two_factor_secret or None,
         }
 
     return {
@@ -66,6 +195,8 @@ def _normalize_user_record(payload: Any, username: Optional[str] = None) -> Dict
         "email": None,
         "createdAt": None,
         "role": _normalize_role(None, username=username),
+        "twoFactorEnabled": False,
+        "twoFactorSecret": None,
     }
 
 
@@ -120,6 +251,8 @@ def _save_users(users: Dict[str, Dict[str, Any]]) -> None:
             "email": str(record.get("email") or "").strip().lower() or None,
             "createdAt": str(record.get("createdAt") or "").strip() or None,
             "role": _normalize_role(record.get("role"), username=username),
+            "twoFactorEnabled": _coerce_bool(record.get("twoFactorEnabled"), default=False),
+            "twoFactorSecret": _normalize_totp_secret(record.get("twoFactorSecret")) or None,
         }
         for username, record in users.items()
     }
@@ -172,8 +305,80 @@ def register_user(
         "email": normalized_email,
         "createdAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "role": _normalize_role(role, username=normalized_username),
+        "twoFactorEnabled": False,
+        "twoFactorSecret": None,
     }
     _save_users(users)
+
+
+def is_valid_user_password(username: str, password: str) -> bool:
+    users = _load_users()
+    user_record = users.get(str(username or "").strip())
+    if not user_record:
+        return False
+
+    stored_hash = str(user_record.get("password") or "")
+    if not stored_hash:
+        return False
+
+    return _verify_password(str(password or ""), stored_hash)
+
+
+def is_login_2fa_required(username: str) -> bool:
+    normalized_username = str(username or "").strip()
+    if not normalized_username:
+        return False
+
+    users = _load_users()
+    user_record = users.get(normalized_username)
+    if not user_record:
+        return False
+
+    if _coerce_bool(user_record.get("twoFactorEnabled"), default=False):
+        return True
+
+    if not _env_flag("AUTOSAHAM_LOGIN_2FA_ENABLED", False):
+        return False
+
+    required_roles = _parse_csv_set(
+        os.getenv("AUTOSAHAM_LOGIN_2FA_REQUIRED_ROLES", "admin")
+    )
+    if not required_roles:
+        required_roles = {"admin"}
+
+    role = _normalize_role(user_record.get("role"), username=normalized_username)
+    return role in required_roles
+
+
+def is_login_2fa_configured(username: str) -> bool:
+    normalized_username = str(username or "").strip()
+    if not normalized_username:
+        return False
+
+    users = _load_users()
+    user_record = users.get(normalized_username) or {}
+    totp_secret = _resolve_login_2fa_totp_secret(normalized_username, user_record)
+    fallback_code = _resolve_login_2fa_fallback_code()
+    return bool(totp_secret or fallback_code)
+
+
+def verify_login_2fa_code(username: str, code: str) -> bool:
+    normalized_username = str(username or "").strip()
+    normalized_code = str(code or "").strip()
+    if not normalized_username or not normalized_code:
+        return False
+
+    users = _load_users()
+    user_record = users.get(normalized_username) or {}
+    totp_secret = _resolve_login_2fa_totp_secret(normalized_username, user_record)
+    if totp_secret:
+        return _verify_totp_code(totp_secret, normalized_code)
+
+    fallback_code = _resolve_login_2fa_fallback_code()
+    if fallback_code:
+        return hmac.compare_digest(fallback_code, normalized_code)
+
+    return False
 
 
 def get_user_role(username: str) -> str:

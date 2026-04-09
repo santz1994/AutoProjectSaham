@@ -26,6 +26,7 @@ def _login(
     username: str,
     password: str = "demo123",
     remember_me: bool = False,
+    two_factor_code: str = "",
 ):
     return client.post(
         "/auth/login",
@@ -33,6 +34,7 @@ def _login(
             "username": username,
             "password": password,
             "rememberMe": bool(remember_me),
+            **({"twoFactorCode": two_factor_code} if str(two_factor_code).strip() else {}),
         },
     )
 
@@ -119,3 +121,37 @@ def test_admin_guard_and_csrf_protect_bot_start(monkeypatch, client: TestClient)
     )
     assert ok_response.status_code == 200
     assert ok_response.json().get("status") == "started"
+
+
+def test_login_requires_two_factor_for_configured_roles(monkeypatch, client: TestClient):
+    monkeypatch.setenv("AUTOSAHAM_LOGIN_2FA_ENABLED", "true")
+    monkeypatch.setenv("AUTOSAHAM_LOGIN_2FA_REQUIRED_ROLES", "trader")
+    monkeypatch.setenv("AUTOSAHAM_LOGIN_2FA_CODE", "135790")
+
+    username = f"auth_user_{uuid.uuid4().hex[:8]}"
+    _register(client, username)
+
+    missing_code = _login(client, username)
+    assert missing_code.status_code == 401
+    assert missing_code.json().get("detail") == "two_factor_required"
+
+    invalid_code = _login(client, username, two_factor_code="000000")
+    assert invalid_code.status_code == 401
+    assert invalid_code.json().get("detail") == "invalid_two_factor_code"
+
+    valid_code = _login(client, username, two_factor_code="135790")
+    assert valid_code.status_code == 200
+
+
+def test_login_two_factor_required_but_not_configured(monkeypatch, client: TestClient):
+    monkeypatch.setenv("AUTOSAHAM_LOGIN_2FA_ENABLED", "true")
+    monkeypatch.setenv("AUTOSAHAM_LOGIN_2FA_REQUIRED_ROLES", "trader")
+    monkeypatch.delenv("AUTOSAHAM_LOGIN_2FA_CODE", raising=False)
+    monkeypatch.delenv("AUTOSAHAM_LOGIN_2FA_TOTP_SECRET", raising=False)
+
+    username = f"auth_user_{uuid.uuid4().hex[:8]}"
+    _register(client, username)
+
+    response = _login(client, username)
+    assert response.status_code == 503
+    assert response.json().get("detail") == "two_factor_not_configured"

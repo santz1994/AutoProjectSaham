@@ -2863,9 +2863,11 @@ def _is_admin_session(session_context: Optional[Dict[str, Any]]) -> bool:
     session_user = str(session_context.get("username") or "").strip().lower()
     session_role = str(session_context.get("role") or "").strip().lower()
 
-    admin_users = _parse_csv_set(
-        os.getenv("AUTOSAHAM_KILL_SWITCH_ADMIN_USERS", "admin")
-    )
+    admin_users = _parse_csv_set(os.getenv("AUTOSAHAM_ADMIN_USERS", ""))
+    if not admin_users:
+        admin_users = _parse_csv_set(
+            os.getenv("AUTOSAHAM_KILL_SWITCH_ADMIN_USERS", "admin")
+        )
     if not admin_users:
         admin_users = {"admin"}
 
@@ -2908,6 +2910,55 @@ def _require_admin_operation(request: Optional[Request], operation: str) -> Dict
         raise HTTPException(
             status_code=403,
             detail=f"{operation} requires admin role.",
+        )
+
+    return session_context
+
+
+def _require_role_operation(
+    request: Optional[Request],
+    operation: str,
+    *,
+    allowed_roles: set[str],
+    allow_admin_override: bool = True,
+) -> Dict[str, Any]:
+    require_role_default = str(os.getenv("ENV", "")).strip().lower() in {
+        "prod",
+        "production",
+    }
+    require_role_guard = _env_flag(
+        "AUTOSAHAM_ROLE_GUARD_ENABLED",
+        require_role_default,
+    )
+
+    session_context = _assert_csrf_guard(
+        request,
+        operation,
+        require_authenticated=require_role_guard,
+    )
+
+    if not require_role_guard:
+        return session_context or {
+            "username": "api",
+            "role": "system",
+            "csrfToken": "",
+        }
+
+    if not session_context:
+        raise HTTPException(
+            status_code=401,
+            detail=f"{operation} requires authenticated session.",
+        )
+
+    if allow_admin_override and _is_admin_session(session_context):
+        return session_context
+
+    normalized_allowed = {str(role).strip().lower() for role in allowed_roles if str(role).strip()}
+    session_role = str(session_context.get("role") or "").strip().lower()
+    if session_role not in normalized_allowed:
+        raise HTTPException(
+            status_code=403,
+            detail=f"{operation} requires one of roles: {', '.join(sorted(normalized_allowed))}",
         )
 
     return session_context
@@ -3714,8 +3765,15 @@ async def get_strategies():
 
 
 @router.post("/strategies/{strategy_id}/deploy")
-async def deploy_strategy(strategy_id: int):
+async def deploy_strategy(strategy_id: int, request: Request):
     """Activate a strategy for execution workflow."""
+    _require_role_operation(
+        request,
+        "Strategy deploy",
+        allowed_roles=_parse_csv_set(
+            os.getenv("AUTOSAHAM_ROLE_STRATEGY_WRITE_ROLES", "trader,developer")
+        ),
+    )
     _assert_kill_switch_inactive("Strategy deploy")
 
     strategies = await get_strategies()
@@ -3764,8 +3822,19 @@ async def deploy_strategy(strategy_id: int):
 
 
 @router.post("/strategies/{strategy_id}/backtest")
-async def backtest_strategy(strategy_id: int, payload: Optional[Dict[str, Any]] = None):
+async def backtest_strategy(
+    strategy_id: int,
+    request: Request,
+    payload: Optional[Dict[str, Any]] = None,
+):
     """Queue a strategy backtest run and return execution metadata."""
+    _require_role_operation(
+        request,
+        "Strategy backtest",
+        allowed_roles=_parse_csv_set(
+            os.getenv("AUTOSAHAM_ROLE_STRATEGY_WRITE_ROLES", "trader,developer")
+        ),
+    )
     _assert_kill_switch_inactive("Strategy backtest")
 
     strategies = await get_strategies()
@@ -3847,12 +3916,20 @@ async def get_user_settings():
 
 
 @router.put("/user/settings")
-async def update_user_settings(payload: Dict[str, Any]):
+async def update_user_settings(payload: Dict[str, Any], request: Request):
     """Update user settings in encrypted SQLite storage.
 
     Accept partial payloads so profile/settings pages can update safely without
     resetting unrelated values to defaults.
     """
+    _require_role_operation(
+        request,
+        "User settings update",
+        allowed_roles=_parse_csv_set(
+            os.getenv("AUTOSAHAM_ROLE_SETTINGS_WRITE_ROLES", "viewer,trader,developer")
+        ),
+    )
+
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="Invalid settings payload")
 
@@ -3900,8 +3977,16 @@ async def update_user_settings(payload: Dict[str, Any]):
 
 
 @router.post("/ai/profile/reset")
-async def reset_ai_profile_override():
+async def reset_ai_profile_override(request: Request):
     """Reset AI strategy profile mode back to automatic regime routing."""
+    _require_role_operation(
+        request,
+        "AI profile reset",
+        allowed_roles=_parse_csv_set(
+            os.getenv("AUTOSAHAM_ROLE_STRATEGY_WRITE_ROLES", "trader,developer")
+        ),
+    )
+
     current_settings = _state_store.get_user_settings(_default_user_settings)
     saved_settings = _state_store.set_user_settings(
         {
@@ -4641,8 +4726,16 @@ async def get_ai_logs(limit: int = 100):
 
 
 @router.post("/ai/logs")
-async def create_ai_log(payload: AILogPayload):
+async def create_ai_log(payload: AILogPayload, request: Request):
     """Append an AI activity log entry."""
+    _require_role_operation(
+        request,
+        "AI logs write",
+        allowed_roles=_parse_csv_set(
+            os.getenv("AUTOSAHAM_ROLE_AI_LOG_WRITE_ROLES", "trader,developer")
+        ),
+    )
+
     return _state_store.append_ai_log(
         level=payload.level,
         event_type=payload.eventType,

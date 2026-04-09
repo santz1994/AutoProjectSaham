@@ -7,6 +7,8 @@ import './Auth.css'
 export default function Login({ onLogin, onSwitchToRegister, onSwitchToForgotPassword }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [twoFactorCode, setTwoFactorCode] = useState('')
+  const [requiresTwoFactor, setRequiresTwoFactor] = useState(false)
   const [error, setError] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
@@ -18,13 +20,23 @@ export default function Login({ onLogin, onSwitchToRegister, onSwitchToForgotPas
 
     try {
       // SECURITY FIX: Use AuthService which handles httpOnly cookies securely
-      const result = await AuthService.login(username, password, rememberMe)
+      const result = await AuthService.login(
+        username,
+        password,
+        rememberMe,
+        twoFactorCode,
+      )
       
       if (result.ok) {
         toast.success(`Welcome back, ${username}! 🎉`)
+        setRequiresTwoFactor(false)
+        setTwoFactorCode('')
         onLogin && onLogin(username)
         return
       } else {
+        if (result.twoFactorRequired) {
+          setRequiresTwoFactor(true)
+        }
         const errorMsg = result.error || 'Login failed'
         setError(errorMsg)
         toast.error(errorMsg)
@@ -77,6 +89,23 @@ export default function Login({ onLogin, onSwitchToRegister, onSwitchToForgotPas
               disabled={isLoading}
             />
           </div>
+
+          {requiresTwoFactor && (
+            <div className="form-group">
+              <label htmlFor="twoFactorCode">Two-Factor Code</label>
+              <input
+                id="twoFactorCode"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder="Enter 2FA code"
+                autoComplete="one-time-code"
+                value={twoFactorCode}
+                onChange={(e) => setTwoFactorCode(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+          )}
 
           <div className="form-checkbox">
             <input

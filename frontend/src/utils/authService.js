@@ -65,17 +65,46 @@ class AuthService {
    * @param {string} password 
    * @returns {Promise<{ok: boolean, error?: string}>}
    */
-  static async login(username, password, rememberMe = false) {
+  static async login(username, password, rememberMe = false, twoFactorCode = '') {
     try {
+      const normalizedCode = String(twoFactorCode || '').trim()
       const res = await fetch(`${getAPIBase()}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, rememberMe: Boolean(rememberMe) }),
+        body: JSON.stringify({
+          username,
+          password,
+          rememberMe: Boolean(rememberMe),
+          ...(normalizedCode ? { twoFactorCode: normalizedCode } : {}),
+        }),
         credentials: 'include', // Include & accept cookies
       })
       if (!res.ok) {
-        const error = await res.json()
-        return { ok: false, error: error.detail || 'Login failed' }
+        const error = await res.json().catch(() => ({ detail: 'Login failed' }))
+        const detail = String(error?.detail || 'Login failed')
+        if (detail === 'two_factor_required') {
+          return {
+            ok: false,
+            error: 'Two-factor code is required.',
+            twoFactorRequired: true,
+          }
+        }
+        if (detail === 'invalid_two_factor_code') {
+          return {
+            ok: false,
+            error: 'Invalid two-factor code.',
+            twoFactorRequired: true,
+          }
+        }
+        if (detail === 'two_factor_not_configured') {
+          return {
+            ok: false,
+            error: 'Two-factor authentication is required but not configured on server.',
+            twoFactorRequired: true,
+          }
+        }
+
+        return { ok: false, error: detail }
       }
       // Cookie is automatically set by browser; no token in JS
       return { ok: true }

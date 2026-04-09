@@ -401,3 +401,51 @@ def test_authorize_kill_switch_actor_accepts_valid_csrf_when_enabled(monkeypatch
     )
 
     assert actor == "ops-admin"
+
+
+def test_require_role_operation_blocks_viewer(monkeypatch):
+    monkeypatch.setenv("AUTOSAHAM_ROLE_GUARD_ENABLED", "true")
+    monkeypatch.setenv("AUTOSAHAM_CSRF_PROTECTION_ENABLED", "false")
+    monkeypatch.setattr(
+        frontend_routes,
+        "get_session_context",
+        lambda token: {
+            "username": "viewer-user",
+            "role": "viewer",
+            "csrfToken": "",
+        },
+    )
+
+    request = SimpleNamespace(cookies={"auth_token": "tok-1"}, headers={})
+    with pytest.raises(HTTPException) as exc:
+        frontend_routes._require_role_operation(
+            request,
+            "Strategy deploy",
+            allowed_roles={"trader", "developer"},
+        )
+
+    assert exc.value.status_code == 403
+
+
+def test_require_role_operation_allows_trader(monkeypatch):
+    monkeypatch.setenv("AUTOSAHAM_ROLE_GUARD_ENABLED", "true")
+    monkeypatch.setenv("AUTOSAHAM_CSRF_PROTECTION_ENABLED", "false")
+    monkeypatch.setattr(
+        frontend_routes,
+        "get_session_context",
+        lambda token: {
+            "username": "trader-user",
+            "role": "trader",
+            "csrfToken": "",
+        },
+    )
+
+    request = SimpleNamespace(cookies={"auth_token": "tok-1"}, headers={})
+    context = frontend_routes._require_role_operation(
+        request,
+        "Strategy deploy",
+        allowed_roles={"trader", "developer"},
+    )
+
+    assert context["username"] == "trader-user"
+    assert context["role"] == "trader"

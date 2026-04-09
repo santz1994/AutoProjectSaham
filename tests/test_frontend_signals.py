@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -415,7 +416,12 @@ def test_deploy_strategy_persists_manual_profile_override(monkeypatch):
         lambda **kwargs: captured["logs"].append(kwargs),
     )
 
-    response = asyncio.run(frontend_routes.deploy_strategy(2))
+    response = asyncio.run(
+        frontend_routes.deploy_strategy(
+            2,
+            request=SimpleNamespace(cookies={}, headers={}),
+        )
+    )
 
     assert response["activeProfile"] == "mean_reversion_swing"
     assert response["manualOverride"] is True
@@ -509,7 +515,8 @@ def test_update_user_settings_syncs_ai_profile_override(monkeypatch):
 
     saved = asyncio.run(
         frontend_routes.update_user_settings(
-            {"aiManualStrategyProfile": "defensive_rotation"}
+            {"aiManualStrategyProfile": "defensive_rotation"},
+            request=SimpleNamespace(cookies={}, headers={}),
         )
     )
 
@@ -562,7 +569,11 @@ def test_reset_ai_profile_override_switches_back_to_auto(monkeypatch):
         lambda **kwargs: captured["logs"].append(kwargs),
     )
 
-    payload = asyncio.run(frontend_routes.reset_ai_profile_override())
+    payload = asyncio.run(
+        frontend_routes.reset_ai_profile_override(
+            request=SimpleNamespace(cookies={}, headers={}),
+        )
+    )
 
     assert payload["success"] is True
     assert payload["mode"] == "auto"

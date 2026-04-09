@@ -43,6 +43,10 @@ if FASTAPI_AVAILABLE:
     from src.api.state_store import SecureAppStateStore
     from src.api.auth import (
         register_user,
+        is_valid_user_password,
+        is_login_2fa_required,
+        is_login_2fa_configured,
+        verify_login_2fa_code,
         authenticate_user,
         get_session_context,
         get_user_from_token,
@@ -326,6 +330,7 @@ if FASTAPI_AVAILABLE:
         username: str
         password: str
         rememberMe: Optional[bool] = False
+        twoFactorCode: Optional[str] = None
 
     class RegisterPayload(BaseModel):
         username: str
@@ -353,6 +358,23 @@ if FASTAPI_AVAILABLE:
 
     @app.post("/auth/login")
     async def auth_login(payload: UserPayload):
+        if not is_valid_user_password(payload.username, payload.password):
+            raise HTTPException(status_code=401, detail="invalid_credentials")
+
+        if is_login_2fa_required(payload.username):
+            if not is_login_2fa_configured(payload.username):
+                raise HTTPException(
+                    status_code=503,
+                    detail="two_factor_not_configured",
+                )
+
+            two_factor_code = str(payload.twoFactorCode or "").strip()
+            if not two_factor_code:
+                raise HTTPException(status_code=401, detail="two_factor_required")
+
+            if not verify_login_2fa_code(payload.username, two_factor_code):
+                raise HTTPException(status_code=401, detail="invalid_two_factor_code")
+
         default_ttl = int(os.getenv("AUTH_TTL_SECONDS", "86400"))
         remember_ttl = int(os.getenv("AUTH_REMEMBER_ME_TTL_SECONDS", "2592000"))
         session_ttl = remember_ttl if bool(payload.rememberMe) else default_ttl
