@@ -62,6 +62,16 @@ const AI_PROFILE_MODE_OPTIONS = [
   { value: 'defensive_rotation', label: 'Manual: Defensive Rotation' },
 ]
 
+const normalizeTwoFactorStatus = (payload = {}) => ({
+  enabled: Boolean(payload?.enabled),
+  required: Boolean(payload?.required),
+  policyRequired: Boolean(payload?.policyRequired),
+  configured: Boolean(payload?.configured),
+  hasUserSecret: Boolean(payload?.hasUserSecret),
+  enrollmentPending: Boolean(payload?.enrollmentPending),
+  method: String(payload?.method || 'none'),
+})
+
 export default function SettingsPage({
   onLogout,
   currentThemePreference = 'auto',
@@ -76,6 +86,12 @@ export default function SettingsPage({
   const [brokerConnection, setBrokerConnection] = useState(null)
   const [connectingBroker, setConnectingBroker] = useState(false)
   const [syncingAiProfileMode, setSyncingAiProfileMode] = useState(false)
+  const [twoFactorStatus, setTwoFactorStatus] = useState(normalizeTwoFactorStatus())
+  const [twoFactorCode, setTwoFactorCode] = useState('')
+  const [twoFactorSecret, setTwoFactorSecret] = useState('')
+  const [twoFactorOtpAuthUri, setTwoFactorOtpAuthUri] = useState('')
+  const [showTwoFactorSecret, setShowTwoFactorSecret] = useState(false)
+  const [twoFactorBusy, setTwoFactorBusy] = useState(false)
 
   const [showApiKey, setShowApiKey] = useState(false)
   const profileSectionRef = useRef(null)
@@ -103,17 +119,21 @@ export default function SettingsPage({
     const loadSettings = async () => {
       setLoading(true)
       try {
-        const [remoteSettings, brokers, connection, featureFlags] = await Promise.all([
+        const [remoteSettings, brokers, connection, featureFlags, twoFactorStatusRaw] = await Promise.all([
           apiService.getUserSettings().catch(() => null),
           apiService.getAvailableBrokers().catch(() => []),
           apiService.getBrokerConnection().catch(() => null),
           apiService.getBrokerFeatureFlags().catch(() => []),
+          apiService.getTwoFactorStatus().catch(() => null),
         ])
+
+        const twoFactorPayload = normalizeTwoFactorStatus(twoFactorStatusRaw)
 
         const merged = {
           ...defaultSettings,
           ...(remoteSettings || {}),
           theme: currentThemePreference || remoteSettings?.theme || defaultSettings.theme,
+          twoFactor: twoFactorPayload.enabled,
         }
 
         if (connection?.connected) {
@@ -141,6 +161,12 @@ export default function SettingsPage({
         setAvailableBrokers(safeBrokers)
         setBrokerFeatureFlags(flagsMap)
         setBrokerConnection(connection)
+        setTwoFactorStatus(twoFactorPayload)
+        if (twoFactorPayload.enabled) {
+          setTwoFactorSecret('')
+          setTwoFactorOtpAuthUri('')
+          setTwoFactorCode('')
+        }
       } catch (error) {
         const fallbackSettings = {
           ...defaultSettings,
@@ -153,6 +179,7 @@ export default function SettingsPage({
         setAvailableBrokers(fallbackBrokerProviders)
         setBrokerFeatureFlags({})
         setBrokerConnection(null)
+        setTwoFactorStatus(normalizeTwoFactorStatus())
       } finally {
         setLoading(false)
       }
@@ -204,10 +231,12 @@ export default function SettingsPage({
   const handleSave = async () => {
     setSaving(true)
     try {
-      const saved = await apiService.updateUserSettings(settings)
+      const { twoFactor, ...settingsPayload } = settings
+      const saved = await apiService.updateUserSettings(settingsPayload)
       const nextSettings = {
         ...settings,
         ...(saved || {}),
+        twoFactor: Boolean(twoFactorStatus.enabled),
       }
       syncThemePreference(nextSettings.theme)
       setSettings(nextSettings)
@@ -221,7 +250,10 @@ export default function SettingsPage({
   }
 
   const handleResetToDefaults = () => {
-    const resetSettings = { ...defaultSettings }
+    const resetSettings = {
+      ...defaultSettings,
+      twoFactor: Boolean(twoFactorStatus.enabled),
+    }
     setSettings(resetSettings)
     syncThemePreference(resetSettings.theme)
     toast.info('Settings reset to defaults. Click Save Changes to apply.')
@@ -346,6 +378,103 @@ export default function SettingsPage({
     }
   }
 
+  const refreshTwoFactorStatus = async () => {
+    const nextStatusRaw = await apiService.getTwoFactorStatus()
+    const nextStatus = normalizeTwoFactorStatus(nextStatusRaw)
+    setTwoFactorStatus(nextStatus)
+    setSettings((prev) => ({
+      ...prev,
+      twoFactor: nextStatus.enabled,
+    }))
+    setInitialSettings((prev) => ({
+      ...prev,
+      twoFactor: nextStatus.enabled,
+    }))
+
+    if (nextStatus.enabled) {
+      setTwoFactorSecret('')
+      setTwoFactorOtpAuthUri('')
+      setTwoFactorCode('')
+    }
+
+    return nextStatus
+  }
+
+  const handleStartTwoFactorEnrollment = async () => {
+    setTwoFactorBusy(true)
+    try {
+      const enrollment = await apiService.beginTwoFactorEnrollment()
+      setTwoFactorSecret(String(enrollment?.secret || ''))
+      setTwoFactorOtpAuthUri(String(enrollment?.otpauthUri || ''))
+      setShowTwoFactorSecret(false)
+      setTwoFactorCode('')
+      await refreshTwoFactorStatus()
+      toast.success('Two-factor setup initialized. Scan the secret and verify with a code.')
+    } catch (error) {
+      toast.error(`Failed to initialize two-factor setup: ${error.message}`)
+    } finally {
+      setTwoFactorBusy(false)
+    }
+  }
+
+  const handleVerifyTwoFactorEnrollment = async () => {
+    const code = String(twoFactorCode || '').trim()
+    if (!code) {
+      toast.error('Two-factor code is required to enable 2FA.')
+      return
+    }
+
+    setTwoFactorBusy(true)
+    try {
+      await apiService.verifyTwoFactorEnrollment(code)
+      await refreshTwoFactorStatus()
+      toast.success('Two-factor authentication enabled.')
+    } catch (error) {
+      toast.error(`Failed to verify two-factor code: ${error.message}`)
+    } finally {
+      setTwoFactorBusy(false)
+    }
+  }
+
+  const handleDisableTwoFactor = async () => {
+    const code = String(twoFactorCode || '').trim()
+    if (!code) {
+      toast.error('Current two-factor code is required to disable 2FA.')
+      return
+    }
+
+    setTwoFactorBusy(true)
+    try {
+      await apiService.disableTwoFactor(code)
+      await refreshTwoFactorStatus()
+      toast.info('Two-factor authentication disabled for this account.')
+    } catch (error) {
+      toast.error(`Failed to disable two-factor authentication: ${error.message}`)
+    } finally {
+      setTwoFactorBusy(false)
+    }
+  }
+
+  const handleCopyTwoFactorSecret = async () => {
+    const secret = String(twoFactorSecret || '').trim()
+    if (!secret) {
+      toast.error('No two-factor secret available to copy.')
+      return
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+      toast.error('Clipboard API is unavailable in this browser.')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(secret)
+      toast.success('Two-factor secret copied to clipboard.')
+    } catch (error) {
+      toast.error('Unable to copy secret to clipboard.')
+    }
+  }
+
   const handleLogout = async () => {
     try {
       const res = await AuthService.logout()
@@ -383,6 +512,10 @@ export default function SettingsPage({
   const aiProfileModeLabel = activeAiProfileMode === 'auto'
     ? 'Automatic (Regime Router)'
     : `Manual (${activeAiProfileMode})`
+  const twoFactorEnabled = Boolean(twoFactorStatus.enabled)
+  const hasEnrollmentMaterial = Boolean(
+    twoFactorSecret || twoFactorOtpAuthUri || twoFactorStatus.enrollmentPending
+  )
 
   return (
     <div className="settings-page">
@@ -910,18 +1043,116 @@ export default function SettingsPage({
       {/* Security Settings */}
       <div className="settings-section">
         <h2>🔐 Security</h2>
-        <div className="setting-item toggle">
+        <div className="setting-item">
           <div className="setting-label">
-            <span>Two-Factor Authentication</span>
-            <small>Add extra security to your account</small>
+            <span>Two-Factor Authentication (TOTP)</span>
+            <small>Use authenticator app code verification during login.</small>
           </div>
-          <button
-            className={`toggle-btn ${settings.twoFactor ? 'active' : ''}`}
-            onClick={() => handleToggle('twoFactor')}
-          >
-            <span className="toggle-indicator"></span>
-          </button>
+          <div className="setting-inline-actions">
+            <span className={`settings-mode-pill ${twoFactorEnabled ? 'manual' : 'auto'}`}>
+              {twoFactorEnabled ? 'ENABLED' : 'DISABLED'}
+            </span>
+            <button
+              className="btn-secondary"
+              onClick={handleStartTwoFactorEnrollment}
+              disabled={twoFactorBusy || saving}
+            >
+              {twoFactorBusy
+                ? 'Processing...'
+                : (twoFactorEnabled ? 'Rotate Setup Secret' : 'Start Setup')}
+            </button>
+          </div>
         </div>
+
+        {hasEnrollmentMaterial && !twoFactorEnabled && (
+          <>
+            <div className="setting-item">
+              <div className="setting-label">
+                <span>Provisioning Secret</span>
+                <small>Scan manually in Google Authenticator/Authy/1Password.</small>
+              </div>
+              <div className="api-container">
+                <input
+                  type={showTwoFactorSecret ? 'text' : 'password'}
+                  value={twoFactorSecret}
+                  readOnly
+                  className="setting-input api-key"
+                />
+                <button
+                  className="btn-icon"
+                  onClick={() => setShowTwoFactorSecret((prev) => !prev)}
+                  title="Toggle visibility"
+                >
+                  {showTwoFactorSecret ? '🙈' : '👁️'}
+                </button>
+                <button className="btn-secondary" onClick={handleCopyTwoFactorSecret}>
+                  Copy Secret
+                </button>
+              </div>
+            </div>
+
+            {twoFactorOtpAuthUri && (
+              <div className="setting-item">
+                <div className="setting-label">
+                  <span>OTP Auth URI</span>
+                  <small>Use this URI if your authenticator supports import links.</small>
+                </div>
+                <input
+                  type="text"
+                  value={twoFactorOtpAuthUri}
+                  readOnly
+                  className="setting-input"
+                />
+              </div>
+            )}
+          </>
+        )}
+
+        <div className="setting-item">
+          <div className="setting-label">
+            <span>{twoFactorEnabled ? 'Disable 2FA' : 'Enable 2FA'}</span>
+            <small>
+              {twoFactorEnabled
+                ? 'Enter current authenticator code to disable two-factor login.'
+                : 'Enter authenticator code to verify setup and enable two-factor login.'}
+            </small>
+          </div>
+          <div className="setting-inline-actions">
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="6-digit code"
+              value={twoFactorCode}
+              onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+              className="setting-input two-factor-code"
+              disabled={twoFactorBusy || saving}
+            />
+            {twoFactorEnabled ? (
+              <button
+                className="btn-danger"
+                onClick={handleDisableTwoFactor}
+                disabled={twoFactorBusy || saving || !String(twoFactorCode || '').trim()}
+              >
+                {twoFactorBusy ? 'Disabling...' : 'Disable 2FA'}
+              </button>
+            ) : (
+              <button
+                className="btn-primary"
+                onClick={handleVerifyTwoFactorEnrollment}
+                disabled={twoFactorBusy || saving || !String(twoFactorCode || '').trim()}
+              >
+                {twoFactorBusy ? 'Verifying...' : 'Verify & Enable'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {twoFactorStatus.policyRequired && (
+          <p className="settings-note two-factor-note">
+            Two-factor login is currently enforced by server policy for your role.
+          </p>
+        )}
       </div>
 
       {/* Action Buttons */}

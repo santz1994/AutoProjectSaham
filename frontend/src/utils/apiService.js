@@ -292,6 +292,30 @@ class ApiService {
     });
   }
 
+  async getTwoFactorStatus() {
+    return this.request('/auth/2fa/status');
+  }
+
+  async beginTwoFactorEnrollment() {
+    return this.request('/auth/2fa/enroll', {
+      method: 'POST',
+    });
+  }
+
+  async verifyTwoFactorEnrollment(code) {
+    return this.request('/auth/2fa/verify', {
+      method: 'POST',
+      body: JSON.stringify({ code: String(code || '').trim() }),
+    });
+  }
+
+  async disableTwoFactor(code) {
+    return this.request('/auth/2fa/disable', {
+      method: 'POST',
+      body: JSON.stringify({ code: String(code || '').trim() }),
+    });
+  }
+
   // ============ Broker Connection API ============
   async getAvailableBrokers() {
     return this.request('/api/brokers/available');

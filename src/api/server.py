@@ -22,6 +22,7 @@ except Exception:
 
 if FASTAPI_AVAILABLE:
     import asyncio
+    import hmac
     import os
     import traceback
     from time import time
@@ -47,6 +48,10 @@ if FASTAPI_AVAILABLE:
         is_login_2fa_required,
         is_login_2fa_configured,
         verify_login_2fa_code,
+        get_login_2fa_status,
+        begin_login_2fa_enrollment,
+        confirm_login_2fa_enrollment,
+        disable_login_2fa,
         authenticate_user,
         get_session_context,
         get_user_from_token,
@@ -158,6 +163,56 @@ if FASTAPI_AVAILABLE:
 
     def _celery_enabled() -> bool:
         return _env_flag("AUTOSAHAM_USE_CELERY", False)
+
+    def _csrf_guard_enabled() -> bool:
+        require_csrf_default = str(os.getenv("ENV", "")).strip().lower() in {
+            "prod",
+            "production",
+        }
+        return _env_flag("AUTOSAHAM_CSRF_PROTECTION_ENABLED", require_csrf_default)
+
+    def _require_authenticated_session(
+        request: Request,
+        operation: str,
+        *,
+        require_csrf: bool = False,
+    ) -> Dict[str, Any]:
+        token = str(request.cookies.get("auth_token") or "").strip()
+        session_context = get_session_context(token)
+        if not session_context:
+            raise HTTPException(
+                status_code=401,
+                detail=f"{operation} requires authenticated session.",
+            )
+
+        if require_csrf and _csrf_guard_enabled():
+            header_token = str(
+                request.headers.get("x-csrf-token")
+                or request.headers.get("x-xsrf-token")
+                or ""
+            ).strip()
+            cookie_token = str(request.cookies.get("csrf_token") or "").strip()
+            session_csrf = str(session_context.get("csrfToken") or "").strip()
+
+            if not header_token or not cookie_token:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"{operation} blocked: missing CSRF token.",
+                )
+
+            if not hmac.compare_digest(header_token, cookie_token):
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"{operation} blocked: CSRF token mismatch.",
+                )
+
+            if session_csrf and not hmac.compare_digest(header_token, session_csrf):
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"{operation} blocked: invalid CSRF token.",
+                )
+
+        return session_context
 
     def _is_kill_switch_active() -> bool:
         try:
@@ -344,6 +399,9 @@ if FASTAPI_AVAILABLE:
         token: str
         newPassword: str
 
+    class TwoFactorCodePayload(BaseModel):
+        code: Optional[str] = None
+
     @app.post("/auth/register")
     async def auth_register(payload: RegisterPayload):
         try:
@@ -436,9 +494,100 @@ if FASTAPI_AVAILABLE:
             # Token invalid/expired - return 200 with empty response
             return JSONResponse(content={}, status_code=200)
 
+        username = str(context.get("username") or "").strip()
+        two_factor_status = get_login_2fa_status(username)
+
         return {
-            "username": context.get("username"),
+            "username": username,
             "role": context.get("role"),
+            "twoFactorEnabled": bool(two_factor_status.get("enabled")),
+            "twoFactorRequired": bool(two_factor_status.get("required")),
+        }
+
+    @app.get("/auth/2fa/status")
+    async def auth_two_factor_status(request: Request):
+        session_context = _require_authenticated_session(
+            request,
+            "Two-factor status",
+            require_csrf=False,
+        )
+        username = str(session_context.get("username") or "").strip()
+        return {
+            "status": "ok",
+            **get_login_2fa_status(username),
+        }
+
+    @app.post("/auth/2fa/enroll")
+    async def auth_two_factor_enroll(request: Request):
+        session_context = _require_authenticated_session(
+            request,
+            "Two-factor enrollment",
+            require_csrf=True,
+        )
+        username = str(session_context.get("username") or "").strip()
+        issuer = str(os.getenv("AUTOSAHAM_LOGIN_2FA_ISSUER", "AutoSaham")).strip() or "AutoSaham"
+
+        try:
+            enrollment = begin_login_2fa_enrollment(username, issuer=issuer)
+        except RuntimeError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        return {
+            "status": "pending_verification",
+            "secret": enrollment.get("secret"),
+            "otpauthUri": enrollment.get("otpauthUri"),
+            **get_login_2fa_status(username),
+        }
+
+    @app.post("/auth/2fa/verify")
+    async def auth_two_factor_verify(payload: TwoFactorCodePayload, request: Request):
+        session_context = _require_authenticated_session(
+            request,
+            "Two-factor verification",
+            require_csrf=True,
+        )
+        username = str(session_context.get("username") or "").strip()
+        code = str(payload.code or "").strip()
+        if not code:
+            raise HTTPException(status_code=400, detail="two_factor_code_required")
+
+        try:
+            valid = confirm_login_2fa_enrollment(username, code)
+        except RuntimeError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        if not valid:
+            raise HTTPException(status_code=401, detail="invalid_two_factor_code")
+
+        return {
+            "status": "enabled",
+            **get_login_2fa_status(username),
+        }
+
+    @app.post("/auth/2fa/disable")
+    async def auth_two_factor_disable(payload: TwoFactorCodePayload, request: Request):
+        session_context = _require_authenticated_session(
+            request,
+            "Two-factor disable",
+            require_csrf=True,
+        )
+        username = str(session_context.get("username") or "").strip()
+        code = str(payload.code or "").strip()
+
+        try:
+            disabled = disable_login_2fa(username, code)
+        except RuntimeError as e:
+            detail = str(e)
+            if detail == "two_factor_required_by_policy":
+                raise HTTPException(status_code=409, detail=detail)
+            raise HTTPException(status_code=400, detail=detail)
+
+        if not disabled:
+            raise HTTPException(status_code=401, detail="invalid_two_factor_code")
+
+        return {
+            "status": "disabled",
+            **get_login_2fa_status(username),
         }
 
     @app.post("/auth/logout")

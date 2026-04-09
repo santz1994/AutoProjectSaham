@@ -4,6 +4,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
+from src.api import auth as auth_module
 from src.api import server
 
 
@@ -48,6 +49,20 @@ def _cookie_expiry_epoch(response, cookie_name: str) -> int:
         if str(cookie.name) == cookie_name:
             return int(cookie.expires or 0)
     return 0
+
+
+def _csrf_headers(client: TestClient) -> dict:
+    csrf_token = client.cookies.get("csrf_token")
+    return {"X-CSRF-Token": csrf_token} if csrf_token else {}
+
+
+def _totp_now(secret: str) -> str:
+    now_ts = int(time.time())
+    for drift in (0, -30, 30):
+        code = auth_module._totp_code_at(secret, now_ts + drift)  # noqa: SLF001
+        if code:
+            return code
+    raise AssertionError("Unable to generate TOTP code for test")
 
 
 @pytest.fixture
@@ -155,3 +170,109 @@ def test_login_two_factor_required_but_not_configured(monkeypatch, client: TestC
     response = _login(client, username)
     assert response.status_code == 503
     assert response.json().get("detail") == "two_factor_not_configured"
+
+
+def test_two_factor_enrollment_status_enable_and_disable(monkeypatch, client: TestClient):
+    monkeypatch.setenv("AUTOSAHAM_CSRF_PROTECTION_ENABLED", "true")
+
+    username = f"auth_user_{uuid.uuid4().hex[:8]}"
+    _register(client, username)
+
+    login_response = _login(client, username)
+    assert login_response.status_code == 200
+
+    status_before = client.get("/auth/2fa/status")
+    assert status_before.status_code == 200
+    assert status_before.json().get("enabled") is False
+
+    enroll_response = client.post("/auth/2fa/enroll", headers=_csrf_headers(client))
+    assert enroll_response.status_code == 200
+    enroll_payload = enroll_response.json()
+    assert enroll_payload.get("status") == "pending_verification"
+    assert enroll_payload.get("secret")
+    assert "otpauth://" in str(enroll_payload.get("otpauthUri") or "")
+
+    secret = str(enroll_payload.get("secret"))
+    enable_response = client.post(
+        "/auth/2fa/verify",
+        json={"code": _totp_now(secret)},
+        headers=_csrf_headers(client),
+    )
+    assert enable_response.status_code == 200
+    assert enable_response.json().get("enabled") is True
+
+    missing_code_login = _login(client, username)
+    assert missing_code_login.status_code == 401
+    assert missing_code_login.json().get("detail") == "two_factor_required"
+
+    invalid_code_login = _login(client, username, two_factor_code="000000")
+    assert invalid_code_login.status_code == 401
+    assert invalid_code_login.json().get("detail") == "invalid_two_factor_code"
+
+    valid_code_login = _login(client, username, two_factor_code=_totp_now(secret))
+    assert valid_code_login.status_code == 200
+
+    disable_response = client.post(
+        "/auth/2fa/disable",
+        json={"code": _totp_now(secret)},
+        headers=_csrf_headers(client),
+    )
+    assert disable_response.status_code == 200
+    assert disable_response.json().get("enabled") is False
+
+    status_after = client.get("/auth/2fa/status")
+    assert status_after.status_code == 200
+    assert status_after.json().get("enabled") is False
+
+
+def test_two_factor_mutation_endpoints_require_csrf(monkeypatch, client: TestClient):
+    monkeypatch.setenv("AUTOSAHAM_CSRF_PROTECTION_ENABLED", "true")
+
+    username = f"auth_user_{uuid.uuid4().hex[:8]}"
+    _register(client, username)
+    login_response = _login(client, username)
+    assert login_response.status_code == 200
+
+    blocked = client.post("/auth/2fa/enroll")
+    assert blocked.status_code == 403
+
+    allowed = client.post("/auth/2fa/enroll", headers=_csrf_headers(client))
+    assert allowed.status_code == 200
+
+
+def test_two_factor_disable_blocked_when_policy_requires_without_fallback(
+    monkeypatch,
+    client: TestClient,
+):
+    monkeypatch.setenv("AUTOSAHAM_CSRF_PROTECTION_ENABLED", "true")
+    monkeypatch.setenv("AUTOSAHAM_LOGIN_2FA_ENABLED", "false")
+
+    username = f"auth_user_{uuid.uuid4().hex[:8]}"
+    _register(client, username)
+    login_response = _login(client, username)
+    assert login_response.status_code == 200
+
+    enroll_response = client.post("/auth/2fa/enroll", headers=_csrf_headers(client))
+    assert enroll_response.status_code == 200
+    secret = str(enroll_response.json().get("secret"))
+
+    enable_response = client.post(
+        "/auth/2fa/verify",
+        json={"code": _totp_now(secret)},
+        headers=_csrf_headers(client),
+    )
+    assert enable_response.status_code == 200
+    assert enable_response.json().get("enabled") is True
+
+    monkeypatch.setenv("AUTOSAHAM_LOGIN_2FA_ENABLED", "true")
+    monkeypatch.setenv("AUTOSAHAM_LOGIN_2FA_REQUIRED_ROLES", "trader")
+    monkeypatch.delenv("AUTOSAHAM_LOGIN_2FA_CODE", raising=False)
+    monkeypatch.delenv("AUTOSAHAM_LOGIN_2FA_TOTP_SECRET", raising=False)
+
+    disable_response = client.post(
+        "/auth/2fa/disable",
+        json={"code": _totp_now(secret)},
+        headers=_csrf_headers(client),
+    )
+    assert disable_response.status_code == 409
+    assert disable_response.json().get("detail") == "two_factor_required_by_policy"
