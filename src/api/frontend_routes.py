@@ -4,16 +4,12 @@ Contains endpoints for portfolio, bot status, signals, strategies, trades, and m
 """
 
 import asyncio
-import base64
-import binascii
 import csv
-import hashlib
 import hmac
 import json
 import math
 import os
 from functools import partial
-from types import SimpleNamespace
 from threading import Lock
 from fastapi import APIRouter, HTTPException, Request
 from typing import Optional, List, Dict, Any, Tuple
@@ -30,8 +26,6 @@ from src.api.config.frontend_constants import (
     default_user_settings as _default_user_settings,
     forex_symbols as _FOREX_SYMBOLS,
     institutional_broker_ids as _INSTITUTIONAL_BROKER_IDS,
-    market_aliases as _MARKET_ALIASES,
-    market_news_fallback as _MARKET_NEWS_FALLBACK,
     profile_route_presets as _PROFILE_ROUTE_PRESETS,
     strategy_profile_by_type as _STRATEGY_PROFILE_BY_TYPE,
     symbol_name_map as _SYMBOL_NAME_MAP,
@@ -47,7 +41,6 @@ from src.api.state_store import SecureAppStateStore
 from src.api.schemas.frontend import (
     Activity,
     AILogPayload,
-    AIProjectionPoint,
     AIProjectionResponse,
     BotStatus,
     BrokerConnectPayload,
@@ -74,6 +67,45 @@ from src.api.services.projection_response_service import (
     build_ai_rationale as _build_ai_rationale,
     build_generated_news_context as _build_generated_news_context,
     confidence_label as _confidence_label,
+)
+from src.api.services.projection_seed_service import (
+    build_projection_points as _build_projection_points,
+    signal_to_projection_seed as _signal_to_projection_seed,
+)
+from src.api.services.guard_utils_service import (
+    env_flag as _env_flag,
+    parse_csv_set as _parse_csv_set,
+    verify_totp_code as _verify_totp_code,
+)
+from src.api.services.runtime_control_service import (
+    cancel_live_broker_open_orders as _cancel_live_broker_open_orders_impl,
+    celery_queue_backlog_snapshot as _celery_queue_backlog_snapshot_impl,
+    last_state_migration_timestamp as _last_state_migration_timestamp_impl,
+    resolve_live_broker_adapter as _resolve_live_broker_adapter_impl,
+    runtime_execution_manager as _runtime_execution_manager_impl,
+    runtime_execution_status as _runtime_execution_status_impl,
+    runtime_scheduler_status as _runtime_scheduler_status_impl,
+    suspend_runtime_services as _suspend_runtime_services_impl,
+    ws_backplane_health_snapshot as _ws_backplane_health_snapshot_impl,
+)
+from src.api.services.regime_route_service import (
+    apply_strategy_profile_override_to_route as _apply_strategy_profile_override_to_route_impl,
+    build_regime_state_payload as _build_regime_state_payload_impl,
+    normalize_strategy_profile_key as _normalize_strategy_profile_key_impl,
+    persist_regime_route as _persist_regime_route_impl,
+    resolve_manual_strategy_profile as _resolve_manual_strategy_profile_impl,
+    resolve_regime_route as _resolve_regime_route_impl,
+    sync_regime_profile_override as _sync_regime_profile_override_impl,
+)
+from src.api.services.inference_runtime_service import (
+    build_symbol_sequences as _build_symbol_sequences_impl,
+    estimate_label_returns as _estimate_label_returns_impl,
+    load_transformer_runtime as _load_transformer_runtime_impl,
+    resolve_signal_universe as _resolve_signal_universe_impl,
+)
+from src.api.services.signal_inference_service import (
+    build_fallback_signals as _build_fallback_signals_impl,
+    infer_signals_from_transformer as _infer_signals_from_transformer_impl,
 )
 from src.api.services.market_data_service import (
     detect_market_from_symbol as _detect_market_from_symbol,
@@ -569,52 +601,12 @@ async def _emit_regime_transition_notification(
 
 
 def _resolve_signal_universe(df: Any, preferred_universe: Optional[List[str]], max_symbols: int) -> List[str]:
-    if "symbol" not in df.columns:
-        return []
-
-    available_symbols = [str(value) for value in df["symbol"].dropna().astype(str).tolist()]
-    selected: List[str] = []
-
-    for symbol in preferred_universe or []:
-        normalized = str(symbol).strip()
-        if not normalized:
-            continue
-
-        exact_match = next(
-            (item for item in available_symbols if item == normalized),
-            None,
-        )
-        if exact_match and exact_match not in selected:
-            selected.append(exact_match)
-            continue
-
-        alias_match = next(
-            (item for item in available_symbols if _symbols_match(item, normalized)),
-            None,
-        )
-        if alias_match and alias_match not in selected:
-            selected.append(alias_match)
-
-    if not selected:
-        if "t_index" in df.columns:
-            latest = (
-                df[["symbol", "t_index"]]
-                .dropna(subset=["symbol"])
-                .groupby("symbol", as_index=False)["t_index"]
-                .max()
-                .sort_values("t_index", ascending=False)
-            )
-            for value in latest["symbol"].tolist():
-                symbol = str(value)
-                if symbol not in selected:
-                    selected.append(symbol)
-        else:
-            for symbol in available_symbols:
-                if symbol not in selected:
-                    selected.append(symbol)
-
-    safe_max = max(1, int(max_symbols))
-    return selected[:safe_max]
+    return _resolve_signal_universe_impl(
+        df,
+        preferred_universe,
+        max_symbols,
+        symbols_match_fn=_symbols_match,
+    )
 
 
 def _signal_from_expected_return(expected_return: float, confidence: float, return_levels: List[float]) -> str:
@@ -670,118 +662,16 @@ def _symbol_sector(symbol: str) -> str:
 
 
 def _load_transformer_runtime(project_root: Optional[str] = None) -> Optional[Dict[str, Any]]:
-    root = project_root or _get_project_root()
-    best_artifact = _resolve_best_transformer_artifact(root)
-    if not best_artifact:
-        return None
-
-    model_path = best_artifact.get("path")
-    model_mtime = best_artifact.get("mtime")
-    if (
-        _transformer_runtime_cache.get("runtime") is not None
-        and _transformer_runtime_cache.get("path") == model_path
-        and _transformer_runtime_cache.get("mtime") == model_mtime
-    ):
-        return _transformer_runtime_cache.get("runtime")
-
-    try:
-        import numpy as np
-        import torch
-        from src.ml.transformer_baselines import build_baseline_model
-
-        checkpoint = torch.load(model_path, map_location="cpu")
-        if not isinstance(checkpoint, dict):
-            return None
-
-        feature_columns = [str(col) for col in (checkpoint.get("feature_columns") or [])]
-        if not feature_columns:
-            return None
-
-        architecture = str(
-            checkpoint.get("architecture")
-            or best_artifact.get("architecture")
-            or "fusion"
-        ).lower()
-        train_config = checkpoint.get("train_config") or {}
-
-        input_dim = int(checkpoint.get("input_dim") or len(feature_columns))
-        raw_index_to_label = checkpoint.get("index_to_label") or {}
-        num_classes = int(checkpoint.get("num_classes") or max(2, len(raw_index_to_label)))
-
-        model = build_baseline_model(
-            architecture=architecture,
-            input_dim=input_dim,
-            num_classes=num_classes,
-            feature_columns=feature_columns,
-            patch_sizes=train_config.get("patch_sizes") or [4, 8, 16],
-            patch_stride=int(train_config.get("patch_stride", 4)),
-            d_model=int(train_config.get("d_model", 128)),
-            n_heads=int(train_config.get("n_heads", 4)),
-            n_layers=int(train_config.get("n_layers", 2)),
-            dropout=float(train_config.get("dropout", 0.1)),
-        )
-
-        state_dict = checkpoint.get("state_dict")
-        if not state_dict:
-            return None
-        model.load_state_dict(state_dict)
-        model.eval()
-
-        mean_values = checkpoint.get("normalization_mean") or [0.0] * input_dim
-        std_values = checkpoint.get("normalization_std") or [1.0] * input_dim
-        mean = np.asarray(mean_values, dtype=np.float32).reshape(1, 1, -1)
-        std = np.asarray(std_values, dtype=np.float32).reshape(1, 1, -1)
-        std = np.where(np.abs(std) < 1e-6, 1.0, std).astype(np.float32)
-
-        index_to_label: Dict[int, int] = {}
-        for key, value in raw_index_to_label.items():
-            try:
-                idx = int(key)
-                index_to_label[idx] = int(value)
-            except Exception:
-                continue
-
-        runtime = {
-            "model": model,
-            "feature_columns": feature_columns,
-            "normalization_mean": mean,
-            "normalization_std": std,
-            "index_to_label": index_to_label,
-            "architecture": architecture,
-            "source": best_artifact.get("source") or "transformer",
-            "seq_len": int(train_config.get("seq_len", 32)),
-        }
-
-        _transformer_runtime_cache.update(
-            {
-                "path": model_path,
-                "mtime": model_mtime,
-                "runtime": runtime,
-            }
-        )
-        return runtime
-    except Exception:
-        _transformer_runtime_cache.update({"path": model_path, "mtime": model_mtime, "runtime": None})
-        return None
+    return _load_transformer_runtime_impl(
+        project_root=project_root,
+        get_project_root_fn=_get_project_root,
+        resolve_best_transformer_artifact_fn=_resolve_best_transformer_artifact,
+        transformer_runtime_cache=_transformer_runtime_cache,
+    )
 
 
 def _estimate_label_returns(df: Any) -> Dict[int, float]:
-    if "label" not in df.columns or "future_return" not in df.columns:
-        return {}
-
-    stats = {}
-    grouped = (
-        df[["label", "future_return"]]
-        .dropna(subset=["label", "future_return"])
-        .groupby("label")["future_return"]
-        .mean()
-    )
-    for label, value in grouped.items():
-        try:
-            stats[int(label)] = float(value)
-        except Exception:
-            continue
-    return stats
+    return _estimate_label_returns_impl(df)
 
 
 def _build_symbol_sequences(
@@ -790,73 +680,13 @@ def _build_symbol_sequences(
     seq_len: int,
     symbols: List[str],
 ) -> List[Dict[str, Any]]:
-    import numpy as np
-    import pandas as pd
-
-    if "symbol" not in df.columns or not feature_columns:
-        return []
-
-    work = df.copy()
-    if "t_index" not in work.columns:
-        work["t_index"] = np.arange(len(work), dtype=int)
-
-    work["_row_order"] = np.arange(len(work), dtype=int)
-    work = work.sort_values(["symbol", "t_index", "_row_order"], kind="mergesort").reset_index(drop=True)
-
-    for col in feature_columns:
-        if col not in work.columns:
-            work[col] = 0.0
-
-    for col in feature_columns:
-        if pd.api.types.is_bool_dtype(work[col]):
-            work[col] = work[col].astype(int)
-        elif not pd.api.types.is_numeric_dtype(work[col]):
-            work[col] = work[col].astype("category").cat.codes.astype(float)
-
-    feature_frame = (
-        work[feature_columns]
-        .replace([np.inf, -np.inf], np.nan)
-        .ffill()
-        .bfill()
-        .fillna(0.0)
-        .astype(np.float32)
+    return _build_symbol_sequences_impl(
+        df,
+        feature_columns,
+        seq_len,
+        symbols,
+        safe_float_fn=_safe_float,
     )
-
-    price_col = None
-    for candidate in ["last_price", "close", "price", "adj_close", "open"]:
-        if candidate in work.columns:
-            price_col = candidate
-            break
-
-    samples: List[Dict[str, Any]] = []
-    for symbol in symbols:
-        symbol_mask = work["symbol"].astype(str) == str(symbol)
-        if not bool(symbol_mask.any()):
-            continue
-
-        symbol_features = feature_frame.loc[symbol_mask].to_numpy(dtype=np.float32)
-        if symbol_features.shape[0] < 1:
-            continue
-
-        if symbol_features.shape[0] >= seq_len:
-            sequence = symbol_features[-seq_len:]
-        else:
-            pad = np.repeat(symbol_features[:1], repeats=(seq_len - symbol_features.shape[0]), axis=0)
-            sequence = np.concatenate([pad, symbol_features], axis=0)
-
-        symbol_rows = work.loc[symbol_mask]
-        last_row = symbol_rows.iloc[-1]
-        current_price = _safe_float(last_row.get(price_col), default=0.0) if price_col else 0.0
-
-        samples.append(
-            {
-                "symbol": str(symbol),
-                "sequence": sequence,
-                "current_price": float(max(0.0, current_price)),
-            }
-        )
-
-    return samples
 
 
 def _extract_price_series_for_regime(
@@ -899,97 +729,38 @@ def _extract_price_series_for_regime(
 
 
 def _normalize_strategy_profile_key(value: Any) -> Optional[str]:
-    parsed = str(value or "").strip().lower()
-    if not parsed:
-        return None
-
-    normalized = parsed.replace("-", "_").replace(" ", "_")
-    alias_map = {
-        "auto": None,
-        "automatic": None,
-        "none": None,
-        "regime_router": None,
-        "momentum": "momentum_breakout",
-        "mean_reversion": "mean_reversion_swing",
-        "mean_reversion_swing": "mean_reversion_swing",
-        "rotation": "defensive_rotation",
-        "defensive_rotation": "defensive_rotation",
-        "momentum_breakout": "momentum_breakout",
-    }
-    resolved = alias_map.get(normalized, normalized)
-    if resolved is None:
-        return None
-    if resolved not in _PROFILE_ROUTE_PRESETS:
-        return None
-    return str(resolved)
+    return _normalize_strategy_profile_key_impl(
+        value,
+        profile_route_presets=_PROFILE_ROUTE_PRESETS,
+    )
 
 
 def _resolve_manual_strategy_profile() -> Optional[str]:
-    try:
-        settings = _state_store.get_user_settings(_default_user_settings)
-    except Exception:
-        return None
-    return _normalize_strategy_profile_key(settings.get("aiManualStrategyProfile"))
+    return _resolve_manual_strategy_profile_impl(
+        state_store=_state_store,
+        default_user_settings=_default_user_settings,
+        profile_route_presets=_PROFILE_ROUTE_PRESETS,
+    )
 
 
 def _apply_strategy_profile_override_to_route(
     route: Any,
     manual_profile: Optional[str] = None,
 ) -> Tuple[Any, Optional[str]]:
-    profile = _normalize_strategy_profile_key(manual_profile)
-    if profile is None:
-        profile = _resolve_manual_strategy_profile()
-
-    if profile is None:
-        return route, None
-
-    preset = _PROFILE_ROUTE_PRESETS.get(profile) or {}
-    return (
-        SimpleNamespace(
-            regime=str(getattr(route, "regime", "UNKNOWN")),
-            confidence=float(max(0.0, min(1.0, getattr(route, "confidence", 0.0)))),
-            primary_agent=str(preset.get("primaryAgent") or getattr(route, "primary_agent", "scalper_agent")),
-            strategy_profile=str(profile),
-            risk_multiplier=float(preset.get("riskMultiplier", getattr(route, "risk_multiplier", 0.75))),
-            trend_return=float(getattr(route, "trend_return", 0.0)),
-            volatility=float(max(0.0, getattr(route, "volatility", 0.0))),
-            up_move_ratio=float(max(0.0, min(1.0, getattr(route, "up_move_ratio", 0.5)))),
-        ),
-        profile,
+    return _apply_strategy_profile_override_to_route_impl(
+        route,
+        profile_route_presets=_PROFILE_ROUTE_PRESETS,
+        resolve_manual_strategy_profile_fn=_resolve_manual_strategy_profile,
+        manual_profile=manual_profile,
     )
 
 
 def _sync_regime_profile_override(manual_profile_value: Any) -> Dict[str, Any]:
-    active_profile = _normalize_strategy_profile_key(manual_profile_value)
-    current_regime = _state_store.get_regime_state(_default_regime_state)
-
-    if active_profile is None:
-        return _state_store.set_regime_state(
-            {
-                **current_regime,
-                "manualProfileOverride": False,
-                "profileSource": "regime_router",
-                "asOf": datetime.now().isoformat(),
-            }
-        )
-
-    profile_preset = _PROFILE_ROUTE_PRESETS.get(active_profile) or {}
-    return _state_store.set_regime_state(
-        {
-            **current_regime,
-            "strategyProfile": active_profile,
-            "primaryAgent": str(
-                profile_preset.get("primaryAgent")
-                or current_regime.get("primaryAgent")
-                or "scalper_agent"
-            ),
-            "riskMultiplier": float(
-                profile_preset.get("riskMultiplier", current_regime.get("riskMultiplier") or 0.75)
-            ),
-            "manualProfileOverride": True,
-            "profileSource": "manual_override",
-            "asOf": datetime.now().isoformat(),
-        }
+    return _sync_regime_profile_override_impl(
+        manual_profile_value,
+        state_store=_state_store,
+        default_regime_state=_default_regime_state,
+        profile_route_presets=_PROFILE_ROUTE_PRESETS,
     )
 
 
@@ -999,30 +770,13 @@ def _build_regime_state_payload(
     price_points: int,
     manual_profile_override: Optional[str] = None,
 ) -> Dict[str, Any]:
-    active_manual_profile = _normalize_strategy_profile_key(manual_profile_override)
-    active_profile = str(getattr(route, "strategy_profile", "mean_reversion_swing"))
-    if active_manual_profile is not None:
-        active_profile = active_manual_profile
-
-    profile_preset = _PROFILE_ROUTE_PRESETS.get(active_profile) or {}
-    primary_agent = str(profile_preset.get("primaryAgent") or getattr(route, "primary_agent", "scalper_agent"))
-    risk_multiplier = float(profile_preset.get("riskMultiplier", getattr(route, "risk_multiplier", 0.75)))
-
-    return {
-        "regime": str(getattr(route, "regime", "UNKNOWN")),
-        "confidence": float(max(0.0, min(1.0, getattr(route, "confidence", 0.0)))),
-        "primaryAgent": primary_agent,
-        "strategyProfile": active_profile,
-        "manualProfileOverride": active_manual_profile is not None,
-        "profileSource": "manual_override" if active_manual_profile is not None else "regime_router",
-        "riskMultiplier": risk_multiplier,
-        "trendReturn": float(getattr(route, "trend_return", 0.0)),
-        "volatility": float(max(0.0, getattr(route, "volatility", 0.0))),
-        "upMoveRatio": float(max(0.0, min(1.0, getattr(route, "up_move_ratio", 0.5)))),
-        "symbols": [str(item) for item in (symbols or [])[:5]],
-        "pricePoints": int(max(0, int(price_points))),
-        "asOf": datetime.now().isoformat(),
-    }
+    return _build_regime_state_payload_impl(
+        route,
+        symbols,
+        price_points,
+        profile_route_presets=_PROFILE_ROUTE_PRESETS,
+        manual_profile_override=manual_profile_override,
+    )
 
 
 def _persist_regime_route(
@@ -1031,367 +785,67 @@ def _persist_regime_route(
     price_points: int,
     manual_profile_override: Optional[str] = None,
 ) -> None:
-    try:
-        previous_state = _state_store.get_regime_state(_default_regime_state)
-        next_state = _build_regime_state_payload(
-            route,
-            symbols,
-            price_points,
-            manual_profile_override=manual_profile_override,
-        )
-        saved_state = _state_store.set_regime_state(next_state)
-
-        previous_regime = str(previous_state.get("regime") or "UNKNOWN").upper()
-        current_regime = str(saved_state.get("regime") or "UNKNOWN").upper()
-        if (
-            previous_regime not in {"", "UNKNOWN"}
-            and current_regime not in {"", "UNKNOWN"}
-            and previous_regime != current_regime
-        ):
-            is_major_transition = {previous_regime, current_regime} == {"BULL", "BEAR"}
-            _state_store.append_ai_log(
-                level="warning" if is_major_transition else "info",
-                event_type="regime_transition_major" if is_major_transition else "regime_transition",
-                message=(
-                    f"Major regime transition: {previous_regime} -> {current_regime}"
-                    if is_major_transition
-                    else f"Regime transition: {previous_regime} -> {current_regime}"
-                ),
-                payload={
-                    "from": previous_regime,
-                    "to": current_regime,
-                    "majorTransition": is_major_transition,
-                    "confidence": saved_state.get("confidence"),
-                    "primaryAgent": saved_state.get("primaryAgent"),
-                },
-            )
-
-            if is_major_transition:
-                try:
-                    loop = asyncio.get_running_loop()
-                    loop.create_task(
-                        _emit_regime_transition_notification(
-                            previous_regime,
-                            current_regime,
-                            saved_state,
-                        )
-                    )
-                except Exception:
-                    pass
-    except Exception:
-        pass
+    _persist_regime_route_impl(
+        route,
+        symbols,
+        price_points,
+        state_store=_state_store,
+        default_regime_state=_default_regime_state,
+        profile_route_presets=_PROFILE_ROUTE_PRESETS,
+        emit_regime_transition_notification_fn=_emit_regime_transition_notification,
+        manual_profile_override=manual_profile_override,
+    )
 
 
 def _resolve_regime_route(df: Any, symbols: Optional[List[str]]) -> Optional[Any]:
-    try:
-        from src.ml.regime_router import classify_market_regime
-
-        price_series = _extract_price_series_for_regime(df, symbols)
-        if not price_series:
-            return None
-        route = classify_market_regime(price_series)
-        route, active_manual_profile = _apply_strategy_profile_override_to_route(route)
-        _persist_regime_route(
+    return _resolve_regime_route_impl(
+        df,
+        symbols,
+        extract_price_series_fn=_extract_price_series_for_regime,
+        apply_strategy_profile_override_to_route_fn=lambda route: _apply_strategy_profile_override_to_route(route),
+        persist_regime_route_fn=lambda route, symbols, price_points, manual_profile_override: _persist_regime_route(
             route,
             symbols=symbols,
-            price_points=len(price_series),
-            manual_profile_override=active_manual_profile,
-        )
-        return route
-    except Exception:
-        return None
+            price_points=price_points,
+            manual_profile_override=manual_profile_override,
+        ),
+    )
 
 
 def _infer_signals_from_transformer(limit: int, preferred_universe: Optional[List[str]]) -> List[Signal]:
-    import numpy as np
-
-    safe_limit = max(1, int(limit))
-    dataset_csv = _resolve_dataset_csv_path()
-    if not os.path.exists(dataset_csv):
-        return []
-
-    runtime = _load_transformer_runtime()
-    if runtime is None:
-        return []
-
-    try:
-        import pandas as pd
-        import torch
-
-        df = pd.read_csv(dataset_csv)
-        if df.empty or "symbol" not in df.columns:
-            return []
-
-        symbols = _resolve_signal_universe(df, preferred_universe, max_symbols=max(safe_limit * 3, 6))
-        if not symbols:
-            return []
-
-        regime_route = _resolve_regime_route(df, symbols)
-        regime_overlay_fn = None
-        if regime_route is not None:
-            try:
-                from src.ml.regime_router import apply_regime_overlay
-
-                regime_overlay_fn = apply_regime_overlay
-            except Exception:
-                regime_overlay_fn = None
-
-        samples = _build_symbol_sequences(
-            df,
-            feature_columns=runtime["feature_columns"],
-            seq_len=int(runtime["seq_len"]),
-            symbols=symbols,
-        )
-        if not samples:
-            return []
-
-        x = np.stack([item["sequence"] for item in samples], axis=0).astype(np.float32)
-        mean = runtime["normalization_mean"]
-        std = runtime["normalization_std"]
-        if mean.shape[-1] != x.shape[-1] or std.shape[-1] != x.shape[-1]:
-            mean = np.zeros((1, 1, x.shape[-1]), dtype=np.float32)
-            std = np.ones((1, 1, x.shape[-1]), dtype=np.float32)
-
-        normalized = ((x - mean) / std).astype(np.float32)
-        tensor = torch.tensor(normalized, dtype=torch.float32)
-
-        with torch.no_grad():
-            logits = runtime["model"](tensor)
-            probs = torch.softmax(logits, dim=1).cpu().numpy()
-
-        label_returns = _estimate_label_returns(df)
-        return_levels = list(label_returns.values())
-        generated_at = datetime.now().isoformat()
-        ranked_rows: List[Dict[str, Any]] = []
-
-        for index, sample in enumerate(samples):
-            probabilities = probs[index]
-            pred_idx = int(np.argmax(probabilities))
-            confidence = float(np.max(probabilities))
-
-            predicted_label = runtime["index_to_label"].get(pred_idx, pred_idx)
-            try:
-                predicted_label_int = int(predicted_label)
-            except Exception:
-                predicted_label_int = pred_idx
-
-            expected_return = float(label_returns.get(predicted_label_int, 0.0))
-            signal_name = _signal_from_expected_return(expected_return, confidence, return_levels)
-
-            regime_note = ""
-            if regime_overlay_fn is not None and regime_route is not None:
-                signal_name, expected_return, regime_note = regime_overlay_fn(
-                    signal=signal_name,
-                    expected_return=expected_return,
-                    model_confidence=confidence,
-                    route=regime_route,
-                )
-
-            current_price = float(sample["current_price"])
-            target_price = current_price * (1.0 + expected_return) if current_price > 0 else 0.0
-
-            base_reason = (
-                f"{str(runtime['architecture']).upper()} model ({runtime['source']}) "
-                f"predicted class {predicted_label_int} with {confidence * 100:.1f}% confidence."
-            )
-            if regime_note:
-                base_reason = f"{base_reason} {regime_note}"
-
-            ranked_rows.append(
-                {
-                    "rank": confidence * (abs(expected_return) + 0.001),
-                    "symbol": sample["symbol"],
-                    "name": _symbol_name(sample["symbol"]),
-                    "signal": signal_name,
-                    "confidence": confidence,
-                    "reason": base_reason,
-                    "predictedMove": f"{expected_return * 100:+.2f}%",
-                    "riskLevel": _risk_level_from_prediction(expected_return, confidence),
-                    "sector": _symbol_sector(sample["symbol"]),
-                    "currentPrice": current_price,
-                    "targetPrice": float(max(0.0, target_price)),
-                    "timestamp": generated_at,
-                }
-            )
-
-        ranked_rows.sort(key=lambda item: item["rank"], reverse=True)
-
-        signals: List[Signal] = []
-        for rank, row in enumerate(ranked_rows[:safe_limit], start=1):
-            signals.append(
-                Signal(
-                    id=rank,
-                    symbol=row["symbol"],
-                    name=row["name"],
-                    signal=row["signal"],
-                    confidence=row["confidence"],
-                    reason=row["reason"],
-                    predictedMove=row["predictedMove"],
-                    riskLevel=row["riskLevel"],
-                    sector=row["sector"],
-                    currentPrice=row["currentPrice"],
-                    targetPrice=row["targetPrice"],
-                    timestamp=row["timestamp"],
-                )
-            )
-
-        return signals
-    except Exception:
-        return []
+    return _infer_signals_from_transformer_impl(
+        limit,
+        preferred_universe,
+        resolve_dataset_csv_path_fn=_resolve_dataset_csv_path,
+        load_transformer_runtime_fn=_load_transformer_runtime,
+        resolve_signal_universe_fn=_resolve_signal_universe,
+        resolve_regime_route_fn=_resolve_regime_route,
+        build_symbol_sequences_fn=_build_symbol_sequences,
+        estimate_label_returns_fn=_estimate_label_returns,
+        signal_from_expected_return_fn=_signal_from_expected_return,
+        symbol_name_fn=_symbol_name,
+        risk_level_from_prediction_fn=_risk_level_from_prediction,
+        symbol_sector_fn=_symbol_sector,
+        signal_model_cls=Signal,
+        datetime_now_fn=datetime.now,
+    )
 
 
 def _build_fallback_signals(limit: int, preferred_universe: Optional[List[str]]) -> List[Signal]:
-    safe_limit = max(1, int(limit))
-    dataset_csv = _resolve_dataset_csv_path()
-
-    try:
-        import pandas as pd
-
-        if os.path.exists(dataset_csv):
-            df = pd.read_csv(dataset_csv)
-            if (not df.empty) and ("symbol" in df.columns):
-                symbols = _resolve_signal_universe(df, preferred_universe, max_symbols=max(safe_limit * 3, 6))
-                generated_at = datetime.now().isoformat()
-                rows: List[Dict[str, Any]] = []
-
-                regime_route = _resolve_regime_route(df, symbols)
-                regime_overlay_fn = None
-                if regime_route is not None:
-                    try:
-                        from src.ml.regime_router import apply_regime_overlay
-
-                        regime_overlay_fn = apply_regime_overlay
-                    except Exception:
-                        regime_overlay_fn = None
-
-                for symbol in symbols:
-                    symbol_df = df[df["symbol"].astype(str) == str(symbol)]
-                    if symbol_df.empty:
-                        continue
-                    last_row = symbol_df.iloc[-1]
-
-                    momentum = _safe_float(last_row.get("momentum"), default=0.0)
-                    short_sma = _safe_float(last_row.get("short_sma"), default=0.0)
-                    long_sma = _safe_float(last_row.get("long_sma"), default=0.0)
-                    current_price = _safe_float(last_row.get("last_price"), default=0.0)
-
-                    trend_gap = ((short_sma - long_sma) / long_sma) if long_sma > 0 else 0.0
-                    expected_return = max(-0.08, min(0.08, (0.6 * momentum) + (0.4 * trend_gap)))
-                    confidence = max(0.50, min(0.85, 0.55 + (abs(expected_return) * 4.0)))
-                    signal_name = _signal_from_expected_return(
-                        expected_return,
-                        confidence,
-                        return_levels=[-abs(expected_return), abs(expected_return)],
-                    )
-
-                    regime_note = ""
-                    if regime_overlay_fn is not None and regime_route is not None:
-                        signal_name, expected_return, regime_note = regime_overlay_fn(
-                            signal=signal_name,
-                            expected_return=expected_return,
-                            model_confidence=confidence,
-                            route=regime_route,
-                        )
-
-                    base_reason = (
-                        "Fallback technical heuristic using momentum and SMA trend gap "
-                        "while transformer signal model is unavailable."
-                    )
-                    if regime_note:
-                        base_reason = f"{base_reason} {regime_note}"
-
-                    rows.append(
-                        {
-                            "rank": confidence * (abs(expected_return) + 0.001),
-                            "symbol": str(symbol),
-                            "name": _symbol_name(str(symbol)),
-                            "signal": signal_name,
-                            "confidence": confidence,
-                            "reason": base_reason,
-                            "predictedMove": f"{expected_return * 100:+.2f}%",
-                            "riskLevel": _risk_level_from_prediction(expected_return, confidence),
-                            "sector": _symbol_sector(str(symbol)),
-                            "currentPrice": float(max(0.0, current_price)),
-                            "targetPrice": float(max(0.0, current_price * (1.0 + expected_return))),
-                            "timestamp": generated_at,
-                        }
-                    )
-
-                rows.sort(key=lambda item: item["rank"], reverse=True)
-                if rows:
-                    return [
-                        Signal(
-                            id=index,
-                            symbol=item["symbol"],
-                            name=item["name"],
-                            signal=item["signal"],
-                            confidence=item["confidence"],
-                            reason=item["reason"],
-                            predictedMove=item["predictedMove"],
-                            riskLevel=item["riskLevel"],
-                            sector=item["sector"],
-                            currentPrice=item["currentPrice"],
-                            targetPrice=item["targetPrice"],
-                            timestamp=item["timestamp"],
-                        )
-                        for index, item in enumerate(rows[:safe_limit], start=1)
-                    ]
-    except Exception:
-        pass
-
-    # Absolute fallback to maintain API contract.
-    return [
-        Signal(
-            id=1,
-            symbol="EURUSD=X",
-            name="EUR/USD",
-            signal="HOLD",
-            confidence=0.5,
-            reason="No valid model output is available yet; fallback signal is neutral.",
-            predictedMove="+0.00%",
-            riskLevel="Medium",
-            sector="Forex",
-            currentPrice=1.0,
-            targetPrice=1.0,
-            timestamp=datetime.now().isoformat(),
-        )
-    ][:safe_limit]
-
-
-def _parse_predicted_move(predicted_move: Any) -> Optional[float]:
-    raw = str(predicted_move or "").strip().replace("%", "")
-    if not raw:
-        return None
-    parsed = _safe_float(raw, default=None)
-    if parsed is None:
-        return None
-    return float(parsed) / 100.0
-
-
-def _signal_to_projection_seed(signal: Signal, source: str) -> Dict[str, Any]:
-    current_price = _safe_float(signal.currentPrice, default=0.0) or 0.0
-    target_price = _safe_float(signal.targetPrice, default=current_price) or current_price
-
-    expected_return = 0.0
-    if current_price > 0:
-        expected_return = (target_price / current_price) - 1.0
-    elif current_price <= 0:
-        parsed_move = _parse_predicted_move(signal.predictedMove)
-        if parsed_move is not None:
-            expected_return = parsed_move
-
-    return {
-        "symbol": _normalize_symbol_input(signal.symbol),
-        "signal": signal.signal,
-        "reason": str(signal.reason or "Model produced a directional signal."),
-        "confidence": float(max(0.0, min(1.0, signal.confidence))),
-        "model_confidence": float(max(0.0, min(1.0, signal.confidence))),
-        "expected_return": float(expected_return),
-        "predicted_move": signal.predictedMove,
-        "current_price": float(max(0.0, current_price)),
-        "target_price": float(max(0.0, target_price)),
-        "source": source,
-    }
+    return _build_fallback_signals_impl(
+        limit,
+        preferred_universe,
+        resolve_dataset_csv_path_fn=_resolve_dataset_csv_path,
+        resolve_signal_universe_fn=_resolve_signal_universe,
+        resolve_regime_route_fn=_resolve_regime_route,
+        signal_from_expected_return_fn=_signal_from_expected_return,
+        safe_float_fn=_safe_float,
+        symbol_name_fn=_symbol_name,
+        risk_level_from_prediction_fn=_risk_level_from_prediction,
+        symbol_sector_fn=_symbol_sector,
+        signal_model_cls=Signal,
+        datetime_now_fn=datetime.now,
+    )
 
 
 def _predict_projection_seed(symbol: str, market: Optional[str] = None) -> Dict[str, Any]:
@@ -1432,42 +886,6 @@ def _predict_projection_seed(symbol: str, market: Optional[str] = None) -> Dict[
         "source": "fallback",
         "architecture": None,
     }
-
-
-def _resolve_timeframe_seconds(timeframe: str) -> int:
-    normalized = str(timeframe or "").strip().lower()
-    return _TIMEFRAME_SECONDS.get(normalized, _TIMEFRAME_SECONDS["1d"])
-
-
-def _build_projection_points(
-    base_time: int,
-    current_price: float,
-    expected_return: float,
-    timeframe: str,
-    horizon: int,
-) -> List[AIProjectionPoint]:
-    safe_horizon = max(1, int(horizon))
-    safe_price = float(max(0.01, current_price))
-    interval_seconds = _resolve_timeframe_seconds(timeframe)
-
-    # Keep projected move bounded to avoid unstable extrapolation.
-    bounded_return = float(max(-0.30, min(0.30, expected_return)))
-
-    points: List[AIProjectionPoint] = []
-    for step in range(1, safe_horizon + 1):
-        fraction = step / safe_horizon
-        smooth_fraction = (fraction * fraction) * (3.0 - (2.0 * fraction))
-        projected_factor = 1.0 + (bounded_return * smooth_fraction)
-        projected_factor = max(0.05, projected_factor)
-        value = safe_price * projected_factor
-        points.append(
-            AIProjectionPoint(
-                time=int(base_time + (step * interval_seconds)),
-                value=float(round(value, 4)),
-            )
-        )
-
-    return points
 
 
 async def _resolve_latest_candle_anchor(symbol: str, timeframe: str) -> Optional[Dict[str, float]]:
@@ -1773,21 +1191,6 @@ def _assert_csrf_guard(
     return session_context
 
 
-def _env_flag(name: str, default: bool = False) -> bool:
-    raw = str(os.getenv(name, "")).strip().lower()
-    if not raw:
-        return default
-    return raw in {"1", "true", "yes", "on"}
-
-
-def _parse_csv_set(value: str) -> set[str]:
-    return {
-        item.strip().lower()
-        for item in str(value or "").split(",")
-        if item.strip()
-    }
-
-
 def _is_admin_session(session_context: Optional[Dict[str, Any]]) -> bool:
     if not session_context:
         return False
@@ -1894,66 +1297,6 @@ def _require_role_operation(
         )
 
     return session_context
-
-
-def _totp_code_at(
-    secret: str,
-    timestamp: int,
-    *,
-    step_seconds: int = 30,
-    digits: int = 6,
-) -> Optional[str]:
-    normalized_secret = "".join(str(secret or "").strip().split()).upper()
-    if not normalized_secret:
-        return None
-
-    try:
-        secret_bytes = base64.b32decode(normalized_secret, casefold=True)
-    except (binascii.Error, ValueError, TypeError):
-        return None
-
-    step = max(1, int(step_seconds))
-    counter = int(timestamp // step)
-    msg = counter.to_bytes(8, "big")
-    digest = hmac.new(secret_bytes, msg, hashlib.sha1).digest()
-    offset = digest[-1] & 0x0F
-
-    binary_code = (
-        ((digest[offset] & 0x7F) << 24)
-        | (digest[offset + 1] << 16)
-        | (digest[offset + 2] << 8)
-        | digest[offset + 3]
-    )
-
-    modulus = 10 ** max(1, int(digits))
-    return str(binary_code % modulus).zfill(max(1, int(digits)))
-
-
-def _verify_totp_code(
-    secret: str,
-    code: str,
-    *,
-    step_seconds: int = 30,
-    window: int = 1,
-) -> bool:
-    normalized_code = str(code or "").strip()
-    if not normalized_code or not normalized_code.isdigit():
-        return False
-
-    now_ts = int(datetime.now().timestamp())
-    valid_window = max(0, int(window))
-    for drift in range(-valid_window, valid_window + 1):
-        current_ts = now_ts + drift * int(step_seconds)
-        expected = _totp_code_at(
-            secret,
-            current_ts,
-            step_seconds=step_seconds,
-            digits=len(normalized_code),
-        )
-        if expected and hmac.compare_digest(expected, normalized_code):
-            return True
-
-    return False
 
 
 def _authorize_kill_switch_actor(
@@ -2078,369 +1421,46 @@ def _emit_kill_switch_event(active: bool, reason: str, actor: str) -> None:
 
 
 def _runtime_scheduler_status() -> Dict[str, Any]:
-    status: Dict[str, Any] = {
-        "available": False,
-        "running": False,
-    }
-    try:
-        from src.api import server as api_server
-
-        scheduler = getattr(api_server, "_scheduler", None)
-        if scheduler is None:
-            return status
-
-        thread = getattr(scheduler, "_thread", None)
-        status.update(
-            {
-                "available": True,
-                "running": bool(thread and thread.is_alive()),
-            }
-        )
-    except Exception as exc:
-        status["error"] = str(exc)
-
-    return status
+    return _runtime_scheduler_status_impl()
 
 
 def _runtime_execution_status() -> Dict[str, Any]:
-    status: Dict[str, Any] = {
-        "available": False,
-        "pendingOrders": 0,
-        "startupSync": {
-            "required": False,
-            "completed": True,
-            "status": "not_required",
-        },
-    }
-    try:
-        from src.api import server as api_server
-
-        execution_manager = getattr(api_server, "_execution_manager", None)
-        if execution_manager is None:
-            return status
-
-        pending_orders = []
-        if hasattr(execution_manager, "get_pending_orders"):
-            pending_orders = list(execution_manager.get_pending_orders() or [])
-
-        startup_sync_status = status.get("startupSync")
-        if hasattr(execution_manager, "get_startup_sync_status"):
-            candidate = execution_manager.get_startup_sync_status()
-            if isinstance(candidate, dict):
-                startup_sync_status = {
-                    **(startup_sync_status or {}),
-                    **candidate,
-                }
-
-        status.update(
-            {
-                "available": True,
-                "pendingOrders": len(pending_orders),
-                "startupSync": startup_sync_status,
-            }
-        )
-    except Exception as exc:
-        status["error"] = str(exc)
-
-    return status
+    return _runtime_execution_status_impl()
 
 
 def _runtime_execution_manager() -> Optional[Any]:
-    try:
-        from src.api import server as api_server
-
-        return getattr(api_server, "_execution_manager", None)
-    except Exception:
-        return None
+    return _runtime_execution_manager_impl()
 
 
 def _resolve_live_broker_adapter(provider: str):
-    normalized = str(provider or "").strip().lower()
-
-    if normalized == "indopremier":
-        from src.brokers.indopremier import IndoPremierBroker
-
-        return IndoPremierBroker
-    if normalized == "stockbit":
-        from src.brokers.stockbit import StockbitBroker
-
-        return StockbitBroker
-    if normalized == "ajaib":
-        from src.brokers.ajaib import AjaibBroker
-
-        return AjaibBroker
-
-    return None
+    return _resolve_live_broker_adapter_impl(provider)
 
 
 def _cancel_live_broker_open_orders(limit: int = 200) -> Dict[str, Any]:
-    """Best-effort cancel for open orders on live broker connection."""
-    safe_limit = max(1, min(1000, int(limit)))
-    summary: Dict[str, Any] = {
-        "requested": False,
-        "connected": False,
-        "provider": None,
-        "status": "skipped",
-        "openOrders": 0,
-        "cancelled": 0,
-        "failed": 0,
-        "error": None,
-    }
-
-    connection = _state_store.get_broker_connection(_default_broker_connection)
-    if not bool(connection.get("connected")):
-        summary["status"] = "skipped_not_connected"
-        return summary
-
-    trading_mode = str(connection.get("tradingMode") or "paper").strip().lower()
-    if trading_mode != "live":
-        summary["status"] = "skipped_not_live"
-        return summary
-
-    provider = str(connection.get("provider") or "").strip().lower()
-    summary["provider"] = provider or None
-
-    adapter_cls = _resolve_live_broker_adapter(provider)
-    if adapter_cls is None:
-        summary["status"] = "unsupported_provider"
-        return summary
-
-    credentials = _state_store.get_broker_credentials()
-    account_id = str(
-        connection.get("accountId")
-        or credentials.get("accountId")
-        or ""
-    ).strip()
-    api_key = str(credentials.get("apiKey") or "").strip()
-    api_secret = str(credentials.get("apiSecret") or "").strip()
-
-    if not account_id or not api_key or not api_secret:
-        summary["status"] = "missing_credentials"
-        return summary
-
-    summary["requested"] = True
-
-    async def _cancel_async() -> Dict[str, Any]:
-        broker = adapter_cls(
-            api_key=api_key,
-            api_secret=api_secret,
-            account_id=account_id,
-        )
-
-        try:
-            connected = await broker.connect()
-            summary["connected"] = bool(connected)
-            if not connected:
-                summary["status"] = "connect_failed"
-                return summary
-
-            cancel_report = await broker.cancel_all_open_orders(limit=safe_limit)
-            summary["status"] = str(cancel_report.get("status") or "ok")
-            summary["openOrders"] = int(cancel_report.get("openOrders") or 0)
-            summary["cancelled"] = int(cancel_report.get("cancelled") or 0)
-            summary["failed"] = int(cancel_report.get("failed") or 0)
-            summary["error"] = cancel_report.get("error")
-            return summary
-        except Exception as exc:
-            summary["status"] = "error"
-            summary["error"] = str(exc)
-            return summary
-        finally:
-            try:
-                await broker.disconnect()
-            except Exception:
-                pass
-
-    try:
-        return asyncio.run(_cancel_async())
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(_cancel_async())
-        finally:
-            loop.close()
+    return _cancel_live_broker_open_orders_impl(
+        state_store=_state_store,
+        default_broker_connection=_default_broker_connection,
+        resolve_live_broker_adapter_fn=_resolve_live_broker_adapter,
+        limit=limit,
+    )
 
 
 def _suspend_runtime_services() -> Dict[str, Any]:
-    """Best-effort stop for local scheduler after kill switch activation."""
-    actions: Dict[str, Any] = {
-        "schedulerStopRequested": False,
-        "schedulerWasRunning": False,
-        "schedulerStopped": False,
-        "pendingOrderCancelRequested": False,
-        "pendingOrdersBefore": 0,
-        "pendingOrdersCancelled": 0,
-        "pendingOrdersAfter": 0,
-        "brokerOpenOrderCancelRequested": False,
-        "brokerOpenOrdersFound": 0,
-        "brokerOpenOrdersCancelled": 0,
-        "brokerOpenOrdersFailed": 0,
-        "brokerOpenOrderCancelSummary": None,
-        "errors": [],
-    }
-
-    try:
-        from src.api import server as api_server
-
-        scheduler = getattr(api_server, "_scheduler", None)
-        if scheduler is not None:
-            actions["schedulerStopRequested"] = True
-            thread = getattr(scheduler, "_thread", None)
-            was_running = bool(thread and thread.is_alive())
-            actions["schedulerWasRunning"] = was_running
-
-            if was_running:
-                scheduler.stop(timeout=2.0)
-                thread_after = getattr(scheduler, "_thread", None)
-                actions["schedulerStopped"] = not bool(thread_after and thread_after.is_alive())
-            else:
-                actions["schedulerStopped"] = True
-        else:
-            actions["schedulerStopped"] = True
-
-        execution_manager = getattr(api_server, "_execution_manager", None)
-        if execution_manager is not None:
-            actions["pendingOrderCancelRequested"] = True
-
-            try:
-                pending_before = list(execution_manager.get_pending_orders() or [])
-            except Exception:
-                pending_before = []
-
-            actions["pendingOrdersBefore"] = len(pending_before)
-
-            try:
-                if hasattr(execution_manager, "cancel_all_pending_orders"):
-                    cancelled = execution_manager.cancel_all_pending_orders(
-                        reason="kill_switch"
-                    )
-                else:
-                    cancelled = 0
-            except Exception as exc:
-                cancelled = 0
-                actions["errors"].append(str(exc))
-
-            actions["pendingOrdersCancelled"] = int(cancelled or 0)
-
-            try:
-                pending_after = list(execution_manager.get_pending_orders() or [])
-            except Exception:
-                pending_after = []
-            actions["pendingOrdersAfter"] = len(pending_after)
-
-        broker_cancel_summary = _cancel_live_broker_open_orders(limit=200)
-        actions["brokerOpenOrderCancelRequested"] = bool(
-            broker_cancel_summary.get("requested")
-        )
-        actions["brokerOpenOrdersFound"] = int(
-            broker_cancel_summary.get("openOrders") or 0
-        )
-        actions["brokerOpenOrdersCancelled"] = int(
-            broker_cancel_summary.get("cancelled") or 0
-        )
-        actions["brokerOpenOrdersFailed"] = int(
-            broker_cancel_summary.get("failed") or 0
-        )
-        actions["brokerOpenOrderCancelSummary"] = broker_cancel_summary
-        if broker_cancel_summary.get("error"):
-            actions["errors"].append(str(broker_cancel_summary["error"]))
-    except Exception as exc:
-        actions["errors"].append(str(exc))
-
-    return actions
+    return _suspend_runtime_services_impl(
+        cancel_live_broker_open_orders_fn=_cancel_live_broker_open_orders,
+    )
 
 
 def _celery_queue_backlog_snapshot() -> Dict[str, Any]:
-    enabled = str(os.getenv("AUTOSAHAM_USE_CELERY", "")).strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
-    if not enabled:
-        return {
-            "enabled": False,
-            "available": False,
-            "connectedWorkers": [],
-            "reservedCount": 0,
-            "scheduledCount": 0,
-            "activeCount": 0,
-            "backlogEstimate": 0,
-        }
-
-    try:
-        from src.tasks import app as celery_app
-
-        inspector = celery_app.control.inspect(timeout=0.75)
-        reserved = inspector.reserved() or {}
-        scheduled = inspector.scheduled() or {}
-        active = inspector.active() or {}
-
-        workers = sorted(set(reserved.keys()) | set(scheduled.keys()) | set(active.keys()))
-        reserved_count = sum(len(items or []) for items in reserved.values())
-        scheduled_count = sum(len(items or []) for items in scheduled.values())
-        active_count = sum(len(items or []) for items in active.values())
-
-        return {
-            "enabled": True,
-            "available": True,
-            "connectedWorkers": workers,
-            "reservedCount": int(reserved_count),
-            "scheduledCount": int(scheduled_count),
-            "activeCount": int(active_count),
-            "backlogEstimate": int(reserved_count + scheduled_count),
-        }
-    except Exception as exc:
-        return {
-            "enabled": True,
-            "available": False,
-            "connectedWorkers": [],
-            "reservedCount": 0,
-            "scheduledCount": 0,
-            "activeCount": 0,
-            "backlogEstimate": 0,
-            "error": str(exc),
-        }
+    return _celery_queue_backlog_snapshot_impl()
 
 
 def _ws_backplane_health_snapshot() -> Dict[str, Any]:
-    try:
-        from src.api.event_queue import get_backplane_health
-
-        return get_backplane_health()
-    except Exception as exc:
-        return {
-            "instanceId": None,
-            "queueDepth": 0,
-            "queueCapacity": 0,
-            "seenEventCacheSize": 0,
-            "seenEventCacheCapacity": 0,
-            "backplane": {
-                "enabled": False,
-                "channel": None,
-                "redisUrlConfigured": False,
-                "redisConnected": False,
-                "subscriberReady": False,
-                "initAttempted": False,
-                "lastError": str(exc),
-                "lastErrorAt": None,
-            },
-        }
+    return _ws_backplane_health_snapshot_impl()
 
 
 def _last_state_migration_timestamp(limit: int = 200) -> Optional[str]:
-    try:
-        logs = _state_store.list_ai_logs(limit=limit)
-    except Exception:
-        return None
-
-    for item in logs:
-        if str(item.get("eventType") or "").strip().lower() != "state_store_migration":
-            continue
-        candidate = str(item.get("timestamp") or "").strip()
-        if candidate:
-            return candidate
-    return None
+    return _last_state_migration_timestamp_impl(state_store=_state_store, limit=limit)
 
 # ============== Routes ==============
 
