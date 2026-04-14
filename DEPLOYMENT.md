@@ -5,6 +5,18 @@ Status fitur dan progres implementasi mengikuti `Progress.md`.
 
 Last updated: 2026-04-14 (UTC+7)
 
+## PM Execution Context (10 Expert Roles)
+
+Deployment readiness dievaluasi lintas peran berikut:
+
+- AI/ML + Algorithm: memastikan model/output signal stabil sebelum deployment lanjutan.
+- Python + Programming + Backend: memastikan service modular, test hijau, dan runtime aman.
+- API + Fullstack + App: memastikan kontrak endpoint stabil untuk UI.
+- Architecture: memastikan dekomposisi file besar berjalan dan technical debt menurun.
+- UI/UX: memastikan informasi signal/risk tetap terbaca dan konsisten di frontend.
+
+Status saat ini: deployment untuk local/dev siap; deployment production penuh ditahan sampai fase RL sandbox dan training (fase 3-4) mencapai baseline stabil.
+
 ## Scope
 
 Panduan ini mencakup:
@@ -163,6 +175,17 @@ pip install -r requirements.txt
 - [ ] Guard keamanan (admin/role/CSRF/2FA) diuji sesuai kebijakan
 - [ ] Logging dan monitoring (Prometheus/Grafana) aktif
 - [ ] Kill-switch drill dijalankan (lihat `docs/KILL_SWITCH_DRILL_RUNBOOK.md`)
+
+## Phase-Gated Rollout
+
+Sebelum produksi penuh, gunakan gate berikut:
+
+- Gate Fase 1-2: harus hijau (sudah tercapai untuk scope saat ini).
+- Gate Fase 3: wajib selesai (reward/slippage/leverage environment tervalidasi).
+- Gate Fase 4: minimal satu siklus training panjang dengan checkpoint restore tervalidasi.
+- Gate Fase 5: uji staging cloud + rollback drill + kill-switch drill wajib lulus.
+
+Tanpa gate di atas, deployment sebaiknya dibatasi pada dev/staging dan paper/simulated execution.
 
 ## References
 

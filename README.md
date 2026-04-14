@@ -8,12 +8,38 @@ README ini sudah disesuaikan dengan kondisi kode saat ini: fitur frontend, kemam
 
 - Snapshot dokumen: 14 April 2026
 - Progress proyek mengikuti `Progress.md` sebagai sumber status tunggal (bukan angka statis di README)
-- Fokus aktif: Fase 1.5 modularisasi `src/ml/feature_store.py` (split modul core/risk/volatility/momentum)
+- Fokus aktif: dekomposisi bertahap `src/api/frontend_routes.py` ke service layer (wave infer-signals/fallback assembly selesai, regresi 41/41 PASS)
 - Fase 2.3 otomatisasi raw data -> feature dataset sudah selesai dan tervalidasi
 - Frontend: React 18 + Vite + lightweight-charts
 - Backend: FastAPI + pipeline data/ML + WebSocket realtime
 - Timezone utama: UTC
 - Market scope di UI AI Graph: Forex dan Crypto
+
+## Program PM Multi-AI (10 Expert Roles)
+
+Eksekusi proyek dijalankan dengan pola IT PM lintas peran:
+
+- IT Expert AI/ML: kualitas inferensi model, fallback, dan evaluasi sinyal.
+- IT Algoritm Expert: validasi logika ranking, heuristic, dan overlay regime.
+- IT Developer App: kompatibilitas kontrak API ke aplikasi frontend.
+- IT Expert Python: kualitas refactor pythonic dan maintainability.
+- IT Programming Expert: standar coding, struktur fungsi, dan readability.
+- IT Fullstack Expert: sinkronisasi kebutuhan UI dengan backend behavior.
+- IT UI/UX Expert: keterbacaan insight AI pada UI (reason, source, confidence).
+- IT Architecture Expert: pengurangan god-file dan pemisahan concern per modul.
+- IT API Expert: konsistensi schema endpoint dan fallback contract.
+- IT Backend Expert: stabilitas runtime, error safety, dan observability.
+
+### Ringkasan status fase
+
+- Fase 1: In Progress (cleanup dan dekomposisi file besar masih berjalan).
+- Fase 2: Selesai untuk scope data pipeline saat ini.
+- Fase 3: Belum dimulai penuh (reward/slippage/leverage env masih pending).
+- Fase 4: Belum dimulai (menunggu finalisasi fase 3).
+- Fase 5: Belum dimulai (bergantung infrastruktur cloud eksternal).
+- Fase 6: In Progress parsial (baseline UI aktif, integrasi lanjutan bertahap).
+- Fase 7: Belum dimulai penuh.
+- Fase 8: Belum dimulai.
 
 ## Arsitektur Singkat
 
@@ -450,13 +476,12 @@ Pedoman kontribusi ada di file CONTRIBUTING.md, termasuk standar commit, validas
 
 Prioritas update berikutnya yang direkomendasikan:
 
-1. Menuntaskan Fase 1.5: final wiring modular `feature_store` dan cleanup file besar (>300 baris) secara bertahap dengan regresi test ketat.
-2. Melanjutkan sweep residual `.JK/IDX` di modul legacy non-core agar debugging tidak ambigu.
-3. Memulai Fase 3 RL sandbox: update reward berbasis risk-adjusted return + death-penalty + simulasi fee/slippage leverage tinggi.
-4. Menambah E2E test automation untuk flow kritikal (auth, strategy deploy/backtest, AI Graph controls, notifications).
-5. Hardening eksekusi broker live (audit trail order, guardrail risiko tambahan, rollout feature flag per provider).
-6. Penguatan observability: SLO/SLI dashboard, alert tuning berbasis error budget.
-7. Packaging release yang lebih rapi (versioning, changelog, release notes otomatis).
+1. Lanjutkan wave dekomposisi `frontend_routes` hingga route handlers makin tipis dan logic berat seluruhnya berada di `src/api/services/`.
+2. Tuntaskan cleanup residual `.JK/IDX` di modul legacy non-core agar konteks Forex/Crypto konsisten end-to-end.
+3. Eksekusi Fase 3 RL sandbox: implementasi reward risk-adjusted, death-penalty, serta simulasi fee/slippage leverage tinggi.
+4. Siapkan artefak training Fase 4 (`scripts/train_crypto_rl.py`, checkpointing policy, dan baseline runbook GPU).
+5. Siapkan blueprint deployment Fase 5 untuk cloud target (Oracle ARM/Kong/monitoring) setelah fase RL stabil.
+6. Perkuat test automation lintas API/UI untuk flow kritikal sebelum rollout fase ekspansi frontend.
 
 ## Lisensi
 
