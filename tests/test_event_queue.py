@@ -12,14 +12,14 @@ def _drain_events():
 def test_push_pop_strips_internal_metadata():
     _drain_events()
 
-    push_event({"type": "tick", "symbol": "BBCA.JK", "price": 100.0})
+    push_event({"type": "tick", "symbol": "BTCUSDT", "price": 100.0})
     events = pop_events()
 
     assert isinstance(events, list)
     assert events
     payload = events[-1]
     assert payload["type"] == "tick"
-    assert payload["symbol"] == "BBCA.JK"
+    assert payload["symbol"] == "BTCUSDT"
     assert "__eventId" not in payload
     assert "__origin" not in payload
     assert "__ts" not in payload

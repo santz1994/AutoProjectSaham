@@ -27,7 +27,7 @@ BROKER_CONTRACT_CASES = [
         "place_status": ExecutionStatus.ACCEPTED,
         "status_payload": {
             "order": {
-                "symbol": "BBCA.JK",
+                "symbol": "BTC-USD",
                 "side": "buy",
                 "quantity": 100,
                 "filled_qty": 25,
@@ -44,7 +44,7 @@ BROKER_CONTRACT_CASES = [
         },
         "open_order_ids": ["sb-open-1", "sb-open-2"],
         "status_expected": ExecutionStatus.PARTIALLY_FILLED,
-        "status_symbol": "BBCA.JK",
+        "status_symbol": "BTC-USD",
     },
     {
         "name": "ajaib",
@@ -61,7 +61,7 @@ BROKER_CONTRACT_CASES = [
         "place_status": ExecutionStatus.PARTIALLY_FILLED,
         "status_payload": {
             "data": {
-                "symbol": "BMRI.JK",
+                "symbol": "EURUSD=X",
                 "side": "sell",
                 "quantity": 100,
                 "filled_quantity": 100,
@@ -78,7 +78,7 @@ BROKER_CONTRACT_CASES = [
         },
         "open_order_ids": ["aj-open-1", "aj-open-2"],
         "status_expected": ExecutionStatus.FILLED,
-        "status_symbol": "BMRI.JK",
+        "status_symbol": "EURUSD=X",
     },
     {
         "name": "indopremier",
@@ -95,7 +95,7 @@ BROKER_CONTRACT_CASES = [
         "place_status": ExecutionStatus.CANCELLED,
         "status_payload": {
             "order": {
-                "code": "TLKM.JK",
+                "code": "ETH-USD",
                 "side": "BUY",
                 "qty": 200,
                 "filledQty": 0,
@@ -112,7 +112,7 @@ BROKER_CONTRACT_CASES = [
         },
         "open_order_ids": ["ip-open-1", "ip-open-2"],
         "status_expected": ExecutionStatus.PENDING,
-        "status_symbol": "TLKM.JK",
+        "status_symbol": "ETH-USD",
     },
 ]
 BROKER_CASE_IDS = ["stockbit", "ajaib", "indopremier"]
@@ -138,7 +138,7 @@ async def test_broker_place_order_schema_contract(case):
     broker._make_request = AsyncMock(return_value=case["place_payload"])
 
     result = await broker.place_order(
-        symbol="BBCA.JK",
+        symbol="BTC-USD",
         quantity=100,
         side="buy",
         order_type="market",
@@ -179,7 +179,7 @@ async def test_broker_place_order_schema_failure_fails_safe(case):
     broker._make_request = AsyncMock(return_value={"unexpected": "shape"})
 
     result = await broker.place_order(
-        symbol="BBCA.JK",
+        symbol="BTC-USD",
         quantity=100,
         side="buy",
     )

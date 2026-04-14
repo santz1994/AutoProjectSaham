@@ -16,7 +16,7 @@ def test_simulator_latency_within_bounds():
     sim = LocalExchangeSimulator(config=cfg, seed=1)
 
     result = sim.simulate_order(
-        OrderIntent(symbol="BBCA.JK", side="buy", quantity=100, price=15000.0)
+        OrderIntent(symbol="BTCUSDT", side="buy", quantity=100, price=15000.0)
     )
 
     assert 5 <= result.latency_ms <= 8
@@ -35,7 +35,7 @@ def test_simulator_forced_partial_fill():
     sim = LocalExchangeSimulator(config=cfg, seed=2)
 
     result = sim.simulate_order(
-        OrderIntent(symbol="BBCA.JK", side="buy", quantity=100, price=15000.0)
+        OrderIntent(symbol="BTCUSDT", side="buy", quantity=100, price=15000.0)
     )
 
     names = [event.name for event in result.events]
@@ -55,7 +55,7 @@ def test_simulator_cancel_race_path():
     sim = LocalExchangeSimulator(config=cfg, seed=3)
 
     result = sim.simulate_order(
-        OrderIntent(symbol="BMRI.JK", side="sell", quantity=100, price=8000.0)
+        OrderIntent(symbol="EURUSD=X", side="sell", quantity=100, price=8000.0)
     )
 
     names = [event.name for event in result.events]

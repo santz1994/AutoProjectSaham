@@ -1,4 +1,4 @@
-"""
+﻿"""
 Tests for Meta-Learning Module
 
 Tests symbol adaptation, transfer learning, and few-shot learning capabilities.
@@ -460,7 +460,7 @@ def run_meta_learning_benchmark():
     print("="*60)
     print("Meta-learning enables rapid adaptation to new stocks with")
     print("minimal training data by transferring knowledge from similar stocks.")
-    print("\n✅ Benchmark complete!\n")
+    print("\nâœ… Benchmark complete!\n")
 
 
 if __name__ == '__main__':
@@ -470,3 +470,5 @@ if __name__ == '__main__':
     
     # Run benchmark
     run_meta_learning_benchmark()
+
+

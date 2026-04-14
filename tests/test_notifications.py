@@ -11,6 +11,7 @@ from datetime import datetime
 from unittest.mock import Mock, patch, AsyncMock, MagicMock
 
 import pytz
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from src.notifications import (
@@ -22,8 +23,16 @@ from src.notifications.delivery_handlers import (
     WebSocketHandler, EmailHandler, SlackHandler, PushNotificationHandler,
     NotificationChannelFactory
 )
+from src.notifications import api_routes
 
 JAKARTA_TZ = pytz.timezone('Asia/Jakarta')
+
+
+def test_notification_market_status_rejects_invalid_market_scope():
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(api_routes.get_market_trading_status(market="stock"))
+
+    assert exc_info.value.status_code == 400
 
 
 # ==================== NotificationManager Tests ====================
@@ -502,7 +511,7 @@ class TestNotificationIntegration:
             body="Test notification body",
             signal_type=TradeSignalType.BUY_SIGNAL,
             channels=[NotificationChannel.WEBSOCKET],
-            data={"symbol": "BBCA.JK", "price": 15000}
+            data={"symbol": "BTCUSDT", "price": 65000}
         )
         
         # Add to queue

@@ -1,51 +1,75 @@
+import math
 from datetime import datetime, timezone
+from typing import Any, Optional
 
 
 class BrokerInterface:
     """Simple broker interface spec."""
 
-    def place_order(self, symbol, side, qty, price):
+    def place_order(
+        self, symbol: str, side: str, qty: float, price: float
+    ) -> dict[str, Any]:
         raise NotImplementedError()
 
-    def cancel_order(self, order_id):
+    def cancel_order(self, order_id: str) -> bool:
         raise NotImplementedError()
 
-    def get_balance(self, price_map=None):
+    def get_balance(
+        self, price_map: Optional[dict[str, float]] = None
+    ) -> float:
         raise NotImplementedError()
 
 
 class PaperBroker(BrokerInterface):
     """A minimal paper trading broker simulator.
 
-    - Maintains cash and integer position sizes per symbol
+    - Maintains cash and fractional position sizes per symbol
     - Executes market orders immediately at provided price
     - Records trades in-memory
     """
 
-    def __init__(self, cash: float = 10000.0):
-        self.cash = float(cash)
-        self.positions = {}
-        self.trades = []
+    cash: float
+    positions: dict[str, float]
+    trades: list[dict[str, Any]]
 
-    def place_order(self, symbol: str, side: str, qty: int, price: float):
+    def __init__(self, cash: float = 10000.0):
+        self.cash: float = float(cash)
+        self.positions: dict[str, float] = {}
+        self.trades: list[dict[str, Any]] = []
+
+    def place_order(self, symbol: str, side: str, qty: float, price: float):
         now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-        qty = int(qty)
+        safe_qty = float(qty)
+        if not math.isfinite(safe_qty) or safe_qty <= 0.0:
+            trade = {
+                "time": now,
+                "symbol": symbol,
+                "side": side,
+                "qty": safe_qty,
+                "price": float(price),
+                "status": "rejected",
+                "reason": "invalid_qty",
+            }
+            self.trades.append(trade)
+            return trade
+
         # realistic broker fees (approx): buy fee ~0.15%, sell fee ~0.25% (incl. taxes)
         buy_fee_pct = 0.0015
         sell_fee_pct = 0.0025
 
         if side.lower() == "buy":
-            cost = price * qty
+            cost = float(price) * safe_qty
             fee = cost * buy_fee_pct
             total_cost = cost + fee
             if total_cost <= self.cash:
                 self.cash -= total_cost
-                self.positions[symbol] = self.positions.get(symbol, 0) + qty
+                current_pos = float(self.positions.get(symbol, 0.0))
+                self.positions[symbol] = current_pos + safe_qty
                 trade = {
                     "time": now,
                     "symbol": symbol,
                     "side": "buy",
-                    "qty": qty,
+                    "qty": safe_qty,
                     "price": price,
                     "status": "filled",
                     "fee": float(fee),
@@ -57,7 +81,7 @@ class PaperBroker(BrokerInterface):
                     "time": now,
                     "symbol": symbol,
                     "side": "buy",
-                    "qty": qty,
+                    "qty": safe_qty,
                     "price": price,
                     "status": "rejected",
                     "reason": "insufficient_cash",
@@ -67,10 +91,14 @@ class PaperBroker(BrokerInterface):
                 return trade
 
         if side.lower() == "sell":
-            pos = self.positions.get(symbol, 0)
-            if qty <= pos:
-                self.positions[symbol] = pos - qty
-                proceeds = price * qty
+            pos = float(self.positions.get(symbol, 0.0))
+            if safe_qty <= pos + 1e-12:
+                next_pos = pos - safe_qty
+                if abs(next_pos) <= 1e-12:
+                    self.positions.pop(symbol, None)
+                else:
+                    self.positions[symbol] = next_pos
+                proceeds = float(price) * safe_qty
                 fee = proceeds * sell_fee_pct
                 net = proceeds - fee
                 self.cash += net
@@ -78,7 +106,7 @@ class PaperBroker(BrokerInterface):
                     "time": now,
                     "symbol": symbol,
                     "side": "sell",
-                    "qty": qty,
+                    "qty": safe_qty,
                     "price": price,
                     "status": "filled",
                     "fee": float(fee),
@@ -91,7 +119,7 @@ class PaperBroker(BrokerInterface):
                     "time": now,
                     "symbol": symbol,
                     "side": "sell",
-                    "qty": qty,
+                    "qty": safe_qty,
                     "price": price,
                     "status": "rejected",
                     "reason": "insufficient_position",
@@ -103,7 +131,7 @@ class PaperBroker(BrokerInterface):
             "time": now,
             "symbol": symbol,
             "side": side,
-            "qty": qty,
+            "qty": safe_qty,
             "price": price,
             "status": "rejected",
             "reason": "unknown_side",
@@ -111,11 +139,13 @@ class PaperBroker(BrokerInterface):
         self.trades.append(trade)
         return trade
 
-    def cancel_order(self, order_id):
+    def cancel_order(self, order_id: str) -> bool:
         # PaperBroker executes immediately; no order queue implemented.
         return False
 
-    def get_balance(self, price_map: dict = None):
+    def get_balance(
+        self, price_map: Optional[dict[str, float]] = None
+    ) -> float:
         """Return cash + market value computed with provided price_map.
 
         price_map: dict symbol -> price

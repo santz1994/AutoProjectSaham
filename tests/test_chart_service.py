@@ -5,12 +5,12 @@ Tests for Chart Service and API
 Comprehensive tests for TradingView chart integration.
 
 Tests:
-- IDX symbol validation
+- Forex/Crypto symbol validation
 - Chart metadata retrieval
 - OHLCV data retrieval and aggregation
 - TimeFrame support
 - Jakarta timezone handling
-- BEI trading hours validation
+- Market trading hours validation
 - WebSocket connection simulation
 - Cache functionality
 - Error handling
@@ -19,14 +19,13 @@ Author: AutoSaham Team
 """
 
 import pytest
-import asyncio
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytz
 from src.api.chart_service import (
     IDXSymbolValidator,
+    MarketSymbolValidator,
     ChartMetadata,
     OHLCV,
     ChartDataCache,
@@ -37,56 +36,59 @@ from src.api.chart_service import (
 )
 
 
-pytestmark = pytest.mark.asyncio
-
-
-class TestIDXSymbolValidator:
-    """Test IDX symbol validation."""
+class TestMarketSymbolValidator:
+    """Test Forex/Crypto symbol validation."""
 
     def test_valid_symbol_format(self):
-        """Test valid IDX symbol formats."""
-        valid_symbols = ["BBCA.JK", "BMRI.JK", "TLKM.JK", "ASII.JK"]
+        """Test valid Forex/Crypto symbol formats."""
+        valid_symbols = ["EURUSD=X", "GBPUSD=X", "BTC-USD", "ETH-USD"]
         
         for symbol in valid_symbols:
-            is_valid, error = IDXSymbolValidator.validate(symbol)
+            is_valid, error = MarketSymbolValidator.validate(symbol)
             assert is_valid, f"Symbol {symbol} should be valid: {error}"
             assert error is None
 
     def test_invalid_symbol_format(self):
         """Test invalid symbol formats."""
         invalid_symbols = [
-            "BBCA",  # Missing .JK
-            "BBCA.NY",  # Wrong exchange
-            "BB.JK",  # Too short
-            "BBCAAA.JK",  # Too long
-            "123.JK",  # Non-alphabetic
+            "BBCA.JK",  # Legacy IDX format should be rejected
+            "INVALID",
+            "123ABC",  # Invalid alpha pair
+            "AAPL",  # Unsupported equity symbol
+            "BTC--USD",
         ]
         
         for symbol in invalid_symbols:
-            is_valid, error = IDXSymbolValidator.validate(symbol)
+            is_valid, error = MarketSymbolValidator.validate(symbol)
             assert not is_valid, f"Symbol {symbol} should be invalid"
             assert error is not None
 
     def test_symbol_metadata(self):
         """Test symbol metadata retrieval."""
-        metadata = IDXSymbolValidator.get_metadata("BBCA.JK")
+        metadata = MarketSymbolValidator.get_metadata("EURUSD=X")
         
-        assert metadata.symbol == "BBCA.JK"
-        assert metadata.exchange == "IDX"
-        assert metadata.currency == "IDR"
-        assert metadata.min_lot_size == 100
-        assert metadata.trading_start == "09:30"
-        assert metadata.trading_end == "16:00"
+        assert metadata.symbol == "EURUSD=X"
+        assert metadata.exchange == "FOREX"
+        assert metadata.currency == "USD"
+        assert metadata.min_lot_size == 0.01
+        assert metadata.trading_start == "00:00"
+        assert metadata.trading_end == "23:59"
         assert metadata.timezone == "Asia/Jakarta"
 
     def test_all_known_symbols(self):
-        """Test all known IDX symbols."""
-        for symbol in IDXSymbolValidator.IDX_SYMBOLS.keys():
-            is_valid, error = IDXSymbolValidator.validate(symbol)
+        """Test all known market symbols."""
+        for symbol in MarketSymbolValidator.SYMBOLS.keys():
+            is_valid, error = MarketSymbolValidator.validate(symbol)
             assert is_valid, f"Symbol {symbol} should be valid: {error}"
             
-            metadata = IDXSymbolValidator.get_metadata(symbol)
+            metadata = MarketSymbolValidator.get_metadata(symbol)
             assert metadata is not None
+
+    def test_backward_compat_alias(self):
+        """Ensure legacy IDXSymbolValidator import still works as alias."""
+        is_valid, error = IDXSymbolValidator.validate("BTC-USD")
+        assert is_valid
+        assert error is None
 
 
 class TestOHLCV:
@@ -149,40 +151,40 @@ class TestChartMetadata:
     def test_metadata_creation(self):
         """Test metadata creation."""
         metadata = ChartMetadata(
-            symbol="BBCA.JK",
-            exchange="IDX",
-            currency="IDR",
+            symbol="BTC-USD",
+            exchange="CRYPTO",
+            currency="USD",
             timeframe=TimeFrame.D1,
-            description="Bank Central Asia",
+            description="Bitcoin / US Dollar",
             decimal_places=2,
-            min_lot_size=100,
-            trading_start="09:30",
-            trading_end="16:00",
+            min_lot_size=0.001,
+            trading_start="00:00",
+            trading_end="23:59",
             timezone="Asia/Jakarta",
         )
         
-        assert metadata.symbol == "BBCA.JK"
-        assert metadata.exchange == "IDX"
+        assert metadata.symbol == "BTC-USD"
+        assert metadata.exchange == "CRYPTO"
 
     def test_metadata_to_dict(self):
         """Test metadata to dictionary."""
         metadata = ChartMetadata(
-            symbol="BBCA.JK",
-            exchange="IDX",
-            currency="IDR",
+            symbol="EURUSD=X",
+            exchange="FOREX",
+            currency="USD",
             timeframe=TimeFrame.D1,
-            description="Bank Central Asia",
-            decimal_places=2,
-            min_lot_size=100,
-            trading_start="09:30",
-            trading_end="16:00",
+            description="EUR/USD",
+            decimal_places=5,
+            min_lot_size=0.01,
+            trading_start="00:00",
+            trading_end="23:59",
             timezone="Asia/Jakarta",
         )
         
         data = metadata.to_dict()
-        assert data["symbol"] == "BBCA.JK"
-        assert data["exchange"] == "IDX"
-        assert data["currency"] == "IDR"
+        assert data["symbol"] == "EURUSD=X"
+        assert data["exchange"] == "FOREX"
+        assert data["currency"] == "USD"
         assert data["timeFrame"] == "1d"
 
 
@@ -194,9 +196,9 @@ class TestChartDataCache:
         cache = ChartDataCache(ttl_minutes=5)
         
         data = {"candles": []}
-        cache.set("BBCA.JK:1d:100", data)
+        cache.set("BTC-USD:1d:100", data)
         
-        retrieved = cache.get("BBCA.JK:1d:100")
+        retrieved = cache.get("BTC-USD:1d:100")
         assert retrieved == data
 
     def test_cache_expiration(self):
@@ -204,38 +206,38 @@ class TestChartDataCache:
         cache = ChartDataCache(ttl_minutes=0)  # Immediate expiration
         
         data = {"candles": []}
-        cache.set("BBCA.JK:1d:100", data)
+        cache.set("EURUSD=X:1d:100", data)
         
         # Wait a moment for time to pass
         import time
         time.sleep(0.1)
         
-        retrieved = cache.get("BBCA.JK:1d:100")
+        retrieved = cache.get("EURUSD=X:1d:100")
         assert retrieved is None
 
     def test_cache_invalidate(self):
         """Test cache invalidation."""
         cache = ChartDataCache(ttl_minutes=5)
         
-        cache.set("BBCA.JK:1d:100", {})
-        cache.set("BMRI.JK:1d:100", {})
+        cache.set("BTC-USD:1d:100", {})
+        cache.set("EURUSD=X:1d:100", {})
         
-        cache.invalidate("BBCA.JK:1d:100")
+        cache.invalidate("BTC-USD:1d:100")
         
-        assert cache.get("BBCA.JK:1d:100") is None
-        assert cache.get("BMRI.JK:1d:100") is not None
+        assert cache.get("BTC-USD:1d:100") is None
+        assert cache.get("EURUSD=X:1d:100") is not None
 
     def test_cache_clear_all(self):
         """Test clearing entire cache."""
         cache = ChartDataCache(ttl_minutes=5)
         
-        cache.set("BBCA.JK:1d:100", {})
-        cache.set("BMRI.JK:1d:100", {})
+        cache.set("BTC-USD:1d:100", {})
+        cache.set("ETH-USD:1d:100", {})
         
         cache.invalidate()
         
-        assert cache.get("BBCA.JK:1d:100") is None
-        assert cache.get("BMRI.JK:1d:100") is None
+        assert cache.get("BTC-USD:1d:100") is None
+        assert cache.get("ETH-USD:1d:100") is None
 
 
 class TestOHLCVAggregator:
@@ -319,7 +321,8 @@ class TestChartServiceTrading:
         # Should return a datetime
         assert isinstance(next_open, datetime)
         # Should be in Jakarta timezone
-        assert next_open.tzinfo == JAKARTA_TZ
+        assert next_open.tzinfo is not None
+        assert next_open.tzinfo.zone == "Asia/Jakarta"
 
 
 class TestChartService:
@@ -334,6 +337,7 @@ class TestChartService:
         service = ChartService(feature_store, price_data_service)
         return service, price_data_service
 
+    @pytest.mark.asyncio
     async def test_get_chart_data_invalid_symbol(self, mock_service):
         """Test error handling for invalid symbol."""
         service, _ = mock_service
@@ -345,6 +349,7 @@ class TestChartService:
         
         assert exc_info.value.status_code == 400
 
+    @pytest.mark.asyncio
     async def test_get_chart_data_success(self, mock_service):
         """Test successful chart data retrieval."""
         service, price_service = mock_service
@@ -353,7 +358,7 @@ class TestChartService:
         dates = pd.date_range(
             start="2024-01-01",
             periods=100,
-            freq="1d",
+            freq="1D",
             tz=JAKARTA_TZ,
         )
         df = pd.DataFrame({
@@ -366,11 +371,12 @@ class TestChartService:
         
         price_service.get_ohlcv.return_value = df
         
-        data = await service.get_chart_data("BBCA.JK", "1d", 100)
+        data = await service.get_chart_data("BTC-USD", "1d", 100)
         
         assert "metadata" in data
         assert "candles" in data
-        assert data["metadata"]["symbol"] == "BBCA.JK"
+        assert data["metadata"]["symbol"] == "BTC-USD"
+        assert data["metadata"]["exchange"] == "CRYPTO"
         assert len(data["candles"]) > 0
 
 
@@ -380,23 +386,23 @@ class TestChartIntegration:
 
     def test_symbol_validation_integration(self):
         """Test full symbol validation flow."""
-        symbols_to_test = ["BBCA.JK", "BMRI.JK", "TLKM.JK"]
+        symbols_to_test = ["EURUSD=X", "BTC-USD", "ETH-USD"]
         
         for symbol in symbols_to_test:
-            is_valid, error = IDXSymbolValidator.validate(symbol)
+            is_valid, error = MarketSymbolValidator.validate(symbol)
             assert is_valid
             
-            metadata = IDXSymbolValidator.get_metadata(symbol)
+            metadata = MarketSymbolValidator.get_metadata(symbol)
             assert metadata.symbol == symbol
-            assert metadata.exchange == "IDX"
-            assert metadata.currency == "IDR"
+            assert metadata.exchange in {"FOREX", "CRYPTO"}
+            assert metadata.currency in {"USD", "USDT", "USDC", "JPY"}
 
     def test_cache_integration(self):
         """Test cache integration with chart data."""
         cache = ChartDataCache(ttl_minutes=5)
         
         # Simulate multiple requests for same data
-        key = "BBCA.JK:1d:100"
+        key = "BTC-USD:1d:100"
         data = {"candles": []}
         
         cache.set(key, data)

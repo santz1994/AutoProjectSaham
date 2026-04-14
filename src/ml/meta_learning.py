@@ -24,7 +24,6 @@ import logging
 try:
     from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
     from sklearn.linear_model import LogisticRegression
-    from sklearn.preprocessing import StandardScaler
     from sklearn.metrics import accuracy_score, roc_auc_score
     SKLEARN_AVAILABLE = True
 except ImportError:
@@ -53,7 +52,6 @@ class SymbolEmbedding:
         """
         self.embedding_dim = embedding_dim
         self.symbol_embeddings: Dict[str, np.ndarray] = {}
-        self.scaler = StandardScaler() if SKLEARN_AVAILABLE else None
     
     def generate_embedding(
         self,
@@ -95,10 +93,15 @@ class SymbolEmbedding:
                 embedding = stats_array[:self.embedding_dim]
             else:
                 embedding = np.pad(stats_array, (0, self.embedding_dim - len(stats_array)))
-            
-            # Normalize
-            if self.scaler is not None:
-                embedding = self.scaler.fit_transform(embedding.reshape(1, -1))[0]
+
+            # Normalize within the embedding vector to keep relative structure
+            # while avoiding the single-row StandardScaler all-zero pitfall.
+            mean = float(np.mean(embedding))
+            std = float(np.std(embedding))
+            if std > 1e-12:
+                embedding = (embedding - mean) / std
+            else:
+                embedding = embedding - mean
         
         self.symbol_embeddings[symbol] = embedding
         return embedding
@@ -211,6 +214,7 @@ class MetaLearner:
         
         # Symbol-specific models
         self.symbol_models: Dict[str, Any] = {}
+        self.symbol_model_uses_base_proba: Dict[str, bool] = {}
         
         # Symbol embeddings
         self.symbol_embedding = SymbolEmbedding(embedding_dim=10)
@@ -317,6 +321,7 @@ class MetaLearner:
         logger.info(f"Adapting to {symbol} using similar symbols: {similar_symbols}")
         
         # Strategy 1: Fine-tune base model
+        uses_base_proba = False
         if len(X_few_shot) >= self.few_shot_samples:
             # Sufficient data for fine-tuning
             adapted_model = GradientBoostingClassifier(
@@ -331,25 +336,30 @@ class MetaLearner:
             if hasattr(self.base_model, 'predict_proba'):
                 base_proba = self.base_model.predict_proba(X_few_shot.values)[:, 1]
                 X_aug['base_model_proba'] = base_proba
+                uses_base_proba = True
             
             adapted_model.fit(X_aug.values, y_few_shot.values)
             
         else:
             # Too few samples, use weighted base model
             adapted_model = self.base_model
+            X_aug = X_few_shot
+
+        X_eval = X_aug.values if uses_base_proba else X_few_shot.values
         
         # Evaluate adaptation
-        y_pred = adapted_model.predict(X_few_shot.values)
+        y_pred = adapted_model.predict(X_eval)
         accuracy = accuracy_score(y_few_shot.values, y_pred)
         
         try:
-            y_pred_proba = adapted_model.predict_proba(X_few_shot.values)[:, 1]
+            y_pred_proba = adapted_model.predict_proba(X_eval)[:, 1]
             auc = roc_auc_score(y_few_shot.values, y_pred_proba)
         except:
             auc = accuracy
         
         # Store adapted model
         self.symbol_models[symbol] = adapted_model
+        self.symbol_model_uses_base_proba[symbol] = uses_base_proba
         
         # Record adaptation
         self.adaptation_history[symbol].append({
@@ -388,15 +398,24 @@ class MetaLearner:
         # Use symbol-specific model if available
         if symbol in self.symbol_models:
             model = self.symbol_models[symbol]
+            uses_base_proba = self.symbol_model_uses_base_proba.get(symbol, False)
         else:
             # Fall back to base model
             model = self.base_model
+            uses_base_proba = False
             logger.debug(f"No adapted model for {symbol}, using base model")
-        
-        predictions = model.predict(X.values)
+
+        if uses_base_proba and hasattr(self.base_model, 'predict_proba'):
+            X_infer = X.copy()
+            X_infer['base_model_proba'] = self.base_model.predict_proba(X.values)[:, 1]
+            infer_values = X_infer.values
+        else:
+            infer_values = X.values
+
+        predictions = model.predict(infer_values)
         
         if hasattr(model, 'predict_proba'):
-            probabilities = model.predict_proba(X.values)[:, 1]
+            probabilities = model.predict_proba(infer_values)[:, 1]
         else:
             probabilities = predictions.astype(float)
         
@@ -451,6 +470,7 @@ class MetaLearner:
         state = {
             'base_model': self.base_model,
             'symbol_models': self.symbol_models,
+            'symbol_model_uses_base_proba': self.symbol_model_uses_base_proba,
             'symbol_embeddings': self.symbol_embedding.symbol_embeddings,
             'training_symbols': self.training_symbols,
             'adaptation_history': dict(self.adaptation_history)
@@ -470,6 +490,7 @@ class MetaLearner:
         
         self.base_model = state['base_model']
         self.symbol_models = state['symbol_models']
+        self.symbol_model_uses_base_proba = state.get('symbol_model_uses_base_proba', {})
         self.symbol_embedding.symbol_embeddings = state['symbol_embeddings']
         self.training_symbols = state['training_symbols']
         self.adaptation_history = defaultdict(list, state['adaptation_history'])

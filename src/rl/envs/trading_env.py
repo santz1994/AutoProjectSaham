@@ -1,8 +1,8 @@
 """Gym-style trading environment for RL experiments.
 
 This environment is intentionally small and self-contained so it can be
-used for prototyping PPO/other RL algorithms. It enforces IDX guardrails
-and uses the `ExecutionManager` + `PaperBroker` for simulated execution.
+used for prototyping PPO/other RL algorithms and uses the
+`ExecutionManager` + `PaperBroker` for simulated execution.
 
 Action space:
  - 0: hold
@@ -11,10 +11,12 @@ Action space:
  - 3: cancel pending limits
 
 Observation: numpy vector with [last_price, short_sma, long_sma, volatility,
-momentum, distance_to_ara, distance_to_arb, position_notional_fraction]
+momentum, dist_to_liquidation, norm_dist_to_liquidation,
+position_notional_fraction]
 """
 from __future__ import annotations
 
+import math
 from typing import List, Optional
 
 import numpy as np
@@ -25,7 +27,7 @@ def _try_import_gym():
         import gymnasium as gym
 
         return gym
-    except Exception:
+    except ImportError:
         return None
 
 
@@ -41,7 +43,7 @@ class TradingEnv:
         volumes: Optional[List[float]] = None,
         symbol: str = "ENV",
         starting_cash: float = 10000.0,
-        position_size: int = 1,
+        position_size: float = 1.0,
         commission_pct: float = 0.0005,
         slippage_pct: float = 0.0005,
     ):
@@ -50,7 +52,9 @@ class TradingEnv:
             raise ValueError("prices must be non-empty")
         self.symbol = symbol
         self.starting_cash = float(starting_cash)
-        self.position_size = int(position_size)
+        self.position_size = float(position_size)
+        if (not math.isfinite(self.position_size)) or self.position_size <= 0:
+            raise ValueError("position_size must be > 0")
         self.commission_pct = float(commission_pct)
         self.slippage_pct = float(slippage_pct)
 
@@ -60,8 +64,9 @@ class TradingEnv:
         # internal state
         self.t = 0
         self.cash = self.starting_cash
-        self.pos = 0
+        self.pos = 0.0
         self._start_balance = self.starting_cash
+        self.active_limit_sell_price: Optional[float] = None
 
         # lazy imports to avoid hard dependencies
         from src.execution.executor import PaperBroker
@@ -80,7 +85,7 @@ class TradingEnv:
         self.observation_shape = (8,)
         # expose a richer action space: Decision + TakeProfit bracket
         # Decision: 0=Hold, 1=Buy, 2=Sell Market, 3=Cancel Limits
-        # TP Bracket: 0=No TP, 1=+2%, 2=+5%, 3=+10%, 4=+ARA Limit
+        # TP Bracket: 0=No TP, 1=+2%, 2=+5%, 3=+10%, 4=+15% extension
         if GYM is not None:
             self.action_space = GYM.spaces.MultiDiscrete([4, 5])
             self.observation_space = GYM.spaces.Box(
@@ -92,7 +97,7 @@ class TradingEnv:
     def reset(self, start_index: Optional[int] = None):
         self.t = start_index if start_index is not None else 0
         self.cash = self.starting_cash
-        self.pos = 0
+        self.pos = 0.0
         self._start_balance = self.starting_cash
         # recreate manager with broker seeded to this env starting cash so
         # the RL episode has the correct buying power (avoid hardcoded defaults)
@@ -114,27 +119,21 @@ class TradingEnv:
         feats = self.compute_latest_features(prefix)
         last = float(prefix[-1])
 
-        # idx guardrails: use previous close when possible (IDX rules)
-        prev_close = float(prefix[-2]) if len(prefix) > 1 else last
-        from src.execution.idx_rules import calculate_idx_limits
-
-        limits = calculate_idx_limits(prev_close)
-        ara = limits["ara"]
-        arb = limits["arb"]
-
-        # distance to bounds (normalized)
-        dist_ara = (ara - last) / last if last > 0 else 0.0
-        dist_arb = (last - arb) / last if last > 0 else 0.0
+        # Market-agnostic risk context for 24x5/24x7 products.
+        dist_to_liquidation = float(feats.get("dist_to_liquidation", 0.0))
+        norm_dist_to_liquidation = float(
+            feats.get("norm_dist_to_liquidation", np.tanh(dist_to_liquidation))
+        )
 
         # fetch live broker state so the agent can see its positions/cash
         live_cash = getattr(getattr(self.manager, "broker", None), "cash", self.cash)
         live_pos = 0
         try:
             live_pos = getattr(self.manager.broker, "positions", {}).get(
-                self.symbol, int(self.pos)
+                self.symbol, float(self.pos)
             )
-        except Exception:
-            live_pos = int(self.pos)
+        except (AttributeError, TypeError, ValueError):
+            live_pos = float(self.pos)
 
         if live_cash is not None:
             total_value = live_cash + (live_pos * last)
@@ -150,8 +149,8 @@ class TradingEnv:
                 feats.get("long_sma", last),
                 feats.get("volatility", 0.0),
                 feats.get("momentum", 0.0),
-                dist_ara,
-                dist_arb,
+                dist_to_liquidation,
+                norm_dist_to_liquidation,
                 pos_fraction,
             ],
             dtype=np.float32,
@@ -161,7 +160,7 @@ class TradingEnv:
     def _resolve_liquidity_adjusted_price(
         self,
         base_price: float,
-        trade_size: int,
+        trade_size: float,
         current_volume: float,
         side: str,
     ) -> tuple[Optional[float], Optional[str]]:
@@ -176,8 +175,10 @@ class TradingEnv:
         max_executable_vol = max(1, int(float(current_volume) * 0.10))
         exec_price = float(base_price)
 
-        if abs(int(trade_size)) > max_executable_vol:
-            excess_ratio = (abs(int(trade_size)) - max_executable_vol) / max_executable_vol
+        if abs(float(trade_size)) > max_executable_vol:
+            excess_ratio = (
+                abs(float(trade_size)) - max_executable_vol
+            ) / max_executable_vol
             slippage_factor = min(0.05, 0.005 * (excess_ratio**1.5))
             if side == "buy":
                 exec_price = float(base_price) * (1.0 + slippage_factor)
@@ -199,13 +200,11 @@ class TradingEnv:
             arr = action
         else:
             try:
-                import numpy as _np
-
-                if isinstance(action, _np.ndarray):
+                if isinstance(action, np.ndarray):
                     arr = action.tolist()
                 else:
                     arr = [int(action), 0]
-            except Exception:
+            except (TypeError, ValueError):
                 arr = [int(action), 0]
 
         # decision and take-profit bracket
@@ -216,9 +215,6 @@ class TradingEnv:
             decision = int(arr[0]) if len(arr) > 0 else int(arr)
             tp_bracket = 0
 
-        # compute previous close for IDX rules and order placement
-        prev_close = float(self.prices[self.t - 1]) if self.t > 0 else price
-
         # 1) Let manager process any pending limit orders for this tick
         try:
             tick_res = self.manager.process_market_tick({self.symbol: price})
@@ -228,7 +224,7 @@ class TradingEnv:
                         info["limit_executed"] = True
                         reward += 2.0
                         break
-        except Exception:
+        except (AttributeError, KeyError, TypeError, ValueError):
             # non-fatal: continue processing action
             pass
 
@@ -236,7 +232,7 @@ class TradingEnv:
         if decision == 1:
             # BUY market
             current_volume = self.volumes[self.t] if self.t < len(self.volumes) else 0
-            trade_size = int(self.position_size)
+            trade_size = float(self.position_size)
 
             exec_price, liquidity_error = self._resolve_liquidity_adjusted_price(
                 base_price=price,
@@ -258,7 +254,6 @@ class TradingEnv:
                     "buy",
                     self.position_size,
                     exec_price,
-                    previous_close=prev_close,
                 )
 
             if trade.get("status") == "rejected":
@@ -274,10 +269,7 @@ class TradingEnv:
                 elif tp_bracket == 3:
                     limit_price = price * 1.10
                 elif tp_bracket == 4:
-                    from src.execution.idx_rules import calculate_idx_limits
-
-                    limits = calculate_idx_limits(prev_close)
-                    limit_price = limits["ara"]
+                    limit_price = price * 1.15
 
                 if limit_price is not None:
                     # register pending limit with manager
@@ -286,22 +278,22 @@ class TradingEnv:
                         "sell",
                         self.position_size,
                         limit_price,
-                        previous_close=prev_close,
                     )
                     if res.get("status") == "pending":
                         info["limit_order_id"] = res.get("order_id")
                         info["limit_set"] = float(limit_price)
+                        self.active_limit_sell_price = float(limit_price)
                     else:
                         info["limit_rejected"] = res.get("reason")
 
         elif decision == 2:
             # SELL market (manual override)
             qty = self.manager.broker.positions.get(self.symbol, 0)
-            if qty > 0:
+            if float(qty) > 0:
                 current_volume = (
                     self.volumes[self.t] if self.t < len(self.volumes) else 0
                 )
-                trade_size = int(qty)
+                trade_size = float(qty)
 
                 exec_price, liquidity_error = self._resolve_liquidity_adjusted_price(
                     base_price=price,
@@ -316,7 +308,10 @@ class TradingEnv:
                     trade = {"status": "rejected", "reason": liquidity_error}
                 else:
                     trade = self.manager.place_order(
-                        self.symbol, "sell", qty, exec_price, previous_close=prev_close
+                        self.symbol,
+                        "sell",
+                        qty,
+                        exec_price,
                     )
 
                 if trade.get("status") == "rejected":
@@ -326,11 +321,13 @@ class TradingEnv:
                     # clear any pending TP / limit orders for this symbol
                     cancelled = self.manager.cancel_all_pending_for_symbol(self.symbol)
                     info["cancelled_pending"] = int(cancelled)
+                    self.active_limit_sell_price = None
 
         elif decision == 3:
             # cancel pending limits for this symbol
             cancelled = self.manager.cancel_all_pending_for_symbol(self.symbol)
             info["cancelled_pending"] = int(cancelled)
+            self.active_limit_sell_price = None
 
         # advance time
         done = False

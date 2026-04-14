@@ -29,6 +29,18 @@ class APIServerTests(unittest.TestCase):
         # If prometheus_client unavailable, server returns 501
         self.assertIn(r.status_code, (200, 501))
 
+    def test_charts_metadata_rejects_non_forex_crypto_symbol(self):
+        r = self.client.get("/api/charts/metadata/BBCA.JK")
+        self.assertEqual(r.status_code, 400)
+
+    def test_charts_candles_rejects_non_forex_crypto_symbol(self):
+        r = self.client.get("/api/charts/candles/BBCA.JK")
+        self.assertEqual(r.status_code, 400)
+
+    def test_charts_trading_status_rejects_invalid_market(self):
+        r = self.client.get("/api/charts/trading-status?market=stock")
+        self.assertEqual(r.status_code, 400)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -27,6 +27,13 @@ JAKARTA_TZ = pytz.timezone('Asia/Jakarta')
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
+_MARKET_ALIASES: Dict[str, str] = {
+    "forex": "forex",
+    "fx": "forex",
+    "crypto": "crypto",
+    "blockchain": "crypto",
+}
+
 # ==================== Helper Functions ====================
 
 def get_manager():
@@ -57,6 +64,40 @@ def _authenticate_ws_user(websocket: WebSocket) -> Optional[str]:
     if not token:
         return None
     return get_user_from_token(token)
+
+
+def _normalize_market_scope(market: str) -> str:
+    normalized = _MARKET_ALIASES.get(str(market or "").strip().lower())
+    if normalized is None:
+        raise HTTPException(
+            status_code=400,
+            detail="market must be one of: forex, crypto",
+        )
+    return normalized
+
+
+def _is_forex_symbol(symbol: str) -> bool:
+    normalized = str(symbol or "").strip().upper()
+    if normalized.endswith("=X"):
+        pair = normalized[:-2]
+        return len(pair) == 6 and pair.isalpha()
+    if "/" in normalized:
+        compact = normalized.replace("/", "")
+        return len(compact) == 6 and compact.isalpha()
+    return len(normalized) == 6 and normalized.isalpha()
+
+
+def _is_crypto_symbol(symbol: str) -> bool:
+    normalized = str(symbol or "").strip().upper()
+    if "-USD" in normalized:
+        return bool(normalized.split("-USD", 1)[0])
+    if normalized.endswith("USDT") and len(normalized) > 4:
+        return bool(normalized[:-4])
+    return False
+
+
+def _is_supported_symbol(symbol: str) -> bool:
+    return _is_forex_symbol(symbol) or _is_crypto_symbol(symbol)
 
 
 # ==================== Alert Rules Endpoints ====================
@@ -365,11 +406,25 @@ async def get_market_trading_status(
     """Get current Forex/Crypto trading status."""
     from src.data.idx_fetcher import fetch_trading_status
 
-    status = await fetch_trading_status(market=market, symbol=symbol)
+    normalized_market = _normalize_market_scope(market)
+    normalized_symbol = str(symbol or "").strip().upper() or None
+
+    if normalized_symbol and (not _is_supported_symbol(normalized_symbol)):
+        raise HTTPException(
+            status_code=400,
+            detail="Only Forex/Crypto symbols are supported.",
+        )
+
+    if normalized_symbol and normalized_market == "forex" and _is_crypto_symbol(normalized_symbol):
+        normalized_market = "crypto"
+    elif normalized_symbol and normalized_market == "crypto" and _is_forex_symbol(normalized_symbol):
+        normalized_market = "forex"
+
+    status = await fetch_trading_status(market=normalized_market, symbol=normalized_symbol)
 
     return {
         "success": True,
-        "market": status.get("market", market),
+        "market": status.get("market", normalized_market),
         "current_time": status.get("current_time"),
         "timezone": status.get("timezone", "UTC"),
         "inside_trading_hours": bool(status.get("is_trading")),

@@ -6,7 +6,7 @@ import pytest
 
 
 def _make_synthetic_dataset(n_rows=120):
-    symbols = ["BBCA.JK", "ASII.JK"]
+    symbols = ["BTC-USD", "EURUSD=X"]
     rows = []
     rng = np.random.default_rng(42)
     for symbol in symbols:

@@ -12,7 +12,7 @@ import logging
 import time
 from typing import Any, Dict, List, Optional, Sequence
 
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 
 from .schemas import validate_ohlcv_rows
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 def _import_ccxt() -> Any:
     try:
         import ccxt  # type: ignore
-    except Exception as exc:
+    except ImportError as exc:
         raise RuntimeError(
             "ccxt is required for hf_connector. Install with `pip install ccxt`."
         ) from exc
@@ -50,7 +50,11 @@ def _build_exchange(
     exchange = exchange_cls(cfg)
 
     # Best effort to align ccxt market type semantics across exchanges.
-    if market_type and hasattr(exchange, "options") and isinstance(exchange.options, dict):
+    if (
+        market_type
+        and hasattr(exchange, "options")
+        and isinstance(exchange.options, dict)
+    ):
         exchange.options = {**exchange.options, "defaultType": str(market_type)}
 
     exchange.load_markets()
@@ -66,6 +70,7 @@ def _fetch_ohlcv_with_retry(
     max_retries: int,
     retry_backoff_seconds: float,
 ) -> List[List[float]]:
+    ccxt = _import_ccxt()
     retries = max(1, int(max_retries))
     delay = max(0.0, float(retry_backoff_seconds))
 
@@ -77,7 +82,14 @@ def _fetch_ohlcv_with_retry(
                 since=int(since_ms),
                 limit=int(limit),
             )
-        except Exception as exc:
+        except (
+            ccxt.BaseError,
+            RuntimeError,
+            TimeoutError,
+            ConnectionError,
+            ValueError,
+            TypeError,
+        ) as exc:
             if attempt >= retries:
                 raise RuntimeError(
                     f"Failed to fetch OHLCV after {retries} attempts: {exc}"
@@ -112,7 +124,7 @@ def _normalize_ohlcv_rows(raw_rows: Sequence[Sequence[Any]]) -> List[List[float]
                 float(row[4]),
                 float(row[5]),
             ]
-        except Exception:
+        except (TypeError, ValueError):
             continue
 
         by_timestamp[ts] = normalized
@@ -136,7 +148,8 @@ def _assert_regular_interval(
 
     if gaps and strict:
         raise RuntimeError(
-            f"Detected {gaps} interval gap(s). Expected fixed interval: {interval_ms} ms."
+            "Detected "
+            f"{gaps} interval gap(s). Expected fixed interval: {interval_ms} ms."
         )
 
 
@@ -181,8 +194,16 @@ def fetch_historical_data_with_exchange(
         raise ValueError(f"Invalid timeframe: {timeframe}")
     interval_ms = timeframe_seconds * 1000
 
-    now_ms = int(exchange.milliseconds()) if hasattr(exchange, "milliseconds") else int(time.time() * 1000)
-    start_ms = int(since_ms) if since_ms is not None else now_ms - (interval_ms * total_candles)
+    now_ms = (
+        int(exchange.milliseconds())
+        if hasattr(exchange, "milliseconds")
+        else int(time.time() * 1000)
+    )
+    start_ms = (
+        int(since_ms)
+        if since_ms is not None
+        else now_ms - (interval_ms * total_candles)
+    )
 
     inter_request_sleep = (
         max(0.0, float(sleep_seconds))
@@ -230,13 +251,24 @@ def fetch_historical_data_with_exchange(
 
     if strict and len(normalized) < total_candles:
         raise RuntimeError(
-            f"Incomplete dataset. Requested {total_candles} candles, got {len(normalized)}."
+            "Incomplete dataset. "
+            f"Requested {total_candles} candles, got {len(normalized)}."
         )
 
     _assert_regular_interval(normalized, interval_ms, strict=strict)
 
     if not normalized:
-        return pd.DataFrame(columns=["timestamp", "datetime", "open", "high", "low", "close", "volume"])
+        return pd.DataFrame(
+            columns=[
+                "timestamp",
+                "datetime",
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+            ]
+        )
 
     df = pd.DataFrame(
         normalized,
@@ -248,7 +280,7 @@ def fetch_historical_data_with_exchange(
     df = df.set_index("datetime", drop=False)
 
     # Connector-level schema guard to ensure OHLCV consistency before persistence.
-    validate_ohlcv_rows(df[["open", "high", "low", "close", "volume"]].to_dict("records"))
+    validate_ohlcv_rows(df[["open", "high", "low", "close"]].to_dict("records"))
 
     return df
 

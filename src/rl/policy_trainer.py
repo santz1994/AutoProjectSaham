@@ -642,7 +642,6 @@ class PPOTrainer(RLTrainerBase):
             verbose=self.config.verbose,
             seed=self.config.seed,
             device=self.config.device,
-            tb_log_name="ppo_logs",
         )
         logger.info("Created PPO model")
 
@@ -673,7 +672,6 @@ class SACTrainer(RLTrainerBase):
             verbose=self.config.verbose,
             seed=self.config.seed,
             device=self.config.device,
-            tb_log_name="sac_logs",
         )
         logger.info("Created SAC model")
 

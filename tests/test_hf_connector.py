@@ -25,6 +25,7 @@ class _FakeExchange:
         return int(self._candles[-1][0])
 
     def fetch_ohlcv(self, symbol, timeframe, since=None, limit=1000):
+        _ = (symbol, timeframe)
         since = 0 if since is None else int(since)
         idx = 0
         for i, row in enumerate(self._candles):
@@ -39,12 +40,12 @@ def _build_candles(count=3000, start_ms=1700000000000, step_ms=300000):
     price = 100.0
     for i in range(count):
         ts = start_ms + (i * step_ms)
-        o = price
-        h = price + 0.5
-        l = price - 0.5
-        c = price + 0.1
-        v = 10.0 + i
-        output.append([ts, o, h, l, c, v])
+        open_price = price
+        high_price = price + 0.5
+        low_price = price - 0.5
+        close_price = price + 0.1
+        volume = 10.0 + i
+        output.append([ts, open_price, high_price, low_price, close_price, volume])
         price += 0.01
     return output
 

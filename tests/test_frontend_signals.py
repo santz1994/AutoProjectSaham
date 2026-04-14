@@ -14,7 +14,7 @@ from src.ml.transformer_baselines import build_baseline_model
 
 def _make_dataset_csv(path: str) -> None:
     rows = []
-    for symbol, base_price in [("AAA.JK", 100.0), ("BBB.JK", 75.0)]:
+    for symbol, base_price in [("EURUSD=X", 100.0), ("GBPUSD=X", 75.0)]:
         for t_index in range(16):
             future_return = 0.02 if (t_index % 4 == 0) else -0.01
             rows.append(
@@ -99,12 +99,12 @@ def test_infer_signals_from_transformer_with_temp_artifact(tmp_path, monkeypatch
 
     signals = frontend_routes._infer_signals_from_transformer(
         limit=3,
-        preferred_universe=["AAA.JK"],
+        preferred_universe=["EURUSD=X"],
     )
 
     assert signals
     assert len(signals) == 1
-    assert signals[0].symbol == "AAA.JK"
+    assert signals[0].symbol == "EURUSD=X"
     assert signals[0].signal in {"STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL"}
     assert 0.0 <= signals[0].confidence <= 1.0
 
@@ -113,14 +113,14 @@ def test_get_signals_prefers_transformer_path(monkeypatch):
     transformer_output = [
         frontend_routes.Signal(
             id=1,
-            symbol="AAA.JK",
-            name="AAA",
+            symbol="EURUSD=X",
+            name="EURUSD",
             signal="BUY",
             confidence=0.7,
             reason="model",
             predictedMove="+1.00%",
             riskLevel="Low-Medium",
-            sector="IDX",
+            sector="FOREX",
             currentPrice=100.0,
             targetPrice=101.0,
             timestamp="2026-01-01T00:00:00",
@@ -143,12 +143,12 @@ def test_get_signals_prefers_transformer_path(monkeypatch):
     monkeypatch.setattr(
         frontend_routes._state_store,
         "get_user_settings",
-        lambda defaults: {"preferredUniverse": ["AAA.JK"]},
+        lambda defaults: {"preferredUniverse": ["EURUSD=X"]},
     )
 
     output = asyncio.run(frontend_routes.get_signals(limit=1))
     assert len(output) == 1
-    assert output[0].symbol == "AAA.JK"
+    assert output[0].symbol == "EURUSD=X"
     assert fallback_called["value"] is False
 
 
@@ -156,14 +156,14 @@ def test_get_signals_fallback_when_transformer_empty(monkeypatch):
     fallback_output = [
         frontend_routes.Signal(
             id=1,
-            symbol="FALL.JK",
+            symbol="BTCUSDT",
             name="Fallback",
             signal="HOLD",
             confidence=0.5,
             reason="fallback",
             predictedMove="+0.00%",
             riskLevel="Medium",
-            sector="IDX",
+            sector="CRYPTO",
             currentPrice=50.0,
             targetPrice=50.0,
             timestamp="2026-01-01T00:00:00",
@@ -183,12 +183,12 @@ def test_get_signals_fallback_when_transformer_empty(monkeypatch):
     monkeypatch.setattr(
         frontend_routes._state_store,
         "get_user_settings",
-        lambda defaults: {"preferredUniverse": ["FALL.JK"]},
+        lambda defaults: {"preferredUniverse": ["BTCUSDT"]},
     )
 
     output = asyncio.run(frontend_routes.get_signals(limit=1))
     assert len(output) == 1
-    assert output[0].symbol == "FALL.JK"
+    assert output[0].symbol == "BTCUSDT"
 
 
 def test_latest_model_artifact_prefers_transformer(monkeypatch):
@@ -227,15 +227,15 @@ def test_get_ai_projection_uses_anchor_and_timeframe(monkeypatch):
     )
 
     async def _anchor(symbol, timeframe):
-        assert symbol == "AAA.JK"
+        assert symbol == "EURUSD=X"
         assert timeframe == "1h"
         return {"time": 1710000000.0, "price": 100.0}
 
     monkeypatch.setattr(frontend_routes, "_resolve_latest_candle_anchor", _anchor)
 
-    payload = asyncio.run(frontend_routes.get_ai_projection("aaa", timeframe="1h", horizon=6))
+    payload = asyncio.run(frontend_routes.get_ai_projection("eurusd", timeframe="1h", horizon=6))
 
-    assert payload.symbol == "AAA.JK"
+    assert payload.symbol == "EURUSD=X"
     assert payload.timeframe == "1h"
     assert payload.horizon == 6
     assert payload.source == "transformer"
@@ -269,10 +269,10 @@ def test_get_ai_projection_validates_timeframe_and_clamps_horizon(monkeypatch):
     monkeypatch.setattr(frontend_routes, "_resolve_latest_candle_anchor", _no_anchor)
 
     with pytest.raises(frontend_routes.HTTPException) as exc_info:
-        asyncio.run(frontend_routes.get_ai_projection("BBCA.JK", timeframe="10m", horizon=16))
+        asyncio.run(frontend_routes.get_ai_projection("BTC-USD", timeframe="10m", horizon=16))
     assert exc_info.value.status_code == 400
 
-    payload = asyncio.run(frontend_routes.get_ai_projection("BBCA.JK", timeframe="1d", horizon=999))
+    payload = asyncio.run(frontend_routes.get_ai_projection("BTC-USD", timeframe="1d", horizon=999))
     assert payload.horizon == 120
     assert len(payload.projection) == 120
 
@@ -309,9 +309,25 @@ def test_get_ai_projection_includes_regime_snapshot(monkeypatch):
         },
     )
 
-    payload = asyncio.run(frontend_routes.get_ai_projection("BBCA.JK", timeframe="1h", horizon=8))
+    payload = asyncio.run(frontend_routes.get_ai_projection("BTC-USD", timeframe="1h", horizon=8))
     assert payload.regime["regime"] == "SIDEWAYS"
     assert payload.regime["primaryAgent"] == "scalper_agent"
+
+
+def test_get_market_universe_rejects_invalid_market_scope():
+    with pytest.raises(frontend_routes.HTTPException) as exc_info:
+        asyncio.run(frontend_routes.get_market_universe(limit=20, market="stock"))
+
+    assert exc_info.value.status_code == 400
+
+
+def test_get_market_universe_all_returns_forex_and_crypto_symbols():
+    payload = asyncio.run(frontend_routes.get_market_universe(limit=20, market="all"))
+
+    assert payload["market"] == "all"
+    assert payload["availableMarkets"] == ["forex", "crypto", "all"]
+    assert any(str(item).endswith("=X") for item in payload["symbols"])
+    assert any("-USD" in str(item) for item in payload["symbols"])
 
 
 def test_get_ai_regime_status_returns_persisted_snapshot(monkeypatch):
@@ -364,12 +380,12 @@ def test_resolve_regime_route_persists_transition_log(monkeypatch):
     prices = np.linspace(100.0, 220.0, 64)
     df = pd.DataFrame(
         {
-            "symbol": ["AAA.JK"] * len(prices),
+            "symbol": ["EURUSD=X"] * len(prices),
             "last_price": prices,
         }
     )
 
-    route = frontend_routes._resolve_regime_route(df, ["AAA.JK"])
+    route = frontend_routes._resolve_regime_route(df, ["EURUSD=X"])
 
     assert route is not None
     assert captured["state"] is not None
@@ -456,12 +472,12 @@ def test_resolve_regime_route_honors_manual_profile_override(monkeypatch):
     prices = np.linspace(220.0, 120.0, 64)
     df = pd.DataFrame(
         {
-            "symbol": ["AAA.JK"] * len(prices),
+            "symbol": ["EURUSD=X"] * len(prices),
             "last_price": prices,
         }
     )
 
-    route = frontend_routes._resolve_regime_route(df, ["AAA.JK"])
+    route = frontend_routes._resolve_regime_route(df, ["EURUSD=X"])
 
     assert route is not None
     assert route.regime == "BEAR"

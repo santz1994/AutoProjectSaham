@@ -8,6 +8,7 @@ compatibility with existing code.
 from __future__ import annotations
 
 import logging
+import math
 import threading
 import time
 from typing import Any, Callable, Dict, Optional
@@ -60,7 +61,7 @@ class ExecutionManager:
     def __init__(
         self,
         broker: Optional[Any] = None,
-        max_position_per_symbol: int = 1000,
+        max_position_per_symbol: float = 1000,
         max_total_notional: float = 1e9,
         daily_loss_limit: float = 0.05,
         require_startup_sync: bool = False,
@@ -70,7 +71,7 @@ class ExecutionManager:
     ):
         # keep backward compat: broker may be a PaperBroker instance
         self.broker = broker
-        self.max_position_per_symbol = int(max_position_per_symbol)
+        self.max_position_per_symbol = float(max_position_per_symbol)
         self.max_total_notional = float(max_total_notional)
         self.daily_loss_limit = float(daily_loss_limit)
         self._start_balance = None
@@ -94,7 +95,7 @@ class ExecutionManager:
         self.pending_orders: dict = {}
         self._next_order_id = 1
         # expected state tracked locally for reconciliation checks
-        self._expected_positions: Dict[str, int] = {}
+        self._expected_positions: Dict[str, float] = {}
         self._expected_cash: Optional[float] = None
         # startup synchronization state (open orders from broker)
         self._startup_sync_required = bool(require_startup_sync)
@@ -138,7 +139,7 @@ class ExecutionManager:
                 total += qty * last
         return float(total)
 
-    def _place(self, symbol: str, side: str, qty: int, price: float) -> dict:
+    def _place(self, symbol: str, side: str, qty: float, price: float) -> dict:
         if self.broker is None:
             return {"status": "rejected", "reason": "no_broker"}
         # adapter or raw broker should expose place_order
@@ -279,11 +280,11 @@ class ExecutionManager:
         if not isinstance(source_orders, list):
             source_orders = []
 
-        def _to_int(value: Any) -> int:
+        def _to_non_negative_float(value: Any) -> float:
             try:
-                return max(0, int(value))
+                return max(0.0, float(value))
             except (TypeError, ValueError):
-                return 0
+                return 0.0
 
         def _to_float(value: Any) -> float:
             try:
@@ -313,14 +314,21 @@ class ExecutionManager:
 
             symbol = str(raw.get("symbol") or "").strip().upper()
             side = str(raw.get("side") or raw.get("action") or "").strip().lower()
-            qty = _to_int(raw.get("qty") or raw.get("quantity") or raw.get("volume"))
+            qty = _to_non_negative_float(
+                raw.get("qty") or raw.get("quantity") or raw.get("volume")
+            )
             limit_price = _to_float(
                 raw.get("limit_price")
                 or raw.get("price")
                 or raw.get("entry_price")
             )
 
-            if not symbol or side not in {"buy", "sell"} or qty <= 0 or limit_price <= 0:
+            if (
+                not symbol
+                or side not in {"buy", "sell"}
+                or qty <= 0
+                or limit_price <= 0
+            ):
                 skipped += 1
                 continue
 
@@ -435,27 +443,31 @@ class ExecutionManager:
         self,
         symbol: str,
         side: str,
-        qty: int,
+        qty: float,
         price: float,
         previous_close: Optional[float] = None,
     ) -> tuple[bool, str]:
         with self._state_lock:
             if self._startup_sync_required and not self._startup_sync_completed:
-                return False, "startup sync pending: open orders are not synchronized yet"
+                return (
+                    False,
+                    "startup sync pending: open orders are not synchronized yet",
+                )
             if self._frozen:
                 return False, f"Execution frozen: {self._frozen_reason}"
 
         # check quantity
-        if qty <= 0:
+        safe_qty = float(qty)
+        if (not math.isfinite(safe_qty)) or safe_qty <= 0:
             return False, "qty must be > 0"
 
         # position limit
         pos_map = dict(self._get_positions())
-        pos = int(pos_map.get(symbol, 0))
-        if side.lower() == "buy" and (pos + qty) > self.max_position_per_symbol:
+        pos = float(pos_map.get(symbol, 0.0))
+        if side.lower() == "buy" and (pos + safe_qty) > self.max_position_per_symbol:
             return False, (
                 f"position limit exceeded for {symbol}: "
-                f"{pos + qty} > {self.max_position_per_symbol}"
+                f"{pos + safe_qty} > {self.max_position_per_symbol}"
             )
 
         # check ARA/ARB using previous_close when provided, else use price
@@ -470,7 +482,10 @@ class ExecutionManager:
             return False, f"price {price} below ARB {arb}"
 
         # check total notional
-        total_notional = sum(v * price for k, v in pos_map.items()) + qty * price
+        total_notional = (
+            sum(float(v) * price for v in pos_map.values())
+            + safe_qty * price
+        )
         if total_notional > self.max_total_notional:
             return False, (
                 f"total notional limit exceeded: {total_notional} > "
@@ -490,7 +505,7 @@ class ExecutionManager:
         self,
         symbol: str,
         side: str,
-        qty: int,
+        qty: float,
         price: float,
         previous_close: Optional[float] = None,
     ):
@@ -605,7 +620,7 @@ class ExecutionManager:
         self,
         symbol: str,
         side: str,
-        qty: int,
+        qty: float,
         limit_price: float,
         previous_close: Optional[float] = None,
     ) -> dict:
@@ -620,13 +635,13 @@ class ExecutionManager:
                 }
 
         side_l = side.lower()
-        qty = int(qty)
-        if qty <= 0:
+        safe_qty = float(qty)
+        if (not math.isfinite(safe_qty)) or safe_qty <= 0:
             return {"status": "rejected", "reason": "qty must be > 0"}
 
         pos_map = dict(self._get_positions())
-        pos = int(pos_map.get(symbol, 0))
-        if side_l == "buy" and (pos + qty) > self.max_position_per_symbol:
+        pos = float(pos_map.get(symbol, 0.0))
+        if side_l == "buy" and (pos + safe_qty) > self.max_position_per_symbol:
             return {
                 "status": "rejected",
                 "reason": f"position limit exceeded for {symbol}",
@@ -653,7 +668,7 @@ class ExecutionManager:
             "order_id": oid,
             "symbol": symbol,
             "side": side_l,
-            "qty": qty,
+            "qty": safe_qty,
             "limit_price": float(limit_price),
             "previous_close": previous_close,
         }
@@ -780,7 +795,7 @@ class ExecutionManager:
 
             sym = order.get("symbol")
             side = order.get("side")
-            qty = int(order.get("qty", 0))
+            qty = float(order.get("qty", 0.0))
             limit_price = float(order.get("limit_price", 0.0))
             prev_close = order.get("previous_close")
             cur_price = price_map.get(sym)
@@ -875,7 +890,7 @@ class ExecutionManager:
         try:
             sym = trade.get("symbol")
             side = str(trade.get("side", "")).lower()
-            qty = int(trade.get("qty", 0))
+            qty = float(trade.get("qty", 0.0))
             price = float(trade.get("price", 0.0))
             fee = float(trade.get("fee", 0.0)) if trade.get("fee") is not None else 0.0
             if not sym:
@@ -883,13 +898,13 @@ class ExecutionManager:
             with self._state_lock:
                 if side == "buy":
                     self._expected_positions[sym] = (
-                        self._expected_positions.get(sym, 0) + qty
+                        float(self._expected_positions.get(sym, 0.0)) + qty
                     )
                     if self._expected_cash is not None:
                         self._expected_cash -= qty * price + fee
                 elif side == "sell":
                     self._expected_positions[sym] = (
-                        self._expected_positions.get(sym, 0) - qty
+                        float(self._expected_positions.get(sym, 0.0)) - qty
                     )
                     if self._expected_cash is not None:
                         net = float(trade.get("net", price * qty - fee))
@@ -927,8 +942,8 @@ class ExecutionManager:
                     act_qty = actual_pos.get(sym, 0)
                     if act_qty != exp_qty:
                         diffs.setdefault("positions", {})[sym] = {
-                            "expected": int(exp_qty),
-                            "actual": int(act_qty),
+                            "expected": float(exp_qty),
+                            "actual": float(act_qty),
                         }
                 if expected_cash is not None:
                     act_cash = float(snap.get("cash", 0.0))

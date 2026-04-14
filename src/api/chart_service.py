@@ -1,21 +1,14 @@
-"""
-TradingView Chart Service for Real-time OHLCV Data
-=====================================================
+"""TradingView chart service for real-time OHLCV data.
 
-Provides API endpoints for lightweight-charts integration with:
-- Real-time WebSocket streaming (OHLCV)
+Provides API primitives for lightweight-charts integration with:
+- real-time websocket streaming (OHLCV)
 - Jakarta timezone (WIB: UTC+7) support
-- IDX compliance (*.JK symbols, IDR currency)
-- BEI trading hours (09:30-16:00 WIB)
-- Caching for performance optimization
-
-Author: AutoSaham Team
-Version: 1.0.0
+- Forex/Crypto symbol validation and metadata
+- market-aware trading status (Forex 24x5, Crypto 24x7)
+- in-memory caching for performance
 """
 
-import json
 import logging
-import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
@@ -23,18 +16,11 @@ from enum import Enum
 
 import pytz
 import pandas as pd
-from fastapi import WebSocket, HTTPException, Query
-from fastapi.responses import JSONResponse
+from fastapi import WebSocket, HTTPException
 
 # Initialize Jakarta timezone
 JAKARTA_TZ = pytz.timezone("Asia/Jakarta")
-BEI_TIMEZONE = JAKARTA_TZ
-
-# BEI Trading Hours (09:30-16:00 WIB)
-BEI_OPEN_HOUR = 9
-BEI_OPEN_MINUTE = 30
-BEI_CLOSE_HOUR = 16
-BEI_CLOSE_MINUTE = 0
+FOREX_LAST_TRADING_WEEKDAY = 4  # Friday
 
 logger = logging.getLogger(__name__)
 
@@ -81,16 +67,16 @@ class OHLCV:
 @dataclass
 class ChartMetadata:
     """Chart metadata and configuration."""
-    symbol: str  # IDX symbol (e.g., "BBCA.JK")
-    exchange: str  # "IDX" (Indonesia Stock Exchange)
-    currency: str  # "IDR" (Indonesian Rupiah)
+    symbol: str
+    exchange: str
+    currency: str
     timeframe: TimeFrame
     description: str
-    decimal_places: int  # Price decimal places (typically 2)
-    min_lot_size: int  # Minimum lot size (100 for IDX)
-    trading_start: str  # "09:30" WIB
-    trading_end: str  # "16:00" WIB
-    timezone: str  # "Asia/Jakarta"
+    decimal_places: int
+    min_lot_size: float
+    trading_start: str
+    trading_end: str
+    timezone: str
     
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
@@ -108,105 +94,210 @@ class ChartMetadata:
         }
 
 
-class IDXSymbolValidator:
-    """Validate IDX symbol format and properties."""
-    
-    IDX_SYMBOLS = {
-        "BBCA.JK": {
-            "name": "Bank Central Asia",
-            "sector": "Financial",
-            "min_price": 1000,
-            "max_price": 20000,
+class MarketSymbolValidator:
+    """Validate Forex/Crypto symbol format and properties."""
+
+    SYMBOLS = {
+        "EURUSD=X": {
+            "name": "EUR/USD",
+            "sector": "Forex",
+            "decimal_places": 5,
+            "min_lot_size": 0.01,
+            "min_price": 0.5,
+            "max_price": 2.0,
         },
-        "BMRI.JK": {
-            "name": "Bank Mandiri",
-            "sector": "Financial",
-            "min_price": 2000,
+        "GBPUSD=X": {
+            "name": "GBP/USD",
+            "sector": "Forex",
+            "decimal_places": 5,
+            "min_lot_size": 0.01,
+            "min_price": 0.5,
+            "max_price": 2.0,
+        },
+        "USDJPY=X": {
+            "name": "USD/JPY",
+            "sector": "Forex",
+            "decimal_places": 3,
+            "min_lot_size": 0.01,
+            "min_price": 50.0,
+            "max_price": 250.0,
+        },
+        "BTC-USD": {
+            "name": "Bitcoin / US Dollar",
+            "sector": "Crypto",
+            "decimal_places": 2,
+            "min_lot_size": 0.001,
+            "min_price": 5000,
+            "max_price": 1000000,
+        },
+        "ETH-USD": {
+            "name": "Ethereum / US Dollar",
+            "sector": "Crypto",
+            "decimal_places": 2,
+            "min_lot_size": 0.001,
+            "min_price": 100,
+            "max_price": 100000,
+        },
+        "SOL-USD": {
+            "name": "Solana / US Dollar",
+            "sector": "Crypto",
+            "decimal_places": 2,
+            "min_lot_size": 0.001,
+            "min_price": 1,
             "max_price": 10000,
         },
-        "TLKM.JK": {
-            "name": "Telekomunikasi Indonesia",
-            "sector": "Telecommunications",
-            "min_price": 2000,
-            "max_price": 4000,
-        },
-        "ASII.JK": {
-            "name": "Astra International",
-            "sector": "Automotive",
-            "min_price": 5000,
-            "max_price": 15000,
-        },
-        "INDF.JK": {
-            "name": "Indofood Sukses Makmur",
-            "sector": "Consumer",
-            "min_price": 6000,
-            "max_price": 12000,
-        },
     }
+
+    # Backward compatibility for modules still importing IDX_SYMBOLS.
+    IDX_SYMBOLS = SYMBOLS
+
+    @staticmethod
+    def _normalize(symbol: str) -> str:
+        return str(symbol or "").strip().upper()
+
+    @staticmethod
+    def _is_forex_symbol(normalized: str) -> bool:
+        if normalized.endswith("=X"):
+            pair = normalized[:-2]
+            return len(pair) == 6 and pair.isalpha()
+
+        if "/" in normalized:
+            parts = normalized.split("/", 1)
+            if len(parts) != 2:
+                return False
+            base, quote = parts
+            compact = f"{base}{quote}"
+            return len(base) == 3 and len(quote) == 3 and compact.isalpha()
+
+        return len(normalized) == 6 and normalized.isalpha()
+
+    @staticmethod
+    def _is_crypto_symbol(normalized: str) -> bool:
+        if "-USD" in normalized:
+            base = normalized.split("-USD", 1)[0]
+            return bool(base) and base.isalnum()
+
+        if normalized.endswith("USDT") and len(normalized) > 4:
+            base = normalized[:-4]
+            return bool(base) and base.isalnum()
+
+        if "/" in normalized:
+            parts = normalized.split("/", 1)
+            if len(parts) != 2:
+                return False
+            base, quote = parts
+            return base.isalnum() and quote in {"USD", "USDT", "USDC"}
+
+        return False
+
+    @staticmethod
+    def detect_market(symbol: str) -> Optional[str]:
+        """Return market type for a symbol: forex, crypto, or None."""
+        normalized = MarketSymbolValidator._normalize(symbol)
+        if not normalized:
+            return None
+
+        if MarketSymbolValidator._is_forex_symbol(normalized):
+            return "forex"
+
+        if MarketSymbolValidator._is_crypto_symbol(normalized):
+            return "crypto"
+
+        return None
+
+    @staticmethod
+    def _quote_currency(normalized: str, market: str) -> str:
+        if market == "forex":
+            pair = normalized
+            if pair.endswith("=X"):
+                pair = pair[:-2]
+            pair = pair.replace("/", "")
+            if len(pair) == 6 and pair.isalpha():
+                return pair[3:]
+            return "USD"
+
+        if normalized.endswith("USDT") or normalized.endswith("/USDT"):
+            return "USDT"
+
+        if normalized.endswith("USDC") or normalized.endswith("/USDC"):
+            return "USDC"
+
+        return "USD"
+
+    @staticmethod
+    def _default_decimal_places(normalized: str, market: str) -> int:
+        if market == "forex":
+            pair = (
+                normalized[:-2]
+                if normalized.endswith("=X")
+                else normalized.replace("/", "")
+            )
+            if pair.endswith("JPY"):
+                return 3
+            return 5
+
+        return 2
     
     @staticmethod
     def validate(symbol: str) -> Tuple[bool, Optional[str]]:
         """
-        Validate IDX symbol format.
+        Validate Forex/Crypto symbol format.
         
         Args:
-            symbol: Symbol to validate (e.g., "BBCA.JK")
+            symbol: Symbol to validate (e.g., "EURUSD=X", "BTC-USD")
             
         Returns:
             Tuple of (is_valid, error_message)
         """
-        # Check format
         if not isinstance(symbol, str):
             return False, "Symbol must be string"
-        
-        symbol = symbol.upper()
-        parts = symbol.split(".")
-        
-        if len(parts) != 2:
-            return False, f"Invalid symbol format: {symbol}. Use format: XXXX.JK"
-        
-        code, exchange = parts
-        
-        if exchange != "JK":
-            return False, f"Invalid exchange code: {exchange}. IDX symbols must end with .JK"
-        
-        if len(code) < 3 or len(code) > 5:
-            return False, f"Invalid symbol code: {code}. Must be 3-5 characters"
-        
-        if not code.isalpha():
-            return False, f"Symbol code must contain only letters: {code}"
+
+        market = MarketSymbolValidator.detect_market(symbol)
+        if market is None:
+            return False, (
+                "Only Forex/Crypto symbols are supported. "
+                "Examples: EURUSD=X, BTC-USD"
+            )
         
         return True, None
     
     @staticmethod
     def get_metadata(symbol: str) -> ChartMetadata:
         """Get metadata for symbol."""
-        symbol = symbol.upper()
-        
-        is_valid, error = IDXSymbolValidator.validate(symbol)
+        normalized_symbol = MarketSymbolValidator._normalize(symbol)
+
+        is_valid, error = MarketSymbolValidator.validate(normalized_symbol)
         if not is_valid:
             raise ValueError(f"Invalid symbol: {error}")
-        
-        # Get symbol info from known list
-        symbol_info = IDXSymbolValidator.IDX_SYMBOLS.get(symbol, {
-            "name": symbol,
+
+        market = MarketSymbolValidator.detect_market(normalized_symbol) or "forex"
+
+        symbol_info = MarketSymbolValidator.SYMBOLS.get(normalized_symbol, {
+            "name": normalized_symbol,
             "sector": "Unknown",
-            "min_price": 100,
-            "max_price": 100000,
+            "decimal_places": MarketSymbolValidator._default_decimal_places(
+                normalized_symbol,
+                market,
+            ),
+            "min_lot_size": 0.01 if market == "forex" else 0.001,
         })
-        
+
         return ChartMetadata(
-            symbol=symbol,
-            exchange="IDX",
-            currency="IDR",
+            symbol=normalized_symbol,
+            exchange="FOREX" if market == "forex" else "CRYPTO",
+            currency=MarketSymbolValidator._quote_currency(normalized_symbol, market),
             timeframe=TimeFrame.D1,
-            description=symbol_info.get("name", symbol),
-            decimal_places=2,
-            min_lot_size=100,  # IDX minimum 100 shares
-            trading_start="09:30",
-            trading_end="16:00",
+            description=symbol_info.get("name", normalized_symbol),
+            decimal_places=int(symbol_info.get("decimal_places", 5)),
+            min_lot_size=float(symbol_info.get("min_lot_size", 0.01)),
+            trading_start="00:00",
+            trading_end="23:59",
             timezone="Asia/Jakarta",
         )
+
+
+class IDXSymbolValidator(MarketSymbolValidator):
+    """Backward-compatible alias for modules importing IDXSymbolValidator."""
 
 
 class ChartDataCache:
@@ -219,7 +310,7 @@ class ChartDataCache:
         Args:
             ttl_minutes: Time-to-live for cache entries (default 5 minutes)
         """
-        self.cache: Dict[str, Dict] = {}
+        self.cache: Dict[str, Tuple[Dict, datetime]] = {}
         self.ttl = timedelta(minutes=ttl_minutes)
     
     def get(self, key: str) -> Optional[Dict]:
@@ -256,6 +347,12 @@ class ChartDataCache:
         for key in expired_keys:
             del self.cache[key]
 
+    def invalidate_prefix(self, prefix: str) -> None:
+        """Invalidate all cache entries that start with the provided prefix."""
+        keys_to_remove = [key for key in self.cache if key.startswith(prefix)]
+        for key in keys_to_remove:
+            del self.cache[key]
+
 
 class OHLCVAggregator:
     """Aggregate OHLCV data for different timeframes."""
@@ -283,12 +380,12 @@ class OHLCVAggregator:
             TimeFrame.M30: "30min",
             TimeFrame.H1: "1h",
             TimeFrame.H4: "4h",
-            TimeFrame.D1: "1d",
-            TimeFrame.W1: "1w",
-            TimeFrame.MN1: "1mo",
+            TimeFrame.D1: "1D",
+            TimeFrame.W1: "1W",
+            TimeFrame.MN1: "1ME",
         }
         
-        freq = freq_map.get(timeframe, "1d")
+        freq = freq_map.get(timeframe, "1D")
         
         # Ensure dataframe is in Jakarta timezone
         if df.index.tz is None:
@@ -349,43 +446,55 @@ class ChartService:
         Get chart data for symbol.
         
         Args:
-            symbol: IDX symbol (e.g., "BBCA.JK")
+            symbol: Forex/Crypto symbol (e.g., "EURUSD=X", "BTC-USD")
             timeframe: Timeframe (1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w, 1mo)
             limit: Number of candles to return
             
         Returns:
             Dict with metadata and candles
         """
+        normalized_symbol = str(symbol or "").strip().upper()
+
         # Validate symbol
-        is_valid, error = IDXSymbolValidator.validate(symbol)
+        is_valid, error = MarketSymbolValidator.validate(normalized_symbol)
         if not is_valid:
             raise HTTPException(status_code=400, detail=error)
+
+        try:
+            timeframe_obj = TimeFrame(timeframe)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Invalid timeframe: {timeframe}. "
+                    "Valid values: 1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w, 1mo"
+                ),
+            ) from exc
         
         # Check cache
-        cache_key = f"{symbol}:{timeframe}:{limit}"
+        cache_key = f"{normalized_symbol}:{timeframe}:{limit}"
         cached_data = self.cache.get(cache_key)
         if cached_data:
             return cached_data
         
         try:
             # Get metadata
-            metadata = IDXSymbolValidator.get_metadata(symbol)
-            metadata.timeframe = TimeFrame(timeframe)
+            metadata = MarketSymbolValidator.get_metadata(normalized_symbol)
+            metadata.timeframe = timeframe_obj
             
             # Get price data
             price_df = await self.price_data_service.get_ohlcv(
-                symbol=symbol,
+                symbol=normalized_symbol,
                 limit=limit + 50,  # Get extra for resampling
             )
             
             if price_df.empty:
                 raise HTTPException(
                     status_code=404,
-                    detail=f"No data found for symbol: {symbol}",
+                    detail=f"No data found for symbol: {normalized_symbol}",
                 )
             
             # Resample to timeframe
-            timeframe_obj = TimeFrame(timeframe)
             candles = self.aggregator.resample_to_timeframe(price_df, timeframe_obj)
             
             # Take last `limit` candles
@@ -407,7 +516,7 @@ class ChartService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Error getting chart data for {symbol}: {str(e)}")
+            logger.error(f"Error getting chart data for {normalized_symbol}: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
     
     async def subscribe_to_updates(
@@ -420,25 +529,27 @@ class ChartService:
         
         Args:
             websocket: WebSocket connection
-            symbol: IDX symbol
+            symbol: Forex/Crypto symbol
         """
+        normalized_symbol = str(symbol or "").strip().upper()
+
         # Validate symbol
-        is_valid, error = IDXSymbolValidator.validate(symbol)
+        is_valid, error = MarketSymbolValidator.validate(normalized_symbol)
         if not is_valid:
             await websocket.close(code=1008, reason=error)
             return
         
         # Add connection
-        if symbol not in self.active_connections:
-            self.active_connections[symbol] = []
+        if normalized_symbol not in self.active_connections:
+            self.active_connections[normalized_symbol] = []
         
-        self.active_connections[symbol].append(websocket)
+        self.active_connections[normalized_symbol].append(websocket)
         
         try:
             await websocket.accept()
             
             # Send initial data
-            data = await self.get_chart_data(symbol, timeframe="1d", limit=100)
+            data = await self.get_chart_data(normalized_symbol, timeframe="1d", limit=100)
             await websocket.send_json(data)
             
             # Keep connection alive
@@ -450,16 +561,16 @@ class ChartService:
                     await websocket.send_text("pong")
                 elif message == "update":
                     # Send latest candle
-                    data = await self.get_chart_data(symbol, timeframe="1d", limit=100)
+                    data = await self.get_chart_data(normalized_symbol, timeframe="1d", limit=100)
                     await websocket.send_json(data)
         
         except Exception as e:
-            logger.error(f"WebSocket error for {symbol}: {str(e)}")
+            logger.error(f"WebSocket error for {normalized_symbol}: {str(e)}")
         
         finally:
             # Remove connection
-            if symbol in self.active_connections:
-                self.active_connections[symbol].remove(websocket)
+            if normalized_symbol in self.active_connections and websocket in self.active_connections[normalized_symbol]:
+                self.active_connections[normalized_symbol].remove(websocket)
     
     async def broadcast_update(
         self,
@@ -470,22 +581,24 @@ class ChartService:
         Broadcast new candle to all connected clients.
         
         Args:
-            symbol: IDX symbol
+            symbol: Forex/Crypto symbol
             candle: New OHLCV candle
         """
-        if symbol not in self.active_connections:
+        normalized_symbol = str(symbol or "").strip().upper()
+
+        if normalized_symbol not in self.active_connections:
             return
         
         message = {
             "type": "candle_update",
-            "symbol": symbol,
+            "symbol": normalized_symbol,
             "candle": candle.to_lightweight_charts_format(),
             "timestamp": int(datetime.now(JAKARTA_TZ).timestamp()),
         }
         
         # Send to all connected clients
         disconnected = []
-        for websocket in self.active_connections[symbol]:
+        for websocket in self.active_connections[normalized_symbol]:
             try:
                 await websocket.send_json(message)
             except Exception as e:
@@ -494,40 +607,36 @@ class ChartService:
         
         # Clean up disconnected clients
         for ws in disconnected:
-            self.active_connections[symbol].remove(ws)
+            self.active_connections[normalized_symbol].remove(ws)
         
         # Invalidate cache for this symbol
-        self.cache.invalidate(f"{symbol}:1d:")
+        self.cache.invalidate_prefix(f"{normalized_symbol}:")
     
-    def is_trading_hours(self) -> bool:
-        """Check if current time is within BEI trading hours."""
+    def is_trading_hours(self, symbol: Optional[str] = None) -> bool:
+        """Check if current time is within market trading hours."""
+        market = MarketSymbolValidator.detect_market(symbol or "") if symbol else "forex"
+        if market == "crypto":
+            return True
+
         now = datetime.now(JAKARTA_TZ)
-        
-        # Check if weekday (Monday-Friday)
-        if now.weekday() >= 5:  # Saturday = 5, Sunday = 6
-            return False
-        
-        # Check if within trading hours (09:30-16:00)
-        trading_start = now.replace(hour=BEI_OPEN_HOUR, minute=BEI_OPEN_MINUTE, second=0, microsecond=0)
-        trading_end = now.replace(hour=BEI_CLOSE_HOUR, minute=BEI_CLOSE_MINUTE, second=0, microsecond=0)
-        
-        return trading_start <= now <= trading_end
+        return now.weekday() <= FOREX_LAST_TRADING_WEEKDAY
     
-    def get_next_trading_time(self) -> datetime:
-        """Get next trading open time."""
+    def get_next_trading_time(self, symbol: Optional[str] = None) -> datetime:
+        """Get next trading open time for market."""
+        market = MarketSymbolValidator.detect_market(symbol or "") if symbol else "forex"
         now = datetime.now(JAKARTA_TZ)
-        
-        # If before market open today, return today's open
-        today_open = now.replace(hour=BEI_OPEN_HOUR, minute=BEI_OPEN_MINUTE, second=0, microsecond=0)
-        if now < today_open and now.weekday() < 5:
-            return today_open
-        
-        # Find next trading day
-        next_day = now + timedelta(days=1)
-        while next_day.weekday() >= 5:  # Skip weekends
+
+        if market == "crypto":
+            return now
+
+        if self.is_trading_hours(symbol):
+            return now
+
+        next_day = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        while next_day.weekday() > FOREX_LAST_TRADING_WEEKDAY:
             next_day += timedelta(days=1)
-        
-        return next_day.replace(hour=BEI_OPEN_HOUR, minute=BEI_OPEN_MINUTE, second=0, microsecond=0)
+
+        return next_day
 
 
 # Global chart service instance

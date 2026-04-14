@@ -37,9 +37,9 @@ except ImportError:
 def sample_prices():
     """Sample price data."""
     return {
-        "BBCA.JK": 7500.0,
-        "BMRI.JK": 5600.0,
-        "TLKM.JK": 3400.0,
+        "BTCUSDT": 7500.0,
+        "ETHUSDT": 5600.0,
+        "XRPUSDT": 3400.0,
     }
 
 
@@ -97,20 +97,20 @@ class TestPositionManager:
     def test_get_state_with_positions(self, sample_prices):
         """Test portfolio state with positions."""
         pm = PositionManager(starting_capital=1_000_000.0)
-        pm.holdings["BBCA.JK"] = 1000
-        pm.entry_prices["BBCA.JK"] = 7000.0
+        pm.holdings["BTCUSDT"] = 1000
+        pm.entry_prices["BTCUSDT"] = 7000.0
         pm.cash = 900_000.0
         
         state = pm.get_state(sample_prices)
         
-        assert state.holdings["BBCA.JK"] == 1000
+        assert state.holdings["BTCUSDT"] == 1000
         assert state.total_value > 1_000_000.0  # Prices went up
     
     def test_should_trade_valid_buy(self, sample_prices):
         """Test trade validation for valid buy."""
         pm = PositionManager(starting_capital=1_000_000.0)
         
-        allowed, msg = pm.should_trade("BBCA.JK", 100, 7500.0)
+        allowed, msg = pm.should_trade("BTCUSDT", 100, 7500.0)
         
         assert allowed
         assert msg == "OK"
@@ -119,7 +119,7 @@ class TestPositionManager:
         """Test trade validation when insufficient cash."""
         pm = PositionManager(starting_capital=100.0)  # Very small capital
         
-        allowed, msg = pm.should_trade("BBCA.JK", 1000, 7500.0)
+        allowed, msg = pm.should_trade("BTCUSDT", 1000, 7500.0)
         
         assert not allowed
         assert "Insufficient cash" in msg
@@ -129,7 +129,7 @@ class TestPositionManager:
         pm = PositionManager(starting_capital=1_000_000.0, min_lot_size=100)
         
         # 150 is not a multiple of 100
-        allowed, msg = pm.should_trade("BBCA.JK", 150, 7500.0)
+        allowed, msg = pm.should_trade("BTCUSDT", 150, 7500.0)
         
         assert not allowed
         assert "multiple" in msg
@@ -139,14 +139,14 @@ class TestPositionManager:
         pm = PositionManager(starting_capital=1_000_000.0)
         
         result = pm.execute_trade(
-            symbol="BBCA.JK",
+            symbol="BTCUSDT",
             action="buy",
             qty=1000,
             price=7500.0,
         )
         
         assert result["status"] == "executed"
-        assert pm.holdings["BBCA.JK"] == 1000
+        assert pm.holdings["BTCUSDT"] == 1000
         assert pm.cash < 1_000_000.0
     
     def test_execute_sell_trade(self, sample_prices):
@@ -154,36 +154,36 @@ class TestPositionManager:
         pm = PositionManager(starting_capital=1_000_000.0)
         
         # First buy
-        pm.execute_trade("BBCA.JK", "buy", 1000, 7000.0)
+        pm.execute_trade("BTCUSDT", "buy", 1000, 7000.0)
         initial_cash = pm.cash
         
         # Then sell
-        result = pm.execute_trade("BBCA.JK", "sell", 500, 7500.0)
+        result = pm.execute_trade("BTCUSDT", "sell", 500, 7500.0)
         
         assert result["status"] == "executed"
-        assert pm.holdings["BBCA.JK"] == 500
+        assert pm.holdings["BTCUSDT"] == 500
         assert pm.cash > initial_cash
     
     def test_trade_history_tracking(self, sample_prices):
         """Test trade history is tracked."""
         pm = PositionManager(starting_capital=1_000_000.0)
         
-        pm.execute_trade("BBCA.JK", "buy", 100, 7500.0)
-        pm.execute_trade("BMRI.JK", "buy", 200, 5600.0)
+        pm.execute_trade("BTCUSDT", "buy", 100, 7500.0)
+        pm.execute_trade("ETHUSDT", "buy", 200, 5600.0)
         
         assert len(pm.trade_history) == 2
-        assert pm.trade_history[0]["symbol"] == "BBCA.JK"
-        assert pm.trade_history[1]["symbol"] == "BMRI.JK"
+        assert pm.trade_history[0]["symbol"] == "BTCUSDT"
+        assert pm.trade_history[1]["symbol"] == "ETHUSDT"
     
     def test_pnl_tracking(self, sample_prices):
         """Test P&L tracking on sales."""
         pm = PositionManager(starting_capital=1_000_000.0)
         
         # Buy at 7000
-        pm.execute_trade("BBCA.JK", "buy", 100, 7000.0)
+        pm.execute_trade("BTCUSDT", "buy", 100, 7000.0)
         
         # Sell at 7500 (profit)
-        pm.execute_trade("BBCA.JK", "sell", 100, 7500.0)
+        pm.execute_trade("BTCUSDT", "sell", 100, 7500.0)
         
         assert pm.win_count == 1
         assert len(pm.pnl_history) == 1
@@ -201,12 +201,12 @@ class TestPortfolioState:
         state = PortfolioState(
             total_value=1_000_000.0,
             cash=500_000.0,
-            holdings={"BBCA.JK": 1000},
+            holdings={"BTCUSDT": 1000},
         )
         
         assert state.total_value == 1_000_000.0
         assert state.cash == 500_000.0
-        assert state.holdings["BBCA.JK"] == 1000
+        assert state.holdings["BTCUSDT"] == 1000
     
     def test_to_dict(self):
         """Test conversion to dict."""
@@ -234,12 +234,12 @@ class TestRLTradingAgent:
         """Test agent creation with trained model."""
         # First create and train a simple model
         price_data = {
-            "BBCA.JK": np.linspace(7000, 7200, 50).tolist(),
-            "BMRI.JK": np.linspace(5500, 5700, 50).tolist(),
+            "BTCUSDT": np.linspace(7000, 7200, 50).tolist(),
+            "ETHUSDT": np.linspace(5500, 5700, 50).tolist(),
         }
         
         env = MultiSymbolTradingEnv(
-            symbols=["BBCA.JK", "BMRI.JK"],
+            symbols=["BTCUSDT", "ETHUSDT"],
             price_data=price_data,
         )
         
@@ -258,22 +258,22 @@ class TestRLTradingAgent:
         # Create agent
         agent = RLTradingAgent(
             model_path=model_path,
-            symbols=["BBCA.JK", "BMRI.JK"],
+            symbols=["BTCUSDT", "ETHUSDT"],
         )
         
         assert agent.model is not None
-        assert agent.symbols == ["BBCA.JK", "BMRI.JK"]
+        assert agent.symbols == ["BTCUSDT", "ETHUSDT"]
     
     def test_predict(self, tmp_path, sample_prices):
         """Test agent prediction."""
         # Create and train a model
         price_data = {
-            "BBCA.JK": np.linspace(7000, 7200, 50).tolist(),
-            "BMRI.JK": np.linspace(5500, 5700, 50).tolist(),
+            "BTCUSDT": np.linspace(7000, 7200, 50).tolist(),
+            "ETHUSDT": np.linspace(5500, 5700, 50).tolist(),
         }
         
         env = MultiSymbolTradingEnv(
-            symbols=["BBCA.JK", "BMRI.JK"],
+            symbols=["BTCUSDT", "ETHUSDT"],
             price_data=price_data,
         )
         
@@ -284,7 +284,7 @@ class TestRLTradingAgent:
         model_path = str(tmp_path / "test_model.zip")
         trainer.save(model_path)
         
-        agent = RLTradingAgent(model_path=model_path, symbols=["BBCA.JK", "BMRI.JK"])
+        agent = RLTradingAgent(model_path=model_path, symbols=["BTCUSDT", "ETHUSDT"])
         
         # Create observation
         obs = np.zeros(env.observation_space.shape, dtype=np.float32)
@@ -297,12 +297,12 @@ class TestRLTradingAgent:
         """Test processing RL action into trades."""
         # Create a trained model
         price_data = {
-            "BBCA.JK": np.linspace(7000, 7200, 50).tolist(),
-            "BMRI.JK": np.linspace(5500, 5700, 50).tolist(),
+            "BTCUSDT": np.linspace(7000, 7200, 50).tolist(),
+            "ETHUSDT": np.linspace(5500, 5700, 50).tolist(),
         }
         
         env = MultiSymbolTradingEnv(
-            symbols=["BBCA.JK", "BMRI.JK"],
+            symbols=["BTCUSDT", "ETHUSDT"],
             price_data=price_data,
         )
         
@@ -313,7 +313,7 @@ class TestRLTradingAgent:
         model_path = str(tmp_path / "test_model.zip")
         trainer.save(model_path)
         
-        agent = RLTradingAgent(model_path=model_path, symbols=["BBCA.JK", "BMRI.JK"])
+        agent = RLTradingAgent(model_path=model_path, symbols=["BTCUSDT", "ETHUSDT"])
         
         action = np.array([0.5, 0.3], dtype=np.float32)
         
@@ -469,8 +469,8 @@ class TestBatchInferenceEngine:
         
         # Add observations
         obs_shape = env.observation_space.shape
-        batch_engine.add_observation("BBCA.JK", np.zeros(obs_shape, dtype=np.float32))
-        batch_engine.add_observation("BMRI.JK", np.zeros(obs_shape, dtype=np.float32))
+        batch_engine.add_observation("BTCUSDT", np.zeros(obs_shape, dtype=np.float32))
+        batch_engine.add_observation("ETHUSDT", np.zeros(obs_shape, dtype=np.float32))
         
         assert len(batch_engine.pending_observations) == 2
         
@@ -510,7 +510,7 @@ class TestAnomalyIntegration:
         )
         
         # Set anomaly flag for one symbol
-        anomaly_flags = {"BBCA.JK": True, "BMRI.JK": False, "TLKM.JK": False}
+        anomaly_flags = {"BTCUSDT": True, "ETHUSDT": False, "XRPUSDT": False}
         
         action = np.array([0.5, 0.5, 0.5], dtype=np.float32)
         result = agent.process_action(action, sample_prices, anomaly_flags)
@@ -543,7 +543,7 @@ class TestRegimeIntegration:
             regime_detector=mock_regime_detector,
         )
         
-        regime_state = {"BBCA.JK": "bull", "BMRI.JK": "sideways", "TLKM.JK": "bear"}
+        regime_state = {"BTCUSDT": "bull", "ETHUSDT": "sideways", "XRPUSDT": "bear"}
         
         action = np.array([0.5, 0.5, 0.5], dtype=np.float32)
         result = agent.process_action(action, sample_prices, regime_state=regime_state)

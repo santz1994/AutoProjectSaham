@@ -14,15 +14,13 @@ Version: 1.0.0
 """
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, HTTPException
 from fastapi.responses import JSONResponse
 
 from src.api.chart_service import (
-    ChartService,
     TimeFrame,
-    IDXSymbolValidator,
+    MarketSymbolValidator,
     get_chart_service,
 )
 
@@ -35,38 +33,38 @@ ws_router = APIRouter(prefix="/ws", tags=["websocket"])
 @router.get("/metadata/{symbol}")
 async def get_chart_metadata(symbol: str):
     """
-    Get chart metadata for IDX symbol.
+    Get chart metadata for Forex/Crypto symbol.
     
     Args:
-        symbol: IDX symbol (e.g., "BBCA.JK")
+        symbol: Forex/Crypto symbol (e.g., "EURUSD=X", "BTC-USD")
         
     Returns:
         Chart metadata including trading hours, currency,decimals
         
     Example:
-        GET /api/charts/metadata/BBCA.JK
+        GET /api/charts/metadata/EURUSD=X
         
         Response:
         {
-            "symbol": "BBCA.JK",
-            "exchange": "IDX",
-            "currency": "IDR",
+            "symbol": "EURUSD=X",
+            "exchange": "FOREX",
+            "currency": "USD",
             "timeFrame": "1d",
-            "decimalPlaces": 2,
-            "minLotSize": 100,
-            "tradingStart": "09:30",
-            "tradingEnd": "16:00",
+            "decimalPlaces": 5,
+            "minLotSize": 0.01,
+            "tradingStart": "00:00",
+            "tradingEnd": "23:59",
             "timezone": "Asia/Jakarta"
         }
     """
     try:
         # Validate symbol
-        is_valid, error = IDXSymbolValidator.validate(symbol)
+        is_valid, error = MarketSymbolValidator.validate(symbol)
         if not is_valid:
             raise HTTPException(status_code=400, detail=error)
         
         # Get metadata
-        metadata = IDXSymbolValidator.get_metadata(symbol)
+        metadata = MarketSymbolValidator.get_metadata(symbol)
         
         return JSONResponse(metadata.to_dict())
     
@@ -84,10 +82,10 @@ async def get_chart_candles(
     limit: int = Query(100, ge=1, le=1000, description="Number of candles (1-1000)"),
 ):
     """
-    Get OHLCV candles for IDX symbol.
+    Get OHLCV candles for Forex/Crypto symbol.
     
     Args:
-        symbol: IDX symbol (e.g., "BBCA.JK")
+        symbol: Forex/Crypto symbol (e.g., "EURUSD=X", "BTC-USD")
         timeframe: Timeframe for candles
         limit: Number of candles to return (max 1000)
         
@@ -95,7 +93,7 @@ async def get_chart_candles(
         Chart data with metadata and candles
         
     Example:
-        GET /api/charts/candles/BBCA.JK?timeframe=1d&limit=100
+        GET /api/charts/candles/BTC-USD?timeframe=1d&limit=100
         
         Response:
         {
@@ -144,7 +142,7 @@ async def websocket_chart_endpoint(websocket: WebSocket, symbol: str):
     
     Args:
         websocket: WebSocket connection
-        symbol: IDX symbol (e.g., "BBCA.JK")
+        symbol: Forex/Crypto symbol (e.g., "EURUSD=X", "BTC-USD")
         
     Protocol:
     - Client sends "ping" → Server responds "pong" (keep-alive)
@@ -152,7 +150,7 @@ async def websocket_chart_endpoint(websocket: WebSocket, symbol: str):
     - Server sends "candle_update" → New candle data (when available)
     
     Example (JavaScript):
-        const ws = new WebSocket('ws://localhost:8000/ws/charts/BBCA.JK');
+        const ws = new WebSocket('ws://localhost:8000/ws/charts/BTC-USD');
         
         ws.onopen = () => {
             console.log('Connected');
@@ -212,9 +210,9 @@ async def get_trading_status():
         next_open = chart_service.get_next_trading_time()
         
         if is_trading:
-            message = "Market is open (09:30-16:00 WIB)"
+            message = "Forex market is open (24x5)"
         else:
-            message = "Market is closed. Next open at 09:30 WIB"
+            message = "Forex market is closed. Next open at 00:00 WIB"
         
         return JSONResponse({
             "is_trading": is_trading,
@@ -231,7 +229,7 @@ async def get_trading_status():
 @router.get("/supported-symbols")
 async def get_supported_symbols():
     """
-    Get list of supported IDX symbols.
+    Get list of supported Forex/Crypto symbols.
     
     Returns:
         List of symbols with metadata
@@ -242,21 +240,21 @@ async def get_supported_symbols():
         Response:
         [
             {
-                "symbol": "BBCA.JK",
-                "name": "Bank Central Asia",
-                "sector": "Financial"
+                "symbol": "EURUSD=X",
+                "name": "EUR/USD",
+                "sector": "Forex"
             },
             {
-                "symbol": "BMRI.JK",
-                "name": "Bank Mandiri",
-                "sector": "Financial"
+                "symbol": "BTC-USD",
+                "name": "Bitcoin / US Dollar",
+                "sector": "Crypto"
             },
             ...
         ]
     """
     try:
         symbols = []
-        for symbol, info in IDXSymbolValidator.IDX_SYMBOLS.items():
+        for symbol, info in MarketSymbolValidator.SYMBOLS.items():
             symbols.append({
                 "symbol": symbol,
                 "name": info.get("name", symbol),

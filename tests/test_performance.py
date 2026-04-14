@@ -1,11 +1,11 @@
-"""
+﻿"""
 Performance Tests & Benchmarks
 ===============================
 
 Comprehensive performance testing suite for critical operations
 Tests response times, throughput, memory usage, and scalability
 
-Jakarta timezone (WIB: UTC+7), IDX/IHSG, IDR, BEI compliance
+Jakarta timezone (WIB: UTC+7), Forex/Crypto baseline, USD quote compatibility
 """
 
 import pytest
@@ -20,10 +20,10 @@ class TestMarketDataPerformance:
     """Test market data retrieval performance"""
     
     def test_get_latest_price_performance(self, benchmark):
-        """Benchmark: Get latest price for IDX symbol"""
+        """Benchmark: Get latest price for Forex/Crypto symbol"""
         def get_price():
             # Simulate getting price from cache/DB
-            return {'symbol': 'BBCA.JK', 'price': 17500, 'currency': 'IDR'}
+            return {'symbol': 'BBCA-USD', 'price': 17500, 'currency': 'IDR'}
         
         # Should complete in <100ms
         result = benchmark(get_price)
@@ -33,7 +33,7 @@ class TestMarketDataPerformance:
         """Benchmark: Get OHLCV data"""
         def get_ohlcv():
             return {
-                'symbol': 'BMRI.JK',
+                'symbol': 'BMRI-USD',
                 'open': 6500, 'high': 6600, 'low': 6400, 'close': 6550,
                 'volume': 5000000, 'currency': 'IDR'
             }
@@ -43,7 +43,7 @@ class TestMarketDataPerformance:
     
     def test_bulk_symbol_update_performance(self, benchmark):
         """Benchmark: Update multiple symbols"""
-        symbols = [f'SYMBOL{i}.JK' for i in range(100)]
+        symbols = [f'SYMBOL{i}-USD' for i in range(100)]
         
         def update_symbols():
             results = []
@@ -68,7 +68,7 @@ class TestOrderPerformance:
         def place_order():
             return {
                 'order_id': 'ORD123',
-                'symbol': 'BBCA.JK',
+                'symbol': 'BBCA-USD',
                 'quantity': 100,
                 'price': 17500,
                 'currency': 'IDR',
@@ -84,7 +84,7 @@ class TestOrderPerformance:
         orders = [
             {
                 'order_id': f'ORD{i}',
-                'symbol': 'BBCA.JK',
+                'symbol': 'BBCA-USD',
                 'quantity': 100,
                 'price': 17500,
                 'currency': 'IDR'
@@ -116,7 +116,7 @@ class TestPositionPerformance:
         """Benchmark: Get all positions"""
         positions = [
             {
-                'symbol': 'BBCA.JK',
+                'symbol': 'BBCA-USD',
                 'quantity': 1000,
                 'entry_price': 17200,
                 'current_price': 17500,
@@ -179,10 +179,10 @@ class TestCachePerformance:
     
     def test_cache_hit_performance(self, benchmark):
         """Benchmark: Cache hit (retrieval)"""
-        cache = {'BBCA.JK': {'price': 17500, 'currency': 'IDR'}}
+        cache = {'BBCA-USD': {'price': 17500, 'currency': 'IDR'}}
         
         def cache_hit():
-            return cache.get('BBCA.JK')
+            return cache.get('BBCA-USD')
         
         # Should be <1ms
         result = benchmark(cache_hit)
@@ -232,7 +232,7 @@ class TestConcurrencyPerformance:
     
     def test_parallel_symbol_processing(self, benchmark):
         """Benchmark: Process multiple symbols in parallel"""
-        symbols = ['BBCA.JK', 'BMRI.JK', 'TLKM.JK', 'ASII.JK', 'INDF.JK']
+        symbols = ['BBCA-USD', 'BMRI-USD', 'TLKM-USD', 'ASII-USD', 'INDF-USD']
         
         def process_symbols():
             results = []
@@ -254,8 +254,8 @@ class TestDatabasePerformance:
     def test_single_row_query(self, benchmark):
         """Benchmark: Single row query"""
         def query_single():
-            # Simulate: SELECT * FROM positions WHERE symbol = 'BBCA.JK'
-            return {'symbol': 'BBCA.JK', 'quantity': 100, 'currency': 'IDR'}
+            # Simulate: SELECT * FROM positions WHERE symbol = 'BBCA-USD'
+            return {'symbol': 'BBCA-USD', 'quantity': 100, 'currency': 'IDR'}
         
         # Should complete in <50ms
         result = benchmark(query_single)
@@ -264,7 +264,7 @@ class TestDatabasePerformance:
     def test_bulk_insert_performance(self, benchmark):
         """Benchmark: Bulk insert"""
         data = [
-            {'id': i, 'symbol': 'BBCA.JK', 'price': 17500}
+            {'id': i, 'symbol': 'BBCA-USD', 'price': 17500}
             for i in range(1000)
         ]
         
@@ -332,7 +332,7 @@ class TestPerformanceThresholds:
     def test_market_data_threshold(self, benchmark):
         """Market data should respond in <100ms"""
         def get_market_data():
-            return {'symbol': 'BBCA.JK', 'price': 17500, 'currency': 'IDR'}
+            return {'symbol': 'BBCA-USD', 'price': 17500, 'currency': 'IDR'}
         
         # Measure response time
         start = time.time()
@@ -360,3 +360,4 @@ class TestPerformanceThresholds:
         
         result = benchmark(broker_api_call)
         assert result['status'] == 'ok'
+

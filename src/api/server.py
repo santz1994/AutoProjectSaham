@@ -89,6 +89,63 @@ if FASTAPI_AVAILABLE:
         if not token:
             return None
         return get_user_from_token(token)
+
+    _MARKET_SCOPE_ALIASES = {
+        "forex": "forex",
+        "fx": "forex",
+        "crypto": "crypto",
+        "blockchain": "crypto",
+        "all": "all",
+    }
+    _DEFAULT_MARKET_SYMBOLS = [
+        "EURUSD=X",
+        "GBPUSD=X",
+        "USDJPY=X",
+        "BTC-USD",
+        "ETH-USD",
+        "SOL-USD",
+    ]
+
+    def _is_forex_chart_symbol(symbol: str) -> bool:
+        normalized = str(symbol or "").strip().upper()
+        if normalized.endswith("=X"):
+            pair = normalized[:-2]
+            return len(pair) == 6 and pair.isalpha()
+        if "/" in normalized:
+            compact = normalized.replace("/", "")
+            return len(compact) == 6 and compact.isalpha()
+        return len(normalized) == 6 and normalized.isalpha()
+
+    def _is_crypto_chart_symbol(symbol: str) -> bool:
+        normalized = str(symbol or "").strip().upper()
+        if "-USD" in normalized:
+            base = normalized.split("-USD", 1)[0]
+            return bool(base)
+        if normalized.endswith("USDT") and len(normalized) > 4:
+            return bool(normalized[:-4])
+        return False
+
+    def _is_supported_chart_symbol(symbol: str) -> bool:
+        return _is_forex_chart_symbol(symbol) or _is_crypto_chart_symbol(symbol)
+
+    def _normalize_chart_market_scope(
+        market: Optional[str],
+        *,
+        allow_all: bool = False,
+    ) -> str:
+        normalized = _MARKET_SCOPE_ALIASES.get(str(market or "").strip().lower())
+        if normalized is None:
+            allowed = "forex, crypto, all" if allow_all else "forex, crypto"
+            raise HTTPException(
+                status_code=400,
+                detail=f"market must be one of: {allowed}",
+            )
+        if (not allow_all) and normalized == "all":
+            raise HTTPException(
+                status_code=400,
+                detail="market must be one of: forex, crypto",
+            )
+        return normalized
     
     # Register frontend API routes
     app.include_router(frontend_router)
@@ -1130,6 +1187,11 @@ if FASTAPI_AVAILABLE:
         from src.data.idx_fetcher import fetch_symbol_metadata
 
         upper_symbol = str(symbol or "").upper()
+        if not _is_supported_chart_symbol(upper_symbol):
+            raise HTTPException(
+                status_code=400,
+                detail="Only Forex/Crypto symbols are supported.",
+            )
 
         metadata = await fetch_symbol_metadata(symbol)
         if metadata:
@@ -1173,12 +1235,18 @@ if FASTAPI_AVAILABLE:
         """Get real candlestick data from yfinance-backed Forex/Crypto feeds."""
         from src.data.idx_fetcher import fetch_candlesticks
 
+        upper_symbol = str(symbol or "").upper()
+        if not _is_supported_chart_symbol(upper_symbol):
+            raise HTTPException(
+                status_code=400,
+                detail="Only Forex/Crypto symbols are supported.",
+            )
+
         result = await fetch_candlesticks(symbol, timeframe=timeframe, limit=limit)
 
         if result:
             return result
 
-        upper_symbol = str(symbol or "").upper()
         exchange = "FOREX" if upper_symbol.endswith("=X") else "CRYPTO" if "-USD" in upper_symbol else "FOREX"
 
         # Fallback if fetch fails
@@ -1213,7 +1281,25 @@ if FASTAPI_AVAILABLE:
         """Get current Forex/Crypto trading status."""
         from src.data.idx_fetcher import fetch_trading_status
 
-        status = await fetch_trading_status(market=market, symbol=symbol)
+        normalized_symbol = str(symbol or "").strip().upper() or None
+        if normalized_symbol and (not _is_supported_chart_symbol(normalized_symbol)):
+            raise HTTPException(
+                status_code=400,
+                detail="Only Forex/Crypto symbols are supported.",
+            )
+
+        normalized_market: Optional[str]
+        if market is not None:
+            normalized_market = _normalize_chart_market_scope(market, allow_all=False)
+        elif normalized_symbol:
+            normalized_market = "forex" if _is_forex_chart_symbol(normalized_symbol) else "crypto"
+        else:
+            normalized_market = "forex"
+
+        status = await fetch_trading_status(
+            market=normalized_market,
+            symbol=normalized_symbol,
+        )
         return status
 
     @app.websocket("/ws/charts/{symbol}")
@@ -1231,6 +1317,12 @@ if FASTAPI_AVAILABLE:
                 await ws.close(code=4401, reason="Unauthorized")
             except Exception:
                 pass
+            return
+
+        normalized_symbol = str(symbol or "").strip().upper()
+        if not _is_supported_chart_symbol(normalized_symbol):
+            await ws.accept()
+            await ws.close(code=1008, reason="Only Forex/Crypto symbols are supported")
             return
 
         timeframe = ws.query_params.get("timeframe", "1d")
@@ -1404,9 +1496,16 @@ if FASTAPI_AVAILABLE:
             # REAL DATA: Default to Forex/Crypto symbols.
             symbols_env = os.getenv(
                 "MARKET_SYMBOLS",
-                "EURUSD=X,GBPUSD=X,USDJPY=X,BTC-USD,ETH-USD,SOL-USD",
+                ",".join(_DEFAULT_MARKET_SYMBOLS),
             )
-            symbols = [s.strip() for s in symbols_env.split(",") if s.strip()]
+            symbols = [
+                s.strip().upper()
+                for s in symbols_env.split(",")
+                if s.strip()
+            ]
+            symbols = [s for s in symbols if _is_supported_chart_symbol(s)]
+            if not symbols:
+                symbols = list(_DEFAULT_MARKET_SYMBOLS)
 
             from src.brokers.marketdata import AlpacaMarketDataAdapter
 

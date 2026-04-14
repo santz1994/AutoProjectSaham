@@ -25,10 +25,9 @@ class TradingEnvLiquidityTests(unittest.TestCase):
             _obs, _info = reset_result
 
         step_result = env.step([1, 0])
-        if len(step_result) == 5:
-            _obs, reward, _terminated, _truncated, info = step_result
-        else:
-            _obs, reward, _done, info = step_result
+        parsed = tuple(step_result)
+        reward = parsed[1]
+        info = parsed[-1]
 
         self.assertEqual(info.get("rejected"), "no_liquidity_volume_zero")
         self.assertTrue(info.get("liquidity_penalty"))
@@ -51,16 +50,48 @@ class TradingEnvLiquidityTests(unittest.TestCase):
             _obs, _info = reset_result
 
         step_result = env.step([1, 0])
-        if len(step_result) == 5:
-            _obs, reward, _terminated, _truncated, info = step_result
-        else:
-            _obs, reward, _done, info = step_result
+        parsed = tuple(step_result)
+        reward = parsed[1]
+        info = parsed[-1]
 
         # With high slippage, absolute-Rupiah reward would be around -5000.
         # Percent-based scaling keeps reward in a stable PPO-friendly range.
         self.assertIn("period_return_pct", info)
         self.assertLess(float(reward), 0.0)
         self.assertGreater(float(reward), -10.0)
+
+    def test_observation_uses_liquidation_distance_features(self):
+        from src.ml.feature_store import compute_latest_features
+        from src.rl.envs.trading_env import TradingEnv
+
+        env = TradingEnv(
+            prices=[100.0, 101.0, 102.0],
+            volumes=[1000.0, 1000.0, 1000.0],
+            symbol="TEST",
+            starting_cash=10000.0,
+            position_size=1,
+        )
+
+        reset_result = env.reset()
+        if isinstance(reset_result, tuple):
+            _obs, _info = reset_result
+
+        # Hold one step so observation contains 2-point feature context.
+        step_result = env.step([0, 0])
+        parsed = tuple(step_result)
+        obs = parsed[0]
+
+        feats = compute_latest_features([100.0, 101.0])
+        self.assertAlmostEqual(
+            float(obs[5]),
+            float(feats.get("dist_to_liquidation", 0.0)),
+            places=6,
+        )
+        self.assertAlmostEqual(
+            float(obs[6]),
+            float(feats.get("norm_dist_to_liquidation", 0.0)),
+            places=6,
+        )
 
 
 if __name__ == "__main__":

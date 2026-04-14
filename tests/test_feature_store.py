@@ -5,7 +5,7 @@ import json
 import tempfile
 from unittest.mock import patch
 
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 
 # ensure src package is importable
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -53,7 +53,7 @@ class FeatureStoreTests(unittest.TestCase):
         }
 
         row = build_multimodal_feature_row(
-            symbol="BBCA",
+            symbol="BTC-USD",
             prices=prices,
             volumes=volumes,
             sentiment_features=sentiment,
@@ -62,7 +62,7 @@ class FeatureStoreTests(unittest.TestCase):
             horizon_bars=8,
         )
 
-        self.assertEqual(row["symbol"], "BBCA")
+        self.assertEqual(row["symbol"], "BTC-USD")
         self.assertEqual(row["horizon"], "swing")
         self.assertIn("last_price", row)
         self.assertIn("news_sentiment_7d", row)
@@ -79,12 +79,12 @@ class FeatureStoreTests(unittest.TestCase):
 
         prices = [90.0 + i for i in range(12)]
         row = build_multimodal_feature_row(
-            symbol="TLKM",
+            symbol="ETH-USD",
             prices=prices,
             volumes=None,
         )
 
-        self.assertEqual(row["symbol"], "TLKM")
+        self.assertEqual(row["symbol"], "ETH-USD")
         self.assertEqual(row["has_sentiment_features"], 0)
         self.assertEqual(row["has_cot_features"], 0)
 
@@ -96,12 +96,12 @@ class FeatureStoreTests(unittest.TestCase):
             os.makedirs(price_dir, exist_ok=True)
 
             price_payload = {
-                "symbol": "BBCA.JK",
+                "symbol": "BTC-USD",
                 "prices": [100.0 + i for i in range(40)],
                 "volumes": [1000 + i * 10 for i in range(40)],
             }
             with open(
-                os.path.join(price_dir, "BBCA.JK.json"),
+                os.path.join(price_dir, "BTC-USD.json"),
                 "w",
                 encoding="utf-8",
             ) as file:
@@ -129,7 +129,7 @@ class FeatureStoreTests(unittest.TestCase):
 
             df = pd.DataFrame(
                 {
-                    "symbol": ["BBCA", "BBCA", "AAPL"],
+                    "symbol": ["BTC-USD", "BTC-USD", "AAPL"],
                     "label": [1, 0, 1],
                     "future_return": [0.01, -0.02, 0.03],
                 }
@@ -158,11 +158,11 @@ class FeatureStoreTests(unittest.TestCase):
             self.assertIn("has_cot_features", out.columns)
             self.assertIn("cot_index_noncommercial", out.columns)
 
-            bbca_rows = out[out["symbol"] == "BBCA"]
-            self.assertTrue((bbca_rows["has_sentiment_features"] == 1).all())
-            self.assertTrue((bbca_rows["has_cot_features"] == 1).all())
-            self.assertEqual(bbca_rows["horizon_tag"].iloc[0], "short_term")
-            self.assertTrue(bbca_rows["horizon_return"].notna().all())
+            crypto_rows = out[out["symbol"] == "BTC-USD"]
+            self.assertTrue((crypto_rows["has_sentiment_features"] == 1).all())
+            self.assertTrue((crypto_rows["has_cot_features"] == 1).all())
+            self.assertEqual(crypto_rows["horizon_tag"].iloc[0], "short_term")
+            self.assertTrue(crypto_rows["horizon_return"].notna().all())
 
     def test_augment_dataset_forwards_finbert_settings(self):
         from src.ml.feature_store import augment_dataset_with_multimodal
@@ -172,13 +172,13 @@ class FeatureStoreTests(unittest.TestCase):
             os.makedirs(price_dir, exist_ok=True)
 
             with open(
-                os.path.join(price_dir, "BBCA.JK.json"),
+                os.path.join(price_dir, "BTC-USD.json"),
                 "w",
                 encoding="utf-8",
             ) as file:
                 json.dump(
                     {
-                        "symbol": "BBCA.JK",
+                        "symbol": "BTC-USD",
                         "prices": [100.0 + i for i in range(20)],
                         "volumes": [1000 + i for i in range(20)],
                     },
@@ -187,7 +187,7 @@ class FeatureStoreTests(unittest.TestCase):
 
             df = pd.DataFrame(
                 {
-                    "symbol": ["BBCA"],
+                    "symbol": ["BTC-USD"],
                     "label": [1],
                     "future_return": [0.01],
                 }

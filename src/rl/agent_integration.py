@@ -14,12 +14,13 @@ Integrates:
 - Portfolio risk monitoring
 
 Jakarta timezone: WIB (UTC+7)
-Indonesia compliance: IDX, OJK, BEI rules
+Forex/Crypto scope for 24x5/24x7 execution paths
 """
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
+import math
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
@@ -51,7 +52,7 @@ class PortfolioState:
     """Current portfolio state."""
     total_value: float = 0.0
     cash: float = 0.0
-    holdings: Dict[str, int] = field(default_factory=dict)  # symbol -> qty
+    holdings: Dict[str, float] = field(default_factory=dict)  # symbol -> qty
     entry_prices: Dict[str, float] = field(default_factory=dict)
     unrealized_pnl: Dict[str, float] = field(default_factory=dict)
     max_drawdown: float = 0.0
@@ -82,17 +83,17 @@ class PortfolioState:
 
 class PositionManager:
     """
-    Manages positions with IDX compliance:
-    - Minimum lot size: 100 shares
-    - Maximum leverage: Conservative limits
+    Manages positions for leveraged forex/crypto style execution:
+    - Optional lot-size guard (disabled by default)
+    - Fractional quantity support
     - Trade tracking and P&L
     """
     
     def __init__(
         self,
         starting_capital: float = 1_000_000.0,
-        min_lot_size: int = 100,
-        max_leverage: float = 0.8,
+        min_lot_size: float = 0.0,
+        max_leverage: float = 20.0,
         commission_pct: float = 0.0008,
     ):
         """
@@ -100,13 +101,13 @@ class PositionManager:
         
         Args:
             starting_capital: Initial cash in IDR
-            min_lot_size: Minimum shares per lot (IDX: 100)
+            min_lot_size: Optional discrete lot size (0 disables lot checks)
             max_leverage: Max fraction of capital to leverage
             commission_pct: Transaction cost percentage
         """
         self.starting_capital = float(starting_capital)
         self.cash = float(starting_capital)
-        self.min_lot_size = int(min_lot_size)
+        self.min_lot_size = float(max(0.0, min_lot_size))
         self.max_leverage = float(max_leverage)
         self.commission_pct = float(commission_pct)
         
@@ -126,8 +127,11 @@ class PositionManager:
         for symbol, qty in self.holdings.items():
             if qty > 0 and symbol in current_prices:
                 current_price = current_prices[symbol]
-                unrealized_pnl[symbol] = (current_price - self.entry_prices.get(symbol, 0)) * qty
-                total_value += qty * current_price
+                unrealized = (
+                    current_price - self.entry_prices.get(symbol, current_price)
+                ) * qty
+                unrealized_pnl[symbol] = unrealized
+                total_value += unrealized
         
         daily_return = 0.0
         if len(self.portfolio_values) > 1:
@@ -160,29 +164,53 @@ class PositionManager:
         
         return state
     
-    def should_trade(self, symbol: str, target_qty: int, price: float) -> Tuple[bool, str]:
+    def should_trade(
+        self,
+        symbol: str,
+        target_qty: float,
+        price: float,
+    ) -> Tuple[bool, str]:
         """
-        Check if trade is allowed (IDX compliance).
+        Check if target position is allowed.
         
         Returns:
             (allowed, reason)
         """
-        # Check minimum lot size
-        if target_qty > 0 and target_qty % self.min_lot_size != 0:
-            return False, f"Qty {target_qty} not multiple of {self.min_lot_size}"
+        safe_target_qty = float(target_qty)
+        safe_price = float(price)
+
+        if not math.isfinite(safe_target_qty) or safe_target_qty < 0:
+            return False, "target_qty must be >= 0"
+        if not math.isfinite(safe_price) or safe_price <= 0:
+            return False, "price must be > 0"
+
+        # Optional lot-size compatibility guard.
+        if self.min_lot_size > 0 and safe_target_qty > 0:
+            lot_units = safe_target_qty / self.min_lot_size
+            if not np.isclose(lot_units, round(lot_units), atol=1e-9):
+                return False, (
+                    f"Qty {safe_target_qty} not multiple of {self.min_lot_size}"
+                )
         
-        # Check available cash for buy
-        current_qty = self.holdings.get(symbol, 0)
-        if target_qty > current_qty:
-            qty_to_buy = target_qty - current_qty
-            cost = qty_to_buy * price * (1.0 + self.commission_pct)
-            if cost > self.cash:
-                return False, f"Insufficient cash: need {cost:.2f}, have {self.cash:.2f}"
+        current_qty = float(self.holdings.get(symbol, 0.0))
+
+        # Margin-style affordability check for incremental buy.
+        if safe_target_qty > current_qty:
+            qty_to_buy = safe_target_qty - current_qty
+            buy_notional = qty_to_buy * safe_price
+            effective_lev = max(self.max_leverage, 1e-6)
+            required_margin = buy_notional / effective_lev
+            estimated_fee = buy_notional * self.commission_pct
+            required_cash = required_margin + estimated_fee
+            if required_cash > self.cash:
+                return False, (
+                    f"Insufficient cash: need {required_cash:.2f}, have {self.cash:.2f}"
+                )
         
-        # Check max leverage
-        current_notional = current_qty * price
-        new_notional = target_qty * price
-        max_notional = self.max_leverage * (self.cash + current_notional)
+        # Cap absolute position notional by current equity.
+        equity = max(self.cash, 1e-6)
+        new_notional = safe_target_qty * safe_price
+        max_notional = max(0.0, self.max_leverage) * equity
         if new_notional > max_notional:
             return False, f"Would exceed max leverage ({max_notional:.2f})"
         
@@ -192,7 +220,7 @@ class PositionManager:
         self,
         symbol: str,
         action: str,  # "buy" or "sell"
-        qty: int,
+        qty: float,
         price: float,
         reason: str = "RL action",
     ) -> Dict[str, Any]:
@@ -202,50 +230,87 @@ class PositionManager:
         Returns:
             Trade result dict
         """
-        allowed, msg = self.should_trade(symbol, qty if action == "buy" else self.holdings.get(symbol, 0) - qty, price)
+        action_l = str(action or "").strip().lower()
+        if action_l not in {"buy", "sell"}:
+            return {"status": "rejected", "reason": "unknown_action"}
+
+        requested_qty = float(qty)
+        if not math.isfinite(requested_qty) or requested_qty <= 0:
+            return {"status": "rejected", "reason": "qty must be > 0"}
+
+        current_qty = float(self.holdings.get(symbol, 0.0))
+        if action_l == "buy":
+            target_qty = current_qty + requested_qty
+        else:
+            if requested_qty > current_qty + 1e-12:
+                return {
+                    "status": "rejected",
+                    "reason": "insufficient_position",
+                }
+            target_qty = max(0.0, current_qty - requested_qty)
+
+        allowed, msg = self.should_trade(symbol, target_qty, price)
         if not allowed:
             return {"status": "rejected", "reason": msg}
         
-        current_qty = self.holdings.get(symbol, 0)
         commission = 0.0
+        realized_pnl = 0.0
         
-        if action == "buy":
-            qty_to_buy = qty - current_qty
+        if action_l == "buy":
+            qty_to_buy = requested_qty
             if qty_to_buy > 0:
-                cost = qty_to_buy * price * (1.0 + self.commission_pct)
-                if cost <= self.cash:
-                    self.cash -= cost
-                    self.holdings[symbol] = qty
-                    self.entry_prices[symbol] = price
-                    commission = qty_to_buy * price * self.commission_pct
-        
-        elif action == "sell":
-            qty_to_sell = current_qty - qty
+                notional = qty_to_buy * float(price)
+                commission = notional * self.commission_pct
+                self.cash -= commission
+
+                prev_entry = float(self.entry_prices.get(symbol, float(price)))
+                next_qty = current_qty + qty_to_buy
+                weighted_entry = (
+                    ((prev_entry * current_qty) + (float(price) * qty_to_buy))
+                    / max(next_qty, 1e-12)
+                )
+
+                self.holdings[symbol] = next_qty
+                self.entry_prices[symbol] = weighted_entry
+
+        elif action_l == "sell":
+            qty_to_sell = requested_qty
             if qty_to_sell > 0:
-                proceeds = qty_to_sell * price * (1.0 - self.commission_pct)
-                self.cash += proceeds
-                self.holdings[symbol] = qty
-                commission = qty_to_sell * price * self.commission_pct
-                
-                # Track P&L
-                pnl = (price - self.entry_prices.get(symbol, 0)) * qty_to_sell
-                if pnl > 0:
+                entry_price = float(self.entry_prices.get(symbol, float(price)))
+                realized_pnl = (float(price) - entry_price) * qty_to_sell
+                commission = qty_to_sell * float(price) * self.commission_pct
+                self.cash += realized_pnl - commission
+
+                if target_qty <= 1e-12:
+                    self.holdings.pop(symbol, None)
+                    self.entry_prices.pop(symbol, None)
+                else:
+                    self.holdings[symbol] = target_qty
+
+                # Track realized P&L
+                if realized_pnl > 0:
                     self.win_count += 1
                 else:
                     self.loss_count += 1
-                self.pnl_history.append(pnl)
+                self.pnl_history.append(realized_pnl)
         
         self.trade_history.append({
             "symbol": symbol,
-            "action": action,
-            "qty": qty,
+            "action": action_l,
+            "qty": requested_qty,
+            "target_qty": target_qty,
             "price": price,
             "commission": commission,
+            "realized_pnl": realized_pnl,
             "timestamp": get_jakarta_now(),
             "reason": reason,
         })
         
-        return {"status": "executed", "commission": commission}
+        return {
+            "status": "executed",
+            "commission": commission,
+            "realized_pnl": realized_pnl,
+        }
 
 
 # ============================================================================
@@ -260,7 +325,7 @@ class RLTradingAgent:
     - PPO or SAC policy
     - Anomaly detection integration (Task 9)
     - Regime detection integration (Task 10)
-    - Position management (IDX compliance)
+    - Fractional position management for forex/crypto
     - Risk monitoring
     - Performance tracking
     """
@@ -305,8 +370,8 @@ class RLTradingAgent:
         # Position management
         self.position_manager = PositionManager(
             starting_capital=starting_capital,
-            min_lot_size=100,
-            max_leverage=0.8,
+            min_lot_size=0.0,
+            max_leverage=20.0,
             commission_pct=0.0008,
         )
         
@@ -366,7 +431,7 @@ class RLTradingAgent:
     def get_positions(
         self,
         current_prices: Dict[str, float],
-    ) -> Dict[str, int]:
+    ) -> Dict[str, float]:
         """Get current positions."""
         return dict(self.position_manager.holdings)
     
@@ -426,20 +491,33 @@ class RLTradingAgent:
                 except Exception as e:
                     logger.warning(f"Regime adjustment failed for {symbol}: {e}")
             
-            # Calculate target quantity
-            target_qty = int((target_fraction * self.position_manager.cash) / price)
-            target_qty = (target_qty // 100) * 100  # Round to nearest lot
+            target_fraction = float(np.clip(target_fraction, 0.0, 1.0))
+
+            # Fractional quantity sizing: target notional = fraction of
+            # leverage-adjusted buying capacity.
+            buying_capacity = (
+                self.position_manager.cash * max(self.position_manager.max_leverage, 0.0)
+            )
+            target_notional = target_fraction * buying_capacity
+            target_qty = target_notional / float(price)
+
+            if self.position_manager.min_lot_size > 0:
+                lot = self.position_manager.min_lot_size
+                target_qty = math.floor(target_qty / lot) * lot
+
+            target_qty = round(max(0.0, target_qty), 8)
             
-            current_qty = self.position_manager.holdings.get(symbol, 0)
+            current_qty = float(self.position_manager.holdings.get(symbol, 0.0))
             
+            if abs(target_qty - current_qty) <= 1e-8:
+                continue
+
             if target_qty > current_qty:
                 action_type = "buy"
-                qty = target_qty
-            elif target_qty < current_qty:
-                action_type = "sell"
-                qty = target_qty
+                qty = target_qty - current_qty
             else:
-                continue
+                action_type = "sell"
+                qty = current_qty - target_qty
             
             result = self.position_manager.execute_trade(
                 symbol=symbol,

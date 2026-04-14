@@ -4,7 +4,7 @@ import pytest
 
 
 def _make_synthetic_dataset(n_rows=200):
-    symbols = ["BBCA.JK", "ASII.JK"]
+    symbols = ["BTC-USD", "EURUSD=X"]
     rng = np.random.default_rng(7)
     rows = []
 

@@ -254,8 +254,8 @@ def test_get_execution_pending_orders_snapshot(monkeypatch):
     class _FakeExecutionManager:
         def get_pending_orders(self):
             return [
-                {"order_id": "lim-1", "symbol": "BBCA.JK", "side": "buy"},
-                {"order_id": "lim-2", "symbol": "BMRI.JK", "side": "sell"},
+                {"order_id": "lim-1", "symbol": "BTCUSDT", "side": "buy"},
+                {"order_id": "lim-2", "symbol": "EURUSD=X", "side": "sell"},
             ]
 
     monkeypatch.setattr(frontend_routes, "_run_blocking", _run_immediate)
@@ -457,11 +457,11 @@ def test_submit_execution_order_limit_success(monkeypatch):
             self,
             symbol: str,
             side: str,
-            qty: int,
+            qty: float,
             limit_price: float,
             previous_close=None,
         ):
-            assert symbol == "BBCA.JK"
+            assert symbol == "BTC-USD"
             assert side == "buy"
             assert qty == 5
             assert limit_price == 9050.0
@@ -491,7 +491,7 @@ def test_submit_execution_order_limit_success(monkeypatch):
     )
 
     payload = frontend_routes.ExecutionOrderPayload(
-        symbol="bbca.jk",
+        symbol="btcusdt",
         side="BUY",
         qty=5,
         orderType="limit",
@@ -517,11 +517,11 @@ def test_submit_execution_order_market_success(monkeypatch):
             self,
             symbol: str,
             side: str,
-            qty: int,
+            qty: float,
             price: float,
             previous_close=None,
         ):
-            assert symbol == "BBCA.JK"
+            assert symbol == "ETH-USD"
             assert side == "sell"
             assert qty == 3
             assert price == 9100.0
@@ -551,7 +551,7 @@ def test_submit_execution_order_market_success(monkeypatch):
     )
 
     payload = frontend_routes.ExecutionOrderPayload(
-        symbol="bbca.jk",
+        symbol="ethusdt",
         side="SELL",
         qty=3,
         orderType="market",
@@ -584,7 +584,7 @@ def test_submit_execution_order_requires_manager(monkeypatch):
     monkeypatch.setattr(frontend_routes, "_runtime_execution_manager", lambda: None)
 
     payload = frontend_routes.ExecutionOrderPayload(
-        symbol="BBCA.JK",
+        symbol="EURUSD=X",
         side="BUY",
         qty=1,
         orderType="limit",
@@ -600,3 +600,43 @@ def test_submit_execution_order_requires_manager(monkeypatch):
         )
 
     assert exc.value.status_code == 503
+
+
+def test_submit_execution_order_rejects_non_forex_crypto_symbol(monkeypatch):
+    class _FakeExecutionManager:
+        def place_order(self, *args, **kwargs):
+            raise AssertionError("place_order should not be called for invalid symbol")
+
+    monkeypatch.setattr(
+        frontend_routes,
+        "_require_role_operation",
+        lambda *args, **kwargs: {
+            "username": "trader-user",
+            "role": "trader",
+            "csrfToken": "",
+        },
+    )
+    monkeypatch.setattr(
+        frontend_routes,
+        "_runtime_execution_manager",
+        lambda: _FakeExecutionManager(),
+    )
+
+    payload = frontend_routes.ExecutionOrderPayload(
+        symbol="BBCA.JK",
+        side="BUY",
+        qty=1,
+        orderType="market",
+        marketPrice=9000,
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(
+            frontend_routes.submit_execution_order(
+                payload,
+                request=SimpleNamespace(cookies={}, headers={}),
+            )
+        )
+
+    assert exc.value.status_code == 400
+    assert "Forex/Crypto" in str(exc.value.detail)

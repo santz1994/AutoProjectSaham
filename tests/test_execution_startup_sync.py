@@ -10,7 +10,7 @@ class _BrokerWithActiveOrders:
         return [
             {
                 "id": "BKR-1",
-                "symbol": "BBCA.JK",
+                "symbol": "BTCUSDT",
                 "side": "buy",
                 "qty": 2,
                 "price": 9000,
@@ -18,7 +18,7 @@ class _BrokerWithActiveOrders:
             },
             {
                 "id": "BKR-2",
-                "symbol": "BMRI.JK",
+                "symbol": "EURUSD=X",
                 "side": "sell",
                 "quantity": 1,
                 "limit_price": 7000,
@@ -26,7 +26,7 @@ class _BrokerWithActiveOrders:
             },
             {
                 "id": "BKR-3",
-                "symbol": "TLKM.JK",
+                "symbol": "XAUUSD=X",
                 "side": "buy",
                 "qty": 0,
                 "price": 2500,
@@ -48,7 +48,7 @@ def test_startup_sync_blocks_pre_trade_until_completed():
     )
 
     ok_before, reason_before = manager.pre_trade_check(
-        symbol="BBCA.JK",
+        symbol="BTCUSDT",
         side="buy",
         qty=1,
         price=9000,
@@ -67,7 +67,7 @@ def test_startup_sync_blocks_pre_trade_until_completed():
     assert len(pending) == 2
 
     ok_after, reason_after = manager.pre_trade_check(
-        symbol="BBCA.JK",
+        symbol="BTCUSDT",
         side="buy",
         qty=1,
         price=9000,

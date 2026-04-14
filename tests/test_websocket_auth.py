@@ -43,7 +43,7 @@ def test_ws_events_requires_auth(client: TestClient):
 
 def test_ws_charts_requires_auth(client: TestClient):
     with pytest.raises(WebSocketDisconnect) as exc:
-        with client.websocket_connect("/ws/charts/BBCA.JK") as websocket:
+        with client.websocket_connect("/ws/charts/BTCUSDT") as websocket:
             websocket.receive_json()
 
     assert exc.value.code == 4401

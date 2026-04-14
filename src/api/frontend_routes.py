@@ -262,7 +262,7 @@ class AILogPayload(BaseModel):
 class ExecutionOrderPayload(BaseModel):
     symbol: str
     side: str
-    qty: int
+    qty: float
     orderType: str = "limit"
     limitPrice: Optional[float] = None
     marketPrice: Optional[float] = None
@@ -529,6 +529,15 @@ _GLOBAL_INDEX_SYMBOLS = [
     "^HSI",
     "^N225",
 ]
+
+_MARKET_ALIASES: Dict[str, str] = {
+    "forex": "forex",
+    "fx": "forex",
+    "crypto": "crypto",
+    "blockchain": "crypto",
+    "all": "all",
+    "multi": "all",
+}
 
 _global_news_cache: Dict[str, Any] = {
     "key": None,
@@ -858,7 +867,9 @@ def _is_crypto_symbol(symbol: str) -> bool:
 
 
 def _is_supported_market_symbol(symbol: str, market: str) -> bool:
-    normalized_market = _normalize_market_input(market)
+    normalized_market = _MARKET_ALIASES.get(str(market or "").strip().lower())
+    if normalized_market is None:
+        return False
 
     if normalized_market == "forex":
         return _is_forex_symbol(symbol)
@@ -869,22 +880,34 @@ def _is_supported_market_symbol(symbol: str, market: str) -> bool:
     return False
 
 
-def _normalize_market_input(market: Optional[str]) -> str:
-    normalized = str(market or "forex").strip().lower()
-    aliases = {
-        "saham": "forex",
-        "stock": "forex",
-        "equity": "forex",
-        "forex": "forex",
-        "fx": "forex",
-        "crypto": "crypto",
-        "blockchain": "crypto",
-        "all": "all",
-        "multi": "all",
-        "index": "forex",
-        "global": "forex",
-    }
-    return aliases.get(normalized, "forex")
+def _normalize_market_input(market: Optional[str], default: str = "forex") -> str:
+    normalized = str(default if market is None else market).strip().lower()
+    mapped = _MARKET_ALIASES.get(normalized)
+    if mapped is not None:
+        return mapped
+
+    fallback = _MARKET_ALIASES.get(str(default).strip().lower())
+    return fallback or "forex"
+
+
+def _normalize_market_input_strict(
+    market: Optional[str],
+    *,
+    allow_all: bool = True,
+) -> str:
+    normalized = _MARKET_ALIASES.get(str(market or "").strip().lower())
+    if normalized is None:
+        allowed = "forex, crypto, all" if allow_all else "forex, crypto"
+        raise HTTPException(
+            status_code=400,
+            detail=f"market must be one of: {allowed}",
+        )
+    if (not allow_all) and normalized == "all":
+        raise HTTPException(
+            status_code=400,
+            detail="market must be one of: forex, crypto",
+        )
+    return normalized
 
 
 def _adaptive_sort(items: List[Any], key_name: str, reverse: bool = False) -> List[Any]:
@@ -3701,7 +3724,7 @@ async def get_market_sentiment():
 async def get_market_universe(limit: int = 80, market: str = "forex"):
     """Return dynamic symbol universe for Forex and Crypto only."""
     safe_limit = max(10, min(500, int(limit)))
-    normalized_market = _normalize_market_input(market)
+    normalized_market = _normalize_market_input_strict(market, allow_all=True)
     symbols: List[str] = []
 
     if normalized_market in {"forex", "all"}:
@@ -4412,8 +4435,8 @@ async def submit_execution_order(payload: ExecutionOrderPayload, request: Reques
     if side not in {"buy", "sell"}:
         raise HTTPException(status_code=400, detail="side must be buy or sell")
 
-    qty = int(payload.qty or 0)
-    if qty <= 0:
+    qty = float(payload.qty or 0.0)
+    if (not math.isfinite(qty)) or qty <= 0:
         raise HTTPException(status_code=400, detail="qty must be > 0")
 
     order_type = str(payload.orderType or "limit").strip().lower()
@@ -4759,13 +4782,27 @@ async def get_ai_projection(
     market: Optional[str] = None,
 ):
     """Build AI projection curve aligned to selected chart timeframe."""
-    normalized_market = _normalize_market_input(market)
+    if market is None:
+        normalized_market = _detect_market_from_symbol(symbol)
+        if normalized_market not in {"forex", "crypto"}:
+            raise HTTPException(
+                status_code=400,
+                detail="Only Forex/Crypto symbols are supported for AI projection.",
+            )
+    else:
+        normalized_market = _normalize_market_input_strict(market, allow_all=True)
+
     normalized_symbol = _normalize_symbol_input(symbol, market=normalized_market)
     if not normalized_symbol:
         raise HTTPException(status_code=400, detail="Symbol is required")
 
     if normalized_market == "all":
         normalized_market = _detect_market_from_symbol(normalized_symbol)
+        if normalized_market not in {"forex", "crypto"}:
+            raise HTTPException(
+                status_code=400,
+                detail="Only Forex/Crypto symbols are supported for AI projection.",
+            )
         normalized_symbol = _normalize_symbol_input(normalized_symbol, market=normalized_market)
 
     if not _is_supported_market_symbol(normalized_symbol, market=normalized_market):

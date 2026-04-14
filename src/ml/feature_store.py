@@ -28,6 +28,250 @@ except ImportError:
     compute_microstructure_features = None  # type: ignore[assignment]
 
 
+_EPSILON = 1e-9
+_NUMERIC_TYPES = (int, float, np.number)
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        casted = float(value)
+    except (TypeError, ValueError):
+        return float(default)
+    if not np.isfinite(casted):
+        return float(default)
+    return float(casted)
+
+
+def _clip_unit(value: float) -> float:
+    return float(np.clip(_safe_float(value, 0.0), -1.0, 1.0))
+
+
+def _symbol_base(symbol: str) -> str:
+    normalized = str(symbol or "").strip().upper()
+    if not normalized:
+        return normalized
+
+    if normalized.endswith("=X"):
+        normalized = normalized[:-2]
+
+    if "/" in normalized:
+        return normalized.replace("/", "")
+    if "-USD" in normalized:
+        return normalized.split("-USD", 1)[0]
+    if normalized.endswith("USDT") and len(normalized) > 4:
+        return normalized[:-4]
+    if "." in normalized:
+        return normalized.split(".", 1)[0]
+    return normalized
+
+
+def _symbol_aliases(symbol: str) -> List[str]:
+    normalized = str(symbol or "").strip().upper()
+    if not normalized:
+        return []
+
+    aliases: List[str] = [normalized]
+    base = _symbol_base(normalized)
+    if base:
+        aliases.append(base)
+        aliases.append(f"{base}-USD")
+        aliases.append(f"{base}/USDT")
+        aliases.append(f"{base}USDT")
+        if len(base) == 6 and base.isalpha():
+            aliases.append(f"{base}=X")
+            aliases.append(f"{base[:3]}/{base[3:]}")
+
+    if "/" in normalized:
+        aliases.append(normalized.replace("/", ""))
+    if "-USD" in normalized:
+        aliases.append(normalized.replace("-USD", ""))
+
+    deduped: List[str] = []
+    for item in aliases:
+        if item and item not in deduped:
+            deduped.append(item)
+    return deduped
+
+
+def compute_dist_to_liquidation(
+    current_price: float,
+    entry_price: float,
+    leverage: float = 10.0,
+    maintenance_margin_rate: float = 0.005,
+    side: str = "long",
+) -> float:
+    """Compute normalized distance from current price to liquidation level.
+
+    Positive value means current price is still above (long) or below (short)
+    the estimated liquidation threshold.
+    """
+    current = max(_safe_float(current_price, 0.0), _EPSILON)
+    entry = max(_safe_float(entry_price, current), _EPSILON)
+    lev = max(_safe_float(leverage, 10.0), 1.0)
+    mmr = float(np.clip(_safe_float(maintenance_margin_rate, 0.005), 0.0, 0.99))
+    side_normalized = str(side or "long").strip().lower()
+    is_short = side_normalized in {"short", "sell"}
+
+    if is_short:
+        liquidation_price = entry * (1.0 + (1.0 / lev) - mmr)
+        distance = (liquidation_price - current) / current
+    else:
+        liquidation_price = entry * (1.0 - (1.0 / lev) + mmr)
+        distance = (current - liquidation_price) / current
+
+    return _safe_float(distance, 0.0)
+
+
+def normalize_feature_vector(features: Dict[str, Any]) -> Dict[str, float]:
+    """Normalize numeric feature dictionary into bounded values [-1, 1]."""
+    if not features:
+        return {}
+
+    last_price = max(_safe_float(features.get("last_price"), 1.0), _EPSILON)
+    normalized: Dict[str, float] = {}
+
+    for key, value in features.items():
+        if not isinstance(value, _NUMERIC_TYPES):
+            continue
+        val = _safe_float(value)
+
+        if key == "rsi_14":
+            n_val = (val - 50.0) / 50.0
+        elif key in {
+            "last_price",
+            "short_sma",
+            "long_sma",
+            "bb_upper",
+            "bb_lower",
+            "vwap",
+        }:
+            n_val = np.tanh(((val / last_price) - 1.0) * 10.0)
+        elif key in {"macd", "macd_signal"}:
+            n_val = np.tanh((val / last_price) * 80.0)
+        elif key in {"bb_width"}:
+            n_val = np.tanh((val / last_price) * 20.0)
+        elif key in {
+            "momentum",
+            "horizon_return",
+            "horizon_max_drawdown",
+            "horizon_trend_slope",
+            "vwap_deviation",
+        }:
+            n_val = np.tanh(val * 10.0)
+        elif key in {
+            "volatility",
+            "horizon_volatility",
+            "horizon_range_pct",
+            "price_impact",
+            "amihud_illiquidity",
+        }:
+            n_val = np.tanh(val * 50.0)
+        elif key in {"sma_ratio", "horizon_volume_ratio", "price_to_vwap_ratio"}:
+            n_val = np.tanh((val - 1.0) * 10.0)
+        elif key in {"avg_vol_5", "horizon_avg_volume"}:
+            n_val = np.tanh(np.log1p(max(val, 0.0)) / 10.0)
+        elif key in {"dist_to_liquidation", "order_flow_imbalance"}:
+            n_val = np.clip(val, -1.0, 1.0)
+        elif key.startswith("has_"):
+            n_val = np.clip(val, 0.0, 1.0)
+        elif key in {"n_obs", "horizon_window_bars", "horizon_bars"}:
+            n_val = np.clip(val / 200.0, 0.0, 1.0)
+        else:
+            n_val = np.tanh(val)
+
+        normalized[f"norm_{key}"] = _clip_unit(float(n_val))
+
+    return normalized
+
+
+def _compute_pandas_ta_indicators(
+    close_series: pd.Series,
+    long_window: int,
+) -> Dict[str, float]:
+    """Compute RSI, MACD, and Bollinger metrics via pandas-ta when available."""
+    try:
+        import pandas_ta as ta  # type: ignore
+    except ImportError:
+        return {}
+
+    indicators: Dict[str, float] = {}
+    close = close_series.astype(float)
+
+    try:
+        rsi_series = ta.rsi(close, length=14)
+        if isinstance(rsi_series, pd.Series):
+            clean_rsi = rsi_series.dropna()
+            if len(clean_rsi) > 0:
+                indicators["rsi_14"] = _safe_float(clean_rsi.iloc[-1], 50.0)
+    except (TypeError, ValueError, AttributeError):
+        pass
+
+    try:
+        macd_df = ta.macd(close, fast=12, slow=26, signal=9)
+        if isinstance(macd_df, pd.DataFrame) and len(macd_df) > 0:
+            macd_col = next(
+                (col for col in macd_df.columns if str(col).startswith("MACD_")),
+                None,
+            )
+            signal_col = next(
+                (col for col in macd_df.columns if str(col).startswith("MACDs_")),
+                None,
+            )
+            if macd_col is not None:
+                clean_macd = macd_df[macd_col].dropna()
+                if len(clean_macd) > 0:
+                    indicators["macd"] = _safe_float(clean_macd.iloc[-1], 0.0)
+            if signal_col is not None:
+                clean_signal = macd_df[signal_col].dropna()
+                if len(clean_signal) > 0:
+                    indicators["macd_signal"] = _safe_float(clean_signal.iloc[-1], 0.0)
+    except (TypeError, ValueError, AttributeError):
+        pass
+
+    try:
+        bb_length = min(20, max(5, int(long_window)))
+        bb_df = ta.bbands(close, length=bb_length)  # type: ignore[arg-type]
+        if isinstance(bb_df, pd.DataFrame) and len(bb_df) > 0:
+            upper_col = next(
+                (col for col in bb_df.columns if str(col).startswith("BBU_")),
+                None,
+            )
+            lower_col = next(
+                (col for col in bb_df.columns if str(col).startswith("BBL_")),
+                None,
+            )
+            width_col = next(
+                (col for col in bb_df.columns if str(col).startswith("BBB_")),
+                None,
+            )
+
+            upper_value = None
+            lower_value = None
+
+            if upper_col is not None:
+                clean_upper = bb_df[upper_col].dropna()
+                if len(clean_upper) > 0:
+                    upper_value = _safe_float(clean_upper.iloc[-1], 0.0)
+                    indicators["bb_upper"] = upper_value
+
+            if lower_col is not None:
+                clean_lower = bb_df[lower_col].dropna()
+                if len(clean_lower) > 0:
+                    lower_value = _safe_float(clean_lower.iloc[-1], 0.0)
+                    indicators["bb_lower"] = lower_value
+
+            if width_col is not None:
+                clean_width = bb_df[width_col].dropna()
+                if len(clean_width) > 0:
+                    indicators["bb_width"] = _safe_float(clean_width.iloc[-1], 0.0)
+            elif upper_value is not None and lower_value is not None:
+                indicators["bb_width"] = _safe_float(upper_value - lower_value, 0.0)
+    except (TypeError, ValueError, AttributeError):
+        pass
+
+    return indicators
+
+
 def _safe_rolling(series: pd.Series, window: int):
     if len(series) < window:
         return series.rolling(len(series))
@@ -40,6 +284,11 @@ def compute_latest_features(
     short: int = 5,
     long: int = 20,
     include_microstructure: bool = True,
+    entry_price: Optional[float] = None,
+    leverage: float = 10.0,
+    maintenance_margin_rate: float = 0.005,
+    position_side: str = "long",
+    include_normalized: bool = True,
 ) -> Dict:
     """Compute a set of technical indicators from a price series.
 
@@ -64,7 +313,7 @@ def compute_latest_features(
     else:
         try:
             volatility = float(_safe_rolling(returns, long).std().iloc[-1])
-        except Exception:
+        except (TypeError, ValueError, IndexError):
             volatility = float(returns.std())
 
     # momentum: pct change over `short` periods
@@ -82,7 +331,7 @@ def compute_latest_features(
             v = pd.Series(volumes, dtype=float).dropna()
             if len(v) > 0:
                 avg_vol_5 = float(v.tail(5).mean())
-        except Exception:
+        except (TypeError, ValueError):
             avg_vol_5 = 0.0
 
     # RSI (default 14)
@@ -110,7 +359,7 @@ def compute_latest_features(
         macd_series = ema_fast - ema_slow
         macd = float(macd_series.iloc[-1])
         macd_signal = float(macd_series.ewm(span=9, adjust=False).mean().iloc[-1])
-    except Exception:
+    except (TypeError, ValueError, IndexError, FloatingPointError):
         macd = 0.0
         macd_signal = 0.0
 
@@ -121,12 +370,36 @@ def compute_latest_features(
         bb_upper = float(ma_long + 2.0 * (std_long if not pd.isna(std_long) else 0.0))
         bb_lower = float(ma_long - 2.0 * (std_long if not pd.isna(std_long) else 0.0))
         bb_width = float(bb_upper - bb_lower)
-    except Exception:
+    except (TypeError, ValueError, IndexError):
         bb_upper = float(s.mean())
         bb_lower = float(s.mean())
         bb_width = 0.0
 
+    # Phase 2.2 requirement: prefer pandas-ta indicators if library is available.
+    ta_indicators = _compute_pandas_ta_indicators(s, long_window=long)
+    if ta_indicators:
+        rsi = _safe_float(ta_indicators.get("rsi_14", rsi), rsi)
+        macd = _safe_float(ta_indicators.get("macd", macd), macd)
+        macd_signal = _safe_float(
+            ta_indicators.get("macd_signal", macd_signal),
+            macd_signal,
+        )
+        bb_upper = _safe_float(ta_indicators.get("bb_upper", bb_upper), bb_upper)
+        bb_lower = _safe_float(ta_indicators.get("bb_lower", bb_lower), bb_lower)
+        bb_width = _safe_float(ta_indicators.get("bb_width", bb_width), bb_width)
+
     sma_ratio = float(short_sma / long_sma) if long_sma != 0 else 1.0
+
+    effective_entry = _safe_float(entry_price, last_price)
+    if effective_entry <= 0:
+        effective_entry = last_price
+    dist_to_liquidation = compute_dist_to_liquidation(
+        current_price=last_price,
+        entry_price=effective_entry,
+        leverage=leverage,
+        maintenance_margin_rate=maintenance_margin_rate,
+        side=position_side,
+    )
 
     features = {
         "last_price": last_price,
@@ -143,6 +416,7 @@ def compute_latest_features(
         "bb_upper": float(bb_upper),
         "bb_lower": float(bb_lower),
         "bb_width": float(bb_width),
+        "dist_to_liquidation": float(dist_to_liquidation),
     }
 
     # Add microstructure features if available
@@ -179,9 +453,17 @@ def compute_latest_features(
             features["amihud_illiquidity"] = float(
                 df_micro["amihud_illiquidity"].iloc[-1]
             )
-        except Exception:
+        except (TypeError, ValueError, KeyError, IndexError):
             # Silently skip microstructure if fails
             pass
+
+    # Safety guard: remove NaN/Inf from all numeric feature values.
+    for key, value in list(features.items()):
+        if isinstance(value, _NUMERIC_TYPES):
+            features[key] = _safe_float(value, 0.0)
+
+    if include_normalized:
+        features.update(normalize_feature_vector(features))
 
     return features
 
@@ -259,18 +541,18 @@ def compute_horizon_features(
 
                 if baseline and not np.isnan(baseline):
                     horizon_volume_ratio = float(horizon_avg_volume / baseline)
-        except Exception:
+        except (TypeError, ValueError):
             horizon_avg_volume = 0.0
             horizon_volume_ratio = 1.0
 
     return {
-        "horizon_return": float(horizon_return),
-        "horizon_volatility": float(horizon_volatility),
-        "horizon_max_drawdown": float(horizon_max_drawdown),
-        "horizon_range_pct": float(horizon_range_pct),
-        "horizon_trend_slope": float(horizon_trend_slope),
-        "horizon_avg_volume": float(horizon_avg_volume),
-        "horizon_volume_ratio": float(horizon_volume_ratio),
+        "horizon_return": _safe_float(horizon_return, 0.0),
+        "horizon_volatility": _safe_float(horizon_volatility, 0.0),
+        "horizon_max_drawdown": _safe_float(horizon_max_drawdown, 0.0),
+        "horizon_range_pct": _safe_float(horizon_range_pct, 0.0),
+        "horizon_trend_slope": _safe_float(horizon_trend_slope, 0.0),
+        "horizon_avg_volume": _safe_float(horizon_avg_volume, 0.0),
+        "horizon_volume_ratio": _safe_float(horizon_volume_ratio, 1.0),
         "horizon_window_bars": int(lookback),
     }
 
@@ -356,6 +638,12 @@ def build_multimodal_feature_row(
         )
 
     row["has_cot_features"] = int(cot_present)
+
+    for key, value in list(row.items()):
+        if isinstance(value, _NUMERIC_TYPES):
+            row[key] = _safe_float(value, 0.0)
+
+    row.update(normalize_feature_vector(row))
 
     return row
 
@@ -460,7 +748,7 @@ def _compute_symbol_sentiment_features(
     except (RuntimeError, ImportError):
         return {}
 
-    base_symbol = str(symbol).upper().replace(".JK", "")
+    base_symbol = _symbol_base(symbol)
     try:
         return extractor.extract_features(
             articles=articles,
@@ -477,12 +765,11 @@ def _load_price_payload_by_symbol(
     symbol: str,
 ) -> Optional[Dict[str, Any]]:
     """Resolve a symbol to a price JSON payload from `price_dir`."""
-    base = str(symbol).strip().upper().replace(".JK", "")
-    candidates = [
-        os.path.join(price_dir, f"{symbol}.json"),
-        os.path.join(price_dir, f"{base}.json"),
-        os.path.join(price_dir, f"{base}.JK.json"),
-    ]
+    candidates: List[str] = []
+    for alias in _symbol_aliases(symbol):
+        candidate = os.path.join(price_dir, f"{alias}.json")
+        if candidate not in candidates:
+            candidates.append(candidate)
 
     for path in candidates:
         if not os.path.exists(path):
@@ -493,6 +780,22 @@ def _load_price_payload_by_symbol(
         except (OSError, json.JSONDecodeError):
             continue
         if isinstance(payload, dict):
+            return payload
+
+    target_base = _symbol_base(symbol)
+    for path in glob.glob(os.path.join(price_dir, "*.json")):
+        try:
+            with open(path, "r", encoding="utf-8") as file:
+                payload = json.load(file)
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(payload, dict):
+            continue
+
+        payload_symbol = payload.get("symbol") or os.path.splitext(
+            os.path.basename(path)
+        )[0]
+        if _symbol_base(str(payload_symbol)) == target_base:
             return payload
 
     return None
@@ -556,17 +859,18 @@ def augment_dataset_with_multimodal(
         if not multimodal:
             continue
 
-        base_symbol = str(symbol).upper().replace(".JK", "")
-        symbol_features[base_symbol] = multimodal
-        symbol_features[f"{base_symbol}.JK"] = multimodal
-        symbol_features[str(symbol).upper()] = multimodal
+        for alias in _symbol_aliases(symbol):
+            symbol_features[alias] = multimodal
 
     if symbol_features:
         per_row = []
         for value in out_df["symbol"].tolist():
-            key = str(value).upper()
-            base = key.replace(".JK", "")
-            per_row.append(symbol_features.get(key) or symbol_features.get(base) or {})
+            resolved: Dict[str, Any] = {}
+            for alias in _symbol_aliases(str(value)):
+                if alias in symbol_features:
+                    resolved = symbol_features[alias]
+                    break
+            per_row.append(resolved)
 
         features_df = pd.DataFrame(per_row, index=out_df.index)
         if (
@@ -632,7 +936,7 @@ def build_feature_snapshot(
             row = {"symbol": sym}
             row.update(feats)
             rows.append(row)
-        except Exception:
+        except (OSError, json.JSONDecodeError, TypeError, ValueError, KeyError):
             continue
 
     if not rows:
