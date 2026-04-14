@@ -6,7 +6,10 @@ README ini sudah disesuaikan dengan kondisi kode saat ini: fitur frontend, kemam
 
 ## Status Saat Ini
 
-- Progress proyek: 20/20 task selesai (mengacu ke PROGRESS.md)
+- Snapshot dokumen: 14 April 2026
+- Progress proyek mengikuti `Progress.md` sebagai sumber status tunggal (bukan angka statis di README)
+- Fokus aktif: Fase 1.5 modularisasi `src/ml/feature_store.py` (split modul core/risk/volatility/momentum)
+- Fase 2.3 otomatisasi raw data -> feature dataset sudah selesai dan tervalidasi
 - Frontend: React 18 + Vite + lightweight-charts
 - Backend: FastAPI + pipeline data/ML + WebSocket realtime
 - Timezone utama: UTC
@@ -447,13 +450,13 @@ Pedoman kontribusi ada di file CONTRIBUTING.md, termasuk standar commit, validas
 
 Prioritas update berikutnya yang direkomendasikan:
 
-1. Integrasi static frontend serving yang konsisten dari backend (opsional path /ui) agar command docs dan runtime benar-benar satu alur.
-2. E2E test automation untuk flow kritikal (auth, strategies deploy/backtest, AI Graph controls, notifications).
-3. Hardening eksekusi broker live (audit trail order, guardrail risiko tambahan, dan rollout feature flag per provider).
-4. Persistensi notifikasi ke database + dashboard delivery status per channel.
-5. Rate limiting dan abuse protection khusus endpoint auth dan websocket handshake.
+1. Menuntaskan Fase 1.5: final wiring modular `feature_store` dan cleanup file besar (>300 baris) secara bertahap dengan regresi test ketat.
+2. Melanjutkan sweep residual `.JK/IDX` di modul legacy non-core agar debugging tidak ambigu.
+3. Memulai Fase 3 RL sandbox: update reward berbasis risk-adjusted return + death-penalty + simulasi fee/slippage leverage tinggi.
+4. Menambah E2E test automation untuk flow kritikal (auth, strategy deploy/backtest, AI Graph controls, notifications).
+5. Hardening eksekusi broker live (audit trail order, guardrail risiko tambahan, rollout feature flag per provider).
 6. Penguatan observability: SLO/SLI dashboard, alert tuning berbasis error budget.
-7. Packaging release yang lebih rapih (versioning, changelog, dan release notes otomatis).
+7. Packaging release yang lebih rapi (versioning, changelog, release notes otomatis).
 
 ## Lisensi
 
