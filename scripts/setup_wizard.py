@@ -190,7 +190,7 @@ class SetupWizard:
         
         # Market symbols
         self.print_info("\n📊 Default symbols to trade")
-        default_symbols = "BBCA.JK,TLKM.JK,ASII.JK,BBRI.JK"
+        default_symbols = "EURUSD=X,GBPUSD=X,BTC-USD,ETH-USD"
         symbols = self.ask_input("Market symbols (comma-separated)", default=default_symbols)
         
         # Create .env content
@@ -259,7 +259,7 @@ API_PORT=8000
    python -m src.ml.barriers
 
 2. {Colors.BOLD}Fetch market data:{Colors.ENDC}
-   python -m src.main --run-etl --symbols BBCA TLKM
+    python -m src.main --run-etl --symbols EURUSD=X BTC-USD
 
 3. {Colors.BOLD}Train ML model:{Colors.ENDC}
    python scripts/train_model.py --limit 50
@@ -282,7 +282,7 @@ API_PORT=8000
 ║                                                           ║
 ║           🚀 AutoSaham Setup Wizard 🚀                   ║
 ║                                                           ║
-║   Automated Trading Platform for IDX                     ║
+║   Automated Trading Platform for Forex/Crypto            ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
 {Colors.ENDC}

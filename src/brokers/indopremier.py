@@ -8,7 +8,7 @@ Indo Premier is a major Indonesian broker with extensive trading services.
 API: https://docs.indopremier.com
 Timezone: Jakarta (WIB: UTC+7)
 Currency: IDR
-Exchange: IDX
+Exchange: Forex/Crypto integration layer
 """
 
 import asyncio

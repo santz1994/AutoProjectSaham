@@ -1,15 +1,15 @@
 # Prometheus Configuration
 # AutoSaham Trading Platform - Production Ready
-# Jakarta Timezone (WIB: UTC+7), IDX/IHSG, IDR, BEI Compliance
+# UTC timezone with Forex/Crypto market monitoring
 
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
     monitor: 'autosaham-trading'
-    timezone: 'Asia/Jakarta'
-    market: 'IDX/IHSG'
-    currency: 'IDR'
+    timezone: 'UTC'
+    market: 'FOREX/CRYPTO'
+    currency: 'USD/USDT'
 
 # Load alerting rules
 rule_files:
@@ -76,4 +76,4 @@ scrape_configs:
     relabel_configs:
       - source_labels: [__address__]
         target_label: market
-        replacement: 'IDX'
+        replacement: 'FOREX_CRYPTO'

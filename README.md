@@ -1,6 +1,6 @@
 # AutoSaham
 
-AutoSaham adalah platform trading automation dan AI monitoring untuk workflow market Indonesia (WIB-centric), dengan frontend React + Vite dan backend FastAPI.
+AutoSaham adalah platform trading automation dan AI monitoring untuk workflow Forex/Crypto global (UTC-centric), dengan frontend React + Vite dan backend FastAPI.
 
 README ini sudah disesuaikan dengan kondisi kode saat ini: fitur frontend, kemampuan backend, daftar endpoint aktif, cara menjalankan, validasi, dan rencana next updates.
 
@@ -9,8 +9,8 @@ README ini sudah disesuaikan dengan kondisi kode saat ini: fitur frontend, kemam
 - Progress proyek: 20/20 task selesai (mengacu ke PROGRESS.md)
 - Frontend: React 18 + Vite + lightweight-charts
 - Backend: FastAPI + pipeline data/ML + WebSocket realtime
-- Timezone utama: Asia/Jakarta (WIB, UTC+7)
-- Market scope di UI AI Graph: Stocks (IDX), Forex, Crypto, Global Index
+- Timezone utama: UTC
+- Market scope di UI AI Graph: Forex dan Crypto
 
 ## Arsitektur Singkat
 
@@ -38,11 +38,11 @@ src/ml, src/pipeline, src/data
 | Halaman | Kemampuan |
 |---|---|
 | Dashboard | Portfolio summary, refresh portfolio, bot status, kill switch state, portfolio health, top AI signals, recent activity |
-| Market Intelligence | Realtime candlestick chart, symbol switch, timeframe switch, sentiment summary, sektor heatmap, top movers, live ask/bid orderbook + spread indicator, quick order ticket (BUY/SELL) |
+| Market Intelligence | Realtime candlestick chart Forex/Crypto, symbol switch, timeframe switch, sentiment summary, sektor heatmap, top movers, live ask/bid orderbook + spread indicator, quick order ticket (BUY/SELL) |
 | Strategies | Daftar strategi, deploy strategy, trigger backtest, rule display, metrik performa |
 | Trade Logs | Filter/sort trades, summary analytics, export CSV, trigger report performa |
 | AI Monitor | AI overview (model/dataset/pipeline), AI activity logs, auto refresh, manual checkpoint log |
-| AI Graph | Live chart + projection overlay, market switch (stocks/forex/crypto/index/all), prediction style preset (Scalping/Daily Trader/Trader), prediction lock ON/OFF, rationale + news context |
+| AI Graph | Live chart + projection overlay, market switch (forex/crypto/all), prediction style preset (Scalping/Daily Trader/Trader), prediction lock ON/OFF, rationale + news context |
 | Profile | Edit profil, risk profile, daily report schedule, status keamanan akun, broker connection summary |
 | Settings | Theme preference, notification toggles, risk settings, preferred universe, broker connect/disconnect, broker feature flags, 2FA enrollment/verify/disable |
 | Auth | Login, Register, Forgot Password, Logout via secure cookie flow |
@@ -190,7 +190,7 @@ Ini sengaja menjaga UX tetap stabil saat data provider atau integrasi broker ter
   - GET /api/notifications/unread/{user_id}
   - POST /api/notifications/mark-read/{notification_id}
   - GET /api/notifications/stats
-  - GET /api/notifications/bei-status
+  - GET /api/notifications/market-status
   - GET /api/notifications/health
 - Realtime:
   - WS /api/notifications/ws/{user_id}

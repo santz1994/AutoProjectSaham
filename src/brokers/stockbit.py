@@ -8,7 +8,7 @@ Stockbit is a robo-advisor platform for Indonesian stock trading.
 API: https://docs.stockbit.com
 Timezone: Jakarta (WIB: UTC+7)
 Currency: IDR
-Exchange: IDX
+Exchange: Forex/Crypto integration layer
 """
 
 import asyncio

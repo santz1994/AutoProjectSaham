@@ -96,8 +96,6 @@ services:
       AJAIB_PASSWORD: ${AJAIB_PASSWORD}
       INDOPREMIER_USERNAME: ${INDOPREMIER_USERNAME}
       INDOPREMIER_PASSWORD: ${INDOPREMIER_PASSWORD}
-      BEI_WS_USERNAME: ${BEI_WS_USERNAME}
-      BEI_WS_PASSWORD: ${BEI_WS_PASSWORD}
     ports:
       - "8001:8000"  # Internal only; externally Kong is on 80/443
     depends_on:

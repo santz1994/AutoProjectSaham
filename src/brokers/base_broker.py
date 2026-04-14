@@ -6,22 +6,23 @@ Abstract base class for all broker implementations.
 Defines standard interface for trade execution, order management, account operations.
 
 All times: Jakarta timezone (WIB: UTC+7)
-All prices: IDR (Rupiah)
-Exchange: IDX/IHSG
+All prices: quote-currency based (USD/USDT/etc)
+Exchange: Forex/Crypto
 """
 
 import asyncio
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Any
 
-from src.data.idx_api_client import get_jakarta_now, to_jakarta_time, JAKARTA_TZ
-
-
 logger = logging.getLogger(__name__)
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 # ============================================================================
@@ -95,14 +96,14 @@ class AccountInfo:
     """Account information."""
     account_id: str
     account_type: AccountType
-    cash: float  # IDR
-    buying_power: float  # IDR (available for buying)
-    market_value: float  # IDR (current position value)
-    settled_cash: float  # IDR (T+2 settled)
-    unsettled_cash: float  # IDR (pending settlement)
-    equity: float  # IDR (total = cash + market_value)
+    cash: float
+    buying_power: float  # Available for buying
+    market_value: float  # Current position value
+    settled_cash: float
+    unsettled_cash: float
+    equity: float  # total = cash + market_value
     day_trades: int = 0
-    last_updated: datetime = field(default_factory=get_jakarta_now)
+    last_updated: datetime = field(default_factory=_utc_now)
     
     @property
     def total_value(self) -> float:
@@ -114,13 +115,13 @@ class AccountInfo:
 class Position:
     """Current position in a symbol."""
     symbol: str
-    quantity: int  # Shares
-    avg_cost: float  # IDR
-    current_price: float  # IDR
-    market_value: float  # IDR (quantity * current_price)
-    unrealized_pl: float  # IDR
+    quantity: int
+    avg_cost: float
+    current_price: float
+    market_value: float  # quantity * current_price
+    unrealized_pl: float
     unrealized_pl_pct: float  # Percentage
-    last_updated: datetime = field(default_factory=get_jakarta_now)
+    last_updated: datetime = field(default_factory=_utc_now)
     
     @property
     def total_cost(self) -> float:
@@ -137,9 +138,9 @@ class OrderResult:
     side: str  # "buy" or "sell"
     quantity: int
     filled_quantity: int
-    avg_fill_price: float  # IDR
+    avg_fill_price: float
     status: ExecutionStatus
-    timestamp: datetime = field(default_factory=get_jakarta_now)
+    timestamp: datetime = field(default_factory=_utc_now)
     fills: List[Dict[str, Any]] = field(default_factory=list)  # Individual fills
     error_message: Optional[str] = None
     
@@ -159,9 +160,9 @@ class Trade:
     symbol: str
     side: str  # "buy" or "sell"
     quantity: int
-    price: float  # IDR
+    price: float
     timestamp: datetime
-    commission: float = 0.0  # IDR
+    commission: float = 0.0
     
     @property
     def total_value(self) -> float:
@@ -264,11 +265,11 @@ class BaseBroker(ABC):
         Place an order.
         
         Args:
-            symbol: Stock symbol (e.g., "BBCA.JK")
-            quantity: Number of shares
+            symbol: Market symbol (e.g., "EURUSD=X" or "BTC-USD")
+            quantity: Number of units
             side: "buy" or "sell"
             order_type: "market" or "limit"
-            price: Price in IDR (required for limit orders)
+            price: Price in quote currency (required for limit orders)
             time_in_force: Order validity
         
         Returns:
@@ -353,12 +354,32 @@ class BaseBroker(ABC):
     # ========================================================================
     
     def _validate_symbol(self, symbol: str) -> bool:
-        """Validate symbol format."""
-        return symbol.endswith(".JK")
+        """Validate Forex/Crypto symbol format."""
+        normalized = str(symbol or "").strip().upper()
+        if not normalized:
+            return False
+
+        if normalized.endswith("=X"):
+            pair = normalized[:-2]
+            return len(pair) == 6 and pair.isalpha()
+
+        if "/" in normalized:
+            pair = normalized.replace("/", "")
+            return len(pair) == 6 and pair.isalpha()
+
+        if "-USD" in normalized:
+            base = normalized.split("-USD", 1)[0]
+            return len(base) >= 2
+
+        if normalized.endswith("USDT"):
+            base = normalized[:-4]
+            return len(base) >= 2
+
+        return len(normalized) == 6 and normalized.isalpha()
     
     def _validate_quantity(self, quantity: int) -> bool:
-        """Validate quantity (must be multiple of 100)."""
-        return quantity > 0 and quantity % 100 == 0
+        """Validate quantity."""
+        return quantity > 0
     
     def _validate_side(self, side: str) -> bool:
         """Validate order side."""

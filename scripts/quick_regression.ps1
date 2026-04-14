@@ -91,7 +91,7 @@ Invoke-GetCheck -Name 'Multi-market universe endpoint' -Path '/api/market/univer
   if ($null -eq $r -or $null -eq $r.symbols) { return $false }
 
   $symbols = @($r.symbols)
-  return $symbols.Count -gt 10 -and $symbols -contains 'BBCA.JK' -and $symbols -contains 'EURUSD=X' -and $symbols -contains 'BTC-USD'
+  return $symbols.Count -ge 6 -and $symbols -contains 'EURUSD=X' -and $symbols -contains 'GBPUSD=X' -and $symbols -contains 'BTC-USD'
 }
 
 Invoke-GetCheck -Name 'Notifications health endpoint' -Path '/api/notifications/health' -Validate {
@@ -99,7 +99,7 @@ Invoke-GetCheck -Name 'Notifications health endpoint' -Path '/api/notifications/
   return $null -ne $r -and $r.success -eq $true -and $r.status -eq 'healthy'
 }
 
-Invoke-GetCheck -Name 'IDX AI projection endpoint' -Path '/api/ai/projection/BBCA.JK?timeframe=1d&horizon=16' -Validate {
+Invoke-GetCheck -Name 'Crypto AI projection endpoint' -Path '/api/ai/projection/BTC-USD?timeframe=1d&horizon=16' -Validate {
   param($r)
   if ($null -eq $r -or $null -eq $r.projection) { return $false }
   $points = @($r.projection)

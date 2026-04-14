@@ -13,7 +13,7 @@ Usage:
     if invalid_input:
         raise UserError(
             "Invalid symbol format",
-            suggestion="Use format: SYMBOL.JK (e.g., BBCA.JK)",
+            suggestion="Use Forex/Crypto format (e.g., EURUSD=X or BTC-USD)",
             code="E1001"
         )
 """
@@ -143,7 +143,7 @@ class CommonErrors:
         """Invalid symbol format error."""
         return DataValidationError(
             f"Invalid symbol format: {symbol}",
-            suggestion="Use format: SYMBOL.JK for IDX stocks (e.g., BBCA.JK)",
+            suggestion="Use Forex/Crypto format (e.g., EURUSD=X or BTC-USD)",
             code="E1002"
         )
     
@@ -233,7 +233,7 @@ if __name__ == "__main__":
     # Example 1: User error
     try:
         symbol = "INVALID"
-        if not symbol.endswith('.JK'):
+        if (not symbol.endswith('=X')) and ('-USD' not in symbol):
             raise CommonErrors.invalid_symbol(symbol)
     except AutoSahamError as e:
         print(f"Error caught: {e}\n")

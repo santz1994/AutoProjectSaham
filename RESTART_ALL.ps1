@@ -34,7 +34,7 @@ if ($health) {
 # Test chart API
 Write-Host "`n[3/5] Testing chart API..." -ForegroundColor Yellow
 $chartTest = try {
-    $response = Invoke-WebRequest -Uri "http://localhost:8000/api/charts/metadata/BBCA.JK" -UseBasicParsing -ErrorAction Stop
+    $response = Invoke-WebRequest -Uri "http://localhost:8000/api/charts/metadata/EURUSD=X" -UseBasicParsing -ErrorAction Stop
     $response.StatusCode -eq 200
 } catch {
     $false

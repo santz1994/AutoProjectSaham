@@ -197,9 +197,9 @@ class ApiService {
     return this.request('/api/market/movers');
   }
 
-  async getMarketUniverse(limit = 80, market = 'stocks') {
+  async getMarketUniverse(limit = 80, market = 'forex') {
     const safeLimit = Math.max(10, Math.min(500, Number(limit) || 80));
-    const safeMarket = encodeURIComponent(String(market || 'stocks').trim().toLowerCase());
+    const safeMarket = encodeURIComponent(String(market || 'forex').trim().toLowerCase());
     return this.request(`/api/market/universe?limit=${safeLimit}&market=${safeMarket}`);
   }
 
@@ -220,11 +220,11 @@ class ApiService {
     return this.request('/api/charts/trading-status');
   }
 
-  async getAIProjection(symbol, timeframe = '1d', horizon = 16, market = 'stocks') {
+  async getAIProjection(symbol, timeframe = '1d', horizon = 16, market = 'forex') {
     const safeSymbol = encodeURIComponent(symbol);
     const safeTimeframe = encodeURIComponent(timeframe);
     const safeHorizon = Number.isFinite(Number(horizon)) ? Number(horizon) : 16;
-    const safeMarket = encodeURIComponent(String(market || 'stocks').trim().toLowerCase());
+    const safeMarket = encodeURIComponent(String(market || 'forex').trim().toLowerCase());
     return this.request(
       `/api/ai/projection/${safeSymbol}?timeframe=${safeTimeframe}&horizon=${safeHorizon}&market=${safeMarket}`
     );

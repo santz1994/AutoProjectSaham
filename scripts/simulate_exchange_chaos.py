@@ -37,11 +37,11 @@ def main() -> None:
         side = "buy" if i % 2 == 0 else "sell"
         intents.append(
             OrderIntent(
-                symbol="BBCA.JK",
+                symbol="EURUSD=X",
                 side=side,
-                quantity=100,
+                quantity=1,
                 order_type="limit",
-                price=15000.0 + float(i),
+                price=1.08 + (float(i) * 0.0001),
             )
         )
 

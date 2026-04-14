@@ -7,15 +7,31 @@ import apiService from '../utils/apiService'
 import { useTradingStore } from '../store/useTradingStore'
 import '../styles/market.css'
 
-const IDX_SYMBOLS = ['BBCA.JK', 'USIM.JK', 'KLBF.JK', 'ASII.JK', 'UNVR.JK', 'INDF.JK', 'PGAS.JK', 'GGRM.JK']
+const MARKET_SYMBOLS = [
+  'EURUSD=X', 'GBPUSD=X', 'USDJPY=X', 'AUDUSD=X',
+  'BTC-USD', 'ETH-USD', 'SOL-USD', 'BNB-USD',
+]
 const ORDERBOOK_DEPTH = 8
 
-const formatPrice = (value) => {
+const inferPriceDigits = (symbol) => {
+  const upper = String(symbol || '').toUpperCase()
+  if (upper.endsWith('=X')) {
+    const pair = upper.replace('=X', '')
+    if (pair.length === 6 && pair.slice(3) === 'JPY') {
+      return 3
+    }
+    return 5
+  }
+  return 2
+}
+
+const formatPrice = (value, symbol = '') => {
   const num = Number(value)
   if (!Number.isFinite(num)) return '-'
+  const digits = inferPriceDigits(symbol)
   return num.toLocaleString('id-ID', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
   })
 }
 
@@ -29,7 +45,7 @@ const formatVolume = (value) => {
 }
 
 export default function MarketIntelligencePage({ theme = 'dark' }) {
-  const [selectedSymbol, setSelectedSymbol] = useState('BBCA.JK')
+  const [selectedSymbol, setSelectedSymbol] = useState('EURUSD=X')
   const [selectedTimeframe, setSelectedTimeframe] = useState('1d')
   const [marketSentiment, setMarketSentiment] = useState(null)
   const [sectorHeatmap, setSectorHeatmap] = useState([])
@@ -236,16 +252,16 @@ export default function MarketIntelligencePage({ theme = 'dark' }) {
         </div>
       </div>
 
-      {/* Real-Time Stock Chart */}
+      {/* Real-Time Market Chart */}
       <div className="market-card chart-card">
-        <h2>📈 Real-Time Stock Chart</h2>
+        <h2>📈 Real-Time Forex/Crypto Chart</h2>
         
         {/* Chart Controls */}
         <div className="chart-controls">
           <div className="control-group">
             <label>Symbol</label>
             <select value={selectedSymbol} onChange={(e) => setSelectedSymbol(e.target.value)} className="control-select">
-              {IDX_SYMBOLS.map((symbol) => (
+              {MARKET_SYMBOLS.map((symbol) => (
                 <option key={symbol} value={symbol}>
                   {symbol}
                 </option>
@@ -277,17 +293,17 @@ export default function MarketIntelligencePage({ theme = 'dark' }) {
         <div className="orderbook-summary">
           <div className="summary-pill">
             <span>Best Bid</span>
-            <strong>{bestBid !== null ? formatPrice(bestBid) : '-'}</strong>
+            <strong>{bestBid !== null ? formatPrice(bestBid, selectedSymbol) : '-'}</strong>
           </div>
           <div className="summary-pill">
             <span>Best Ask</span>
-            <strong>{bestAsk !== null ? formatPrice(bestAsk) : '-'}</strong>
+            <strong>{bestAsk !== null ? formatPrice(bestAsk, selectedSymbol) : '-'}</strong>
           </div>
           <div className={`summary-pill ${spreadValue !== null && spreadValue <= 0 ? 'tight' : 'wide'}`}>
             <span>Spread</span>
             <strong>
               {spreadValue !== null
-                ? `${formatPrice(spreadValue)} (${(spreadPercent || 0).toFixed(2)}%)`
+                ? `${formatPrice(spreadValue, selectedSymbol)} (${(spreadPercent || 0).toFixed(2)}%)`
                 : '-'}
             </strong>
           </div>
@@ -312,7 +328,7 @@ export default function MarketIntelligencePage({ theme = 'dark' }) {
                 ) : (
                   normalizedAsks.map((level, idx) => (
                     <tr key={`ask-${idx}`} className={idx === 0 ? 'best-level' : ''}>
-                      <td>{formatPrice(level.price)}</td>
+                      <td>{formatPrice(level.price, selectedSymbol)}</td>
                       <td>{formatVolume(level.volume)}</td>
                       <td>
                         <button
@@ -347,7 +363,7 @@ export default function MarketIntelligencePage({ theme = 'dark' }) {
                 ) : (
                   normalizedBids.map((level, idx) => (
                     <tr key={`bid-${idx}`} className={idx === 0 ? 'best-level' : ''}>
-                      <td>{formatPrice(level.price)}</td>
+                      <td>{formatPrice(level.price, selectedSymbol)}</td>
                       <td>{formatVolume(level.volume)}</td>
                       <td>
                         <button

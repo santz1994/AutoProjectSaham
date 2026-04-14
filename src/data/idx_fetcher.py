@@ -1,8 +1,7 @@
 """
-IDX/BEI Stock Data Fetcher
-============================
-Real-time candlestick data from Indonesia Stock Exchange (IDX/BEI)
-using yfinance with curl_cffi for rate limiting bypass.
+Market Data Fetcher
+===================
+Realtime candlestick data from yfinance for multi-asset symbols.
 
 Author: AutoSaham Team
 Version: 1.0.0
@@ -18,51 +17,23 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-# IDX Symbol metadata
-IDX_SYMBOLS = {
-    'BBCA.JK': {'name': 'Bank Central Asia', 'sector': 'Financial Services'},
-    'USIM.JK': {'name': 'United US Steel', 'sector': 'Mining'},
-    'KLBF.JK': {'name': 'Kalbe Farma', 'sector': 'Healthcare'},
-    'ASII.JK': {'name': 'Astra International', 'sector': 'Automotive'},
-    'UNVR.JK': {'name': 'Unilever Indonesia', 'sector': 'Consumer Goods'},
-    'INDF.JK': {'name': 'Indofood Sukses Makmur', 'sector': 'Consumer Goods'},
-    'PGAS.JK': {'name': 'Perusahaan Gas Negara', 'sector': 'Energy'},
-    'GGRM.JK': {'name': 'Gudang Garam', 'sector': 'Consumer Goods'},
-    'TLKM.JK': {'name': 'Telekomunikasi Indonesia', 'sector': 'Telecommunications'},
-    'SMGR.JK': {'name': 'Semen Indonesia', 'sector': 'Mining'},
-    'BMRI.JK': {'name': 'Bank Mandiri', 'sector': 'Financial Services'},
-    'BBRI.JK': {'name': 'Bank Rakyat Indonesia', 'sector': 'Financial Services'},
-    'BBNI.JK': {'name': 'Bank Negara Indonesia', 'sector': 'Financial Services'},
-    'BBTN.JK': {'name': 'Bank Tabungan Negara', 'sector': 'Financial Services'},
-    'ADRO.JK': {'name': 'Adaro Energy', 'sector': 'Energy'},
-    'ANTM.JK': {'name': 'Aneka Tambang', 'sector': 'Mining'},
-    'BRIS.JK': {'name': 'Bank Syariah Indonesia', 'sector': 'Financial Services'},
-    'CPIN.JK': {'name': 'Charoen Pokphand Indonesia', 'sector': 'Consumer Goods'},
-    'EXCL.JK': {'name': 'XL Axiata', 'sector': 'Telecommunications'},
-    'ICBP.JK': {'name': 'Indofood CBP', 'sector': 'Consumer Goods'},
-    'INCO.JK': {'name': 'Vale Indonesia', 'sector': 'Mining'},
-    'INKP.JK': {'name': 'Indah Kiat Pulp & Paper', 'sector': 'Industrials'},
-    'ISAT.JK': {'name': 'Indosat Ooredoo Hutchison', 'sector': 'Telecommunications'},
-    'JSMR.JK': {'name': 'Jasa Marga', 'sector': 'Infrastructure'},
-    'MDKA.JK': {'name': 'Merdeka Copper Gold', 'sector': 'Mining'},
-    'MEDC.JK': {'name': 'Medco Energi', 'sector': 'Energy'},
-    'MNCN.JK': {'name': 'Media Nusantara Citra', 'sector': 'Media'},
-    'PTBA.JK': {'name': 'Bukit Asam', 'sector': 'Energy'},
-    'SCMA.JK': {'name': 'Surya Citra Media', 'sector': 'Media'},
-    'SIDO.JK': {'name': 'Industri Jamu Sido Muncul', 'sector': 'Healthcare'},
-    'TBIG.JK': {'name': 'Tower Bersama Infrastructure', 'sector': 'Infrastructure'},
-    'TPIA.JK': {'name': 'Chandra Asri Pacific', 'sector': 'Chemicals'},
-    'WIKA.JK': {'name': 'Wijaya Karya', 'sector': 'Infrastructure'},
-    'AMRT.JK': {'name': 'Sumber Alfaria Trijaya', 'sector': 'Consumer Goods'},
-    'AKRA.JK': {'name': 'AKR Corporindo', 'sector': 'Industrials'},
-    'ERAA.JK': {'name': 'Erajaya Swasembada', 'sector': 'Consumer Cyclical'},
-    'GOTO.JK': {'name': 'GoTo Gojek Tokopedia', 'sector': 'Technology'},
-    'HRUM.JK': {'name': 'Harum Energy', 'sector': 'Energy'},
-    'ITMG.JK': {'name': 'Indo Tambangraya Megah', 'sector': 'Energy'},
-    'MAPI.JK': {'name': 'Mitra Adiperkasa', 'sector': 'Consumer Cyclical'},
-    'PGEO.JK': {'name': 'Pertamina Geothermal Energy', 'sector': 'Energy'},
-    'SRTG.JK': {'name': 'Saratoga Investama Sedaya', 'sector': 'Financial Services'},
-    'UNTR.JK': {'name': 'United Tractors', 'sector': 'Industrials'},
+# Forex/Crypto symbol metadata
+MARKET_SYMBOLS = {
+    'EURUSD=X': {'name': 'EUR/USD', 'sector': 'Forex'},
+    'GBPUSD=X': {'name': 'GBP/USD', 'sector': 'Forex'},
+    'USDJPY=X': {'name': 'USD/JPY', 'sector': 'Forex'},
+    'AUDUSD=X': {'name': 'AUD/USD', 'sector': 'Forex'},
+    'USDCHF=X': {'name': 'USD/CHF', 'sector': 'Forex'},
+    'USDCAD=X': {'name': 'USD/CAD', 'sector': 'Forex'},
+    'NZDUSD=X': {'name': 'NZD/USD', 'sector': 'Forex'},
+    'EURJPY=X': {'name': 'EUR/JPY', 'sector': 'Forex'},
+    'BTC-USD': {'name': 'Bitcoin', 'sector': 'Crypto'},
+    'ETH-USD': {'name': 'Ethereum', 'sector': 'Crypto'},
+    'SOL-USD': {'name': 'Solana', 'sector': 'Crypto'},
+    'BNB-USD': {'name': 'BNB', 'sector': 'Crypto'},
+    'XRP-USD': {'name': 'XRP', 'sector': 'Crypto'},
+    'ADA-USD': {'name': 'Cardano', 'sector': 'Crypto'},
+    'DOGE-USD': {'name': 'Dogecoin', 'sector': 'Crypto'},
 }
 
 # Timeframe mapping to yfinance periods
@@ -86,16 +57,16 @@ async def fetch_candlesticks(
     **kwargs
 ) -> Optional[Dict]:
     """
-    Fetch candlestick data from IDX for a symbol.
+    Fetch candlestick data for a symbol.
     
     Args:
-        symbol: IDX symbol (e.g., 'BBCA.JK')
+        symbol: Market symbol (e.g., 'EURUSD=X', 'BTC-USD')
         timeframe: Period (1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w, 1mo)
         limit: Number of candles to fetch (max 500)
         
     Returns:
         Dict with candlesticks: {
-            "symbol": "BBCA.JK",
+            "symbol": "EURUSD=X",
             "timeframe": "1d",
             "candles": [
                 {"time": 1696099200, "open": 10200, "high": 10300, "low": 10100, "close": 10250},
@@ -104,14 +75,14 @@ async def fetch_candlesticks(
             "metadata": {
                 "total": 100,
                 "fetched_at": "2026-04-02T13:10:00Z",
-                "exchange": "IDX"
+                "exchange": "FOREX"
             }
         }
     """
     try:
         # Validate symbol
-        if symbol not in IDX_SYMBOLS:
-            logger.warning(f"Symbol {symbol} not in IDX_SYMBOLS list")
+        if symbol not in MARKET_SYMBOLS:
+            logger.warning(f"Symbol {symbol} not in MARKET_SYMBOLS list")
         
         # Map timeframe to yfinance format
         yf_interval = TIMEFRAME_MAP.get(timeframe, '1d')
@@ -180,7 +151,7 @@ async def fetch_candlesticks(
             "metadata": {
                 "total": len(candles),
                 "fetched_at": datetime.utcnow().isoformat() + "Z",
-                "exchange": "IDX" if symbol.upper().endswith('.JK') else "GLOBAL",
+                "exchange": "FOREX" if symbol.upper().endswith('=X') else "CRYPTO" if "-USD" in symbol.upper() else "GLOBAL",
                 "currency": currency,
                 "source": "yfinance"
             }
@@ -193,32 +164,31 @@ async def fetch_candlesticks(
 
 async def fetch_symbol_metadata(symbol: str) -> Optional[Dict]:
     """
-    Get metadata for an IDX symbol.
+    Get metadata for a symbol.
     
     Args:
-        symbol: IDX symbol (e.g., 'BBCA.JK')
+        symbol: Market symbol (e.g., 'EURUSD=X', 'BTC-USD')
         
     Returns:
         Dict with symbol metadata
     """
     try:
         # Check if symbol exists in our list
-        if symbol not in IDX_SYMBOLS:
-            logger.warning(f"Symbol {symbol} not found in IDX_SYMBOLS")
+        if symbol not in MARKET_SYMBOLS:
+            logger.warning(f"Symbol {symbol} not found in MARKET_SYMBOLS")
             metadata = {"name": "Unknown", "sector": "Unknown"}
         else:
-            metadata = IDX_SYMBOLS[symbol].copy()
+            metadata = MARKET_SYMBOLS[symbol].copy()
         
         # Fetch additional data from yfinance
         ticker = yf.Ticker(symbol)
         info = ticker.info if hasattr(ticker, 'info') else {}
         
         upper_symbol = str(symbol or "").upper()
-        is_idx = upper_symbol.endswith('.JK')
         is_forex = upper_symbol.endswith('=X')
         is_crypto = '-USD' in upper_symbol
 
-        exchange = "IDX" if is_idx else "GLOBAL"
+        exchange = "GLOBAL"
         if is_forex:
             exchange = "FOREX"
         elif is_crypto:
@@ -226,7 +196,7 @@ async def fetch_symbol_metadata(symbol: str) -> Optional[Dict]:
 
         info_currency = str(info.get("currency") or "").upper() or None
         currency, decimal_places = _resolve_currency_profile(upper_symbol, info_currency)
-        timezone = "Asia/Jakarta" if is_idx else "UTC"
+        timezone = "UTC"
 
         return {
             "symbol": symbol,
@@ -236,7 +206,7 @@ async def fetch_symbol_metadata(symbol: str) -> Optional[Dict]:
             "decimalPlaces": decimal_places,
             "timezone": timezone,
             "sector": metadata.get("sector", info.get("sector", "Unknown")),
-            "country": "Indonesia" if is_idx else info.get("country", "Global"),
+            "country": info.get("country", "Global"),
         }
         
     except Exception as e:
@@ -244,50 +214,53 @@ async def fetch_symbol_metadata(symbol: str) -> Optional[Dict]:
         return None
 
 
-async def fetch_trading_status() -> Dict:
+async def fetch_trading_status(market: Optional[str] = None, symbol: Optional[str] = None) -> Dict:
     """
-    Get current IDX trading status.
-    
-    IDX Trading Hours:
-    - Monday - Friday: 09:00 - 16:00 WIB (UTC+7)
-    - Saturday, Sunday: Closed
-    
+    Get current trading status for Forex/Crypto markets.
+
     Returns:
         Dict with trading status
     """
-    from datetime import datetime, timezone, timedelta
-    
-    # Jakarta timezone (UTC+7)
-    jakarta_tz = timezone(timedelta(hours=7))
-    now = datetime.now(jakarta_tz)
-    
-    # Trading hours: 09:00 - 16:00 WIB (09:00 - 16:00 UTC+7)
-    trading_start = now.replace(hour=9, minute=0, second=0, microsecond=0)
-    trading_end = now.replace(hour=16, minute=0, second=0, microsecond=0)
-    
-    # Check if today is a trading day (Mon-Fri)
-    is_trading_day = now.weekday() < 5  # 0-4 = Mon-Fri
-    
-    # Check if currently within trading hours
-    is_trading = is_trading_day and (trading_start <= now <= trading_end)
-    
+    from datetime import datetime, timezone
+
+    resolved_market = _resolve_market_type(market=market, symbol=symbol)
+    now_utc = datetime.now(timezone.utc)
+
+    if resolved_market == "crypto":
+        return {
+            "is_trading": True,
+            "market": "crypto",
+            "timezone": "UTC",
+            "trading_hours": {
+                "start": "00:00",
+                "end": "23:59",
+                "timezone": "UTC (24x7)",
+            },
+            "current_time": now_utc.isoformat(),
+            "market_day": "OPEN_24_7",
+            "next_open": None,
+        }
+
+    is_trading = _is_forex_open(now_utc)
+
     return {
         "is_trading": is_trading,
-        "timezone": "WIB",
+        "market": "forex",
+        "timezone": "UTC",
         "trading_hours": {
-            "start": "09:00",
-            "end": "16:00",
-            "timezone": "WIB (UTC+7)"
+            "start": "Sun 22:00",
+            "end": "Fri 22:00",
+            "timezone": "UTC (24x5)",
         },
-        "current_time": now.isoformat(),
-        "market_day": "OPEN" if is_trading else "CLOSED" if is_trading_day else "WEEKEND",
-        "next_open": _get_next_market_open(now, jakarta_tz).isoformat() if not is_trading else None,
+        "current_time": now_utc.isoformat(),
+        "market_day": "OPEN" if is_trading else "CLOSED",
+        "next_open": None if is_trading else _get_next_forex_open(now_utc).isoformat(),
     }
 
 
 async def get_available_symbols() -> List[str]:
-    """Get list of available IDX symbols."""
-    return list(IDX_SYMBOLS.keys())
+    """Get list of available Forex/Crypto symbols."""
+    return list(MARKET_SYMBOLS.keys())
 
 
 # === Helper Functions ===
@@ -375,9 +348,6 @@ def _resolve_currency_profile(symbol: str, info_currency: Optional[str]) -> Tupl
     """Infer currency code and preferred decimal precision from symbol format."""
     upper = str(symbol or '').upper()
 
-    if upper.endswith('.JK'):
-        return 'IDR', 0
-
     if upper.endswith('=X'):
         pair = upper[:-2]
         if len(pair) == 6 and pair.isalpha():
@@ -413,8 +383,8 @@ def _aggregate_to_4h(df: pd.DataFrame) -> pd.DataFrame:
     if agg_df.index.tz is None:
         agg_df.index = agg_df.index.tz_localize('UTC')
 
-    # Align bars to Jakarta market sessions for consistent chart rendering.
-    agg_df.index = agg_df.index.tz_convert('Asia/Jakarta')
+    # Align bars to UTC market sessions for consistent chart rendering.
+    agg_df.index = agg_df.index.tz_convert('UTC')
 
     rule = '4h'
     agg_map = {
@@ -461,26 +431,50 @@ def _adaptive_sort_candles_by_time(candles: List[Dict]) -> List[Dict]:
     return output
 
 
-def _get_next_market_open(current_time: datetime, jakarta_tz) -> datetime:
-    """Calculate next IDX market open time."""
-    # If before 09:00, market opens today at 09:00
-    if current_time.hour < 9:
-        return current_time.replace(hour=9, minute=0, second=0, microsecond=0)
-    
-    # If after 16:00 or weekend, calculate next trading day
-    next_time = current_time + timedelta(days=1)
-    
-    # Skip weekends
-    while next_time.weekday() > 4:
-        next_time += timedelta(days=1)
-    
-    return next_time.replace(hour=9, minute=0, second=0, microsecond=0)
+def _resolve_market_type(market: Optional[str], symbol: Optional[str]) -> str:
+    market_text = str(market or "").strip().lower()
+    if market_text in {"crypto", "blockchain"}:
+        return "crypto"
+    if market_text in {"forex", "fx"}:
+        return "forex"
+
+    upper_symbol = str(symbol or "").strip().upper()
+    if "-USD" in upper_symbol or upper_symbol.endswith("USDT"):
+        return "crypto"
+    if upper_symbol.endswith("=X") or "/" in upper_symbol:
+        return "forex"
+    return "forex"
+
+
+def _is_forex_open(current_time_utc: datetime) -> bool:
+    weekday = current_time_utc.weekday()  # Mon=0, Sun=6
+    hour = current_time_utc.hour
+
+    if weekday in {0, 1, 2, 3}:
+        return True
+    if weekday == 4:
+        return hour < 22
+    if weekday == 6:
+        return hour >= 22
+    return False
+
+
+def _get_next_forex_open(current_time_utc: datetime) -> datetime:
+    weekday = current_time_utc.weekday()  # Mon=0, Sun=6
+    hour = current_time_utc.hour
+
+    if weekday == 6 and hour < 22:
+        return current_time_utc.replace(hour=22, minute=0, second=0, microsecond=0)
+
+    days_until_sunday = (6 - weekday) % 7
+    base = current_time_utc + timedelta(days=days_until_sunday)
+    return base.replace(hour=22, minute=0, second=0, microsecond=0)
 
 
 async def verify_connectivity() -> bool:
     """Test connectivity to data source."""
     try:
-        ticker = yf.Ticker('BBCA.JK')
+        ticker = yf.Ticker('EURUSD=X')
         info = ticker.info
         return bool(info)
     except Exception as e:

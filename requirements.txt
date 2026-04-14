@@ -3,7 +3,8 @@ pandas>=1.5.3
 numpy>=1.24.0
 pydantic<2.0,>=1.10.8
 yfinance>=0.2.22
-curl_cffi>=0.5.0              # For IDX API with bypass rate limiting
+ccxt>=4.4.0
+curl_cffi>=0.5.0              # HTTP stack used by market-data connectors
 prometheus-client>=0.16.0
 urllib3>=1.26.16
 scikit-learn

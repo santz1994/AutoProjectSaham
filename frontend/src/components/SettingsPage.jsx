@@ -23,8 +23,8 @@ const defaultSettings = {
     brokerAccountId: '',
     tradingMode: 'paper',
     maxOpenPositions: 5,
-    preferredUniverse: ['BBCA.JK', 'USIM.JK', 'KLBF.JK', 'ASII.JK', 'UNVR.JK'],
-    aiDefaultMarket: 'stocks',
+    preferredUniverse: ['EURUSD=X', 'GBPUSD=X', 'BTC-USD', 'ETH-USD', 'SOL-USD'],
+    aiDefaultMarket: 'forex',
     aiPredictionStyle: 'daily_trader',
     aiDefaultTimeframe: '15m',
     aiProjectionHorizon: 16,
@@ -40,11 +40,9 @@ const fallbackBrokerProviders = [
   { id: 'indopremier', name: 'Indo Premier' },
 ]
 const AI_MARKET_OPTIONS = [
-  { value: 'stocks', label: 'Saham (IDX)' },
   { value: 'forex', label: 'Forex' },
   { value: 'crypto', label: 'Blockchain/Crypto' },
-  { value: 'index', label: 'Global Index' },
-  { value: 'all', label: 'All Markets' },
+  { value: 'all', label: 'Forex + Crypto' },
 ]
 
 const AI_PREDICTION_STYLE_OPTIONS = [
@@ -849,7 +847,7 @@ export default function SettingsPage({
             value={(settings.preferredUniverse || []).join(', ')}
             onChange={(e) => handlePreferredUniverseChange(e.target.value)}
             className="setting-input"
-            placeholder="BBCA.JK, TLKM.JK, ASII.JK"
+            placeholder="EURUSD=X, GBPUSD=X, BTC-USD"
           />
         </div>
         <div className="setting-item">
@@ -929,7 +927,7 @@ export default function SettingsPage({
             <small>Market yang otomatis dibuka saat masuk ke AI Graph</small>
           </div>
           <select
-            value={settings.aiDefaultMarket || 'stocks'}
+            value={settings.aiDefaultMarket || 'forex'}
             onChange={(e) => handleChange('aiDefaultMarket', e.target.value)}
             className="setting-input"
           >

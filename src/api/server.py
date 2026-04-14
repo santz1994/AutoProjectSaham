@@ -1123,42 +1123,64 @@ if FASTAPI_AVAILABLE:
         _scheduler = None
         return {"status": "stopped"}
 
-    # Chart API Endpoints - Real IDX Data
+    # Chart API Endpoints - Forex/Crypto Data
     @app.get("/api/charts/metadata/{symbol}")
     async def charts_metadata(symbol: str):
-        """Get candlestick metadata for a symbol from IDX."""
+        """Get candlestick metadata for a Forex/Crypto symbol."""
         from src.data.idx_fetcher import fetch_symbol_metadata
-        
+
+        upper_symbol = str(symbol or "").upper()
+
         metadata = await fetch_symbol_metadata(symbol)
         if metadata:
+            if upper_symbol.endswith("=X"):
+                metadata["tradingStart"] = metadata.get("tradingStart", "Sun 22:00 UTC")
+                metadata["tradingEnd"] = metadata.get("tradingEnd", "Fri 22:00 UTC")
+            elif "-USD" in upper_symbol or upper_symbol.endswith("USDT"):
+                metadata["tradingStart"] = metadata.get("tradingStart", "00:00")
+                metadata["tradingEnd"] = metadata.get("tradingEnd", "23:59")
+            else:
+                metadata["tradingStart"] = metadata.get("tradingStart", "00:00")
+                metadata["tradingEnd"] = metadata.get("tradingEnd", "23:59")
+
             metadata = {
                 **metadata,
-                "tradingStart": metadata.get("tradingStart", "09:00"),
-                "tradingEnd": metadata.get("tradingEnd", "16:00"),
+                "tradingStart": metadata.get("tradingStart", "00:00"),
+                "tradingEnd": metadata.get("tradingEnd", "23:59"),
             }
             return metadata
-        
+
+        is_forex = upper_symbol.endswith("=X") or "/" in upper_symbol
+        is_crypto = ("-USD" in upper_symbol) or upper_symbol.endswith("USDT")
+        compact_pair = upper_symbol.replace("=X", "").replace("/", "")
+        fallback_currency = "USD"
+        if is_forex and len(compact_pair) == 6 and compact_pair.isalpha():
+            fallback_currency = compact_pair[3:]
+
         # Fallback for unknown symbols
         return {
             "symbol": symbol,
             "name": "Unknown Symbol",
-            "exchange": "IDX" if ".JK" in symbol else "OTHER",
-            "currency": "IDR" if ".JK" in symbol else "USD",
-            "timezone": "Asia/Jakarta" if ".JK" in symbol else "UTC",
-            "tradingStart": "09:00" if ".JK" in symbol else "00:00",
-            "tradingEnd": "16:00" if ".JK" in symbol else "23:59",
+            "exchange": "FOREX" if is_forex else "CRYPTO" if is_crypto else "FOREX",
+            "currency": fallback_currency,
+            "timezone": "UTC",
+            "tradingStart": "Sun 22:00 UTC" if is_forex else "00:00",
+            "tradingEnd": "Fri 22:00 UTC" if is_forex else "23:59",
         }
 
     @app.get("/api/charts/candles/{symbol}")
     async def charts_candles(symbol: str, timeframe: str = "1d", limit: int = 100):
-        """Get real candlestick data from IDX."""
+        """Get real candlestick data from yfinance-backed Forex/Crypto feeds."""
         from src.data.idx_fetcher import fetch_candlesticks
-        
+
         result = await fetch_candlesticks(symbol, timeframe=timeframe, limit=limit)
-        
+
         if result:
             return result
-        
+
+        upper_symbol = str(symbol or "").upper()
+        exchange = "FOREX" if upper_symbol.endswith("=X") else "CRYPTO" if "-USD" in upper_symbol else "FOREX"
+
         # Fallback if fetch fails
         return {
             "symbol": symbol,
@@ -1167,7 +1189,7 @@ if FASTAPI_AVAILABLE:
             "error": "Unable to fetch candlestick data",
             "metadata": {
                 "total": 0,
-                "exchange": "IDX",
+                "exchange": exchange,
                 "source": "fallback"
             }
         }
@@ -1182,16 +1204,16 @@ if FASTAPI_AVAILABLE:
             "provider": "yfinance",
             "note": (
                 "Timeframe list follows backend/provider support and stability "
-                "for IDX chart delivery."
+                "for Forex/Crypto chart delivery."
             ),
         }
 
     @app.get("/api/charts/trading-status")
-    async def charts_trading_status():
-        """Get current IDX trading status."""
+    async def charts_trading_status(symbol: Optional[str] = None, market: Optional[str] = None):
+        """Get current Forex/Crypto trading status."""
         from src.data.idx_fetcher import fetch_trading_status
-        
-        status = await fetch_trading_status()
+
+        status = await fetch_trading_status(market=market, symbol=symbol)
         return status
 
     @app.websocket("/ws/charts/{symbol}")
@@ -1330,8 +1352,8 @@ if FASTAPI_AVAILABLE:
         """Start optional background services: market data ingestion
         and ML trainer. These run in background thread pools to avoid
         blocking the FastAPI event loop during startup.
-        
-        Uses REAL IDX market data (Bursa Efek Indonesia) by default.
+
+        Uses Forex/Crypto symbols by default.
         """
         global market_service, ml_service, _execution_manager
         
@@ -1379,27 +1401,16 @@ if FASTAPI_AVAILABLE:
             print(f"[Startup] Warning: execution startup sync failed: {e}")
         
         try:
-            # REAL DATA: Default to IDX symbols (Indonesian stock exchange)
-            symbols_env = os.getenv("MARKET_SYMBOLS", "BBCA,USIM,KLBF,ASII,UNVR")
+            # REAL DATA: Default to Forex/Crypto symbols.
+            symbols_env = os.getenv(
+                "MARKET_SYMBOLS",
+                "EURUSD=X,GBPUSD=X,USDJPY=X,BTC-USD,ETH-USD,SOL-USD",
+            )
             symbols = [s.strip() for s in symbols_env.split(",") if s.strip()]
 
-            # Prefer streaming-native IDX websocket feed when credentials are set.
-            from src.brokers.marketdata import (
-                AlpacaMarketDataAdapter,
-                IDXMarketDataAdapter,
-            )
+            from src.brokers.marketdata import AlpacaMarketDataAdapter
 
-            bei_ws_username = str(os.getenv("BEI_WS_USERNAME", "")).strip()
-            bei_ws_password = str(os.getenv("BEI_WS_PASSWORD", "")).strip()
-
-            if bei_ws_username and bei_ws_password:
-                adapter = IDXMarketDataAdapter(
-                    symbols=symbols,
-                    username=bei_ws_username,
-                    password=bei_ws_password,
-                )
-            else:
-                adapter = AlpacaMarketDataAdapter(symbols=symbols)
+            adapter = AlpacaMarketDataAdapter(symbols=symbols)
             
             from src.marketdata.service import MarketDataService
             ms = MarketDataService(adapter=adapter, db_path=os.path.join(project_root, "data", "ticks.db"))

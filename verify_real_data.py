@@ -96,9 +96,9 @@ def main():
     try:
         from src.pipeline.data_connectors.yahoo_fetcher import YahooFetcher
         fetcher = YahooFetcher(min_delay=1.0)
-        prices = fetcher.fetch("BBCA", period="1mo", use_cache=True)
+        prices = fetcher.fetch("EURUSD=X", period="1mo", use_cache=True)
         if prices and len(prices) > 0:
-            print(f"✅ PASSED: Fetched {len(prices)} real BBCA candles")
+            print(f"✅ PASSED: Fetched {len(prices)} real EURUSD candles")
             print(f"   Latest: Close={prices[-1].get('close', 'N/A')}, Volume={prices[-1].get('volume', 'N/A')}")
             results.append(True)
         else:
@@ -112,15 +112,15 @@ def main():
     print("\n[5/6] Checking API server real data configuration...")
     with open("src/api/server.py", "r") as f:
         server_content = f.read()
-        uses_idx_symbols = "BBCA,USIM,KLBF" in server_content
-        uses_real_adapter = "IDXMarketDataAdapter" in server_content or "AlpacaMarketDataAdapter" in server_content
+        uses_forex_crypto_symbols = "EURUSD=X,GBPUSD=X,USDJPY=X,BTC-USD,ETH-USD,SOL-USD" in server_content
+        uses_real_adapter = "AlpacaMarketDataAdapter" in server_content
         
-        if uses_idx_symbols and uses_real_adapter:
-            print("✅ PASSED: API uses real IDX symbols and adapters")
+        if uses_forex_crypto_symbols and uses_real_adapter:
+            print("✅ PASSED: API uses real Forex/Crypto symbols and adapters")
             results.append(True)
         else:
             print("⚠️  WARNING: API configuration may need review")
-            print(f"   - Uses IDX symbols: {uses_idx_symbols}")
+            print(f"   - Uses Forex/Crypto symbols: {uses_forex_crypto_symbols}")
             print(f"   - Uses real adapters: {uses_real_adapter}")
             results.append(True)  # Warning only
     

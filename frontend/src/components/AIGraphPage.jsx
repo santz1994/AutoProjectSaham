@@ -6,12 +6,6 @@ import toast from '../store/toastStore';
 import '../styles/ai-graph.css';
 
 const FALLBACK_SYMBOLS_BY_MARKET = {
-  stocks: [
-    'BBCA.JK', 'BMRI.JK', 'BBRI.JK', 'BBNI.JK', 'BBTN.JK',
-    'TLKM.JK', 'ASII.JK', 'UNVR.JK', 'INDF.JK', 'ICBP.JK',
-    'KLBF.JK', 'ADRO.JK', 'ANTM.JK', 'PGAS.JK', 'SMGR.JK',
-    'CPIN.JK', 'EXCL.JK', 'MDKA.JK', 'MEDC.JK', 'UNTR.JK',
-  ],
   forex: [
     'EURUSD=X', 'GBPUSD=X', 'USDJPY=X', 'AUDUSD=X',
     'USDCHF=X', 'USDCAD=X', 'NZDUSD=X', 'EURJPY=X', 'USDIDR=X',
@@ -19,31 +13,24 @@ const FALLBACK_SYMBOLS_BY_MARKET = {
   crypto: [
     'BTC-USD', 'ETH-USD', 'SOL-USD', 'BNB-USD', 'XRP-USD', 'ADA-USD', 'DOGE-USD',
   ],
-  index: [
-    '^GSPC', '^IXIC', '^DJI', '^HSI', '^N225',
-  ],
 };
 
-const DEFAULT_SYMBOLS = FALLBACK_SYMBOLS_BY_MARKET.stocks;
+const DEFAULT_SYMBOLS = FALLBACK_SYMBOLS_BY_MARKET.forex;
 
-function getFallbackSymbols(market = 'stocks') {
-  const normalizedMarket = String(market || 'stocks').toLowerCase();
+function getFallbackSymbols(market = 'forex') {
+  const normalizedMarket = String(market || 'forex').toLowerCase();
   if (normalizedMarket === 'all') {
     return [...new Set([
-      ...FALLBACK_SYMBOLS_BY_MARKET.stocks,
       ...FALLBACK_SYMBOLS_BY_MARKET.forex,
       ...FALLBACK_SYMBOLS_BY_MARKET.crypto,
-      ...FALLBACK_SYMBOLS_BY_MARKET.index,
     ])];
   }
   return FALLBACK_SYMBOLS_BY_MARKET[normalizedMarket] || DEFAULT_SYMBOLS;
 }
 const MARKET_OPTIONS = [
-  { value: 'stocks', label: 'Saham (IDX)' },
   { value: 'forex', label: 'Forex' },
   { value: 'crypto', label: 'Blockchain/Crypto' },
-  { value: 'index', label: 'Global Index' },
-  { value: 'all', label: 'All Markets' },
+  { value: 'all', label: 'Forex + Crypto' },
 ];
 const TIMEFRAME_OPTIONS = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w', '1mo'];
 const HORIZON_OPTIONS = [8, 12, 16, 24, 32];
@@ -117,12 +104,8 @@ const SIGNAL_CLASS = {
   STRONG_SELL: 'bearish',
 };
 
-function inferCurrencyProfile(symbol = '', market = 'stocks') {
+function inferCurrencyProfile(symbol = '', market = 'forex') {
   const upper = String(symbol || '').toUpperCase();
-
-  if (upper.endsWith('.JK') || market === 'stocks') {
-    return { currency: 'IDR', digits: 0 };
-  }
 
   if (upper.endsWith('=X') || market === 'forex') {
     const pair = upper.replace('=X', '').replace('/', '');
@@ -168,11 +151,11 @@ function formatPercent(value) {
 }
 
 export default function AIGraphPage({ theme = 'dark' }) {
-  const [selectedMarket, setSelectedMarket] = useState('stocks');
+  const [selectedMarket, setSelectedMarket] = useState('forex');
   const [predictionStyle, setPredictionStyle] = useState('daily_trader');
   const [predictionLockEnabled, setPredictionLockEnabled] = useState(true);
-  const [symbolOptions, setSymbolOptions] = useState(() => getFallbackSymbols('stocks'));
-  const [selectedSymbol, setSelectedSymbol] = useState(() => getFallbackSymbols('stocks')[0] || 'BBCA.JK');
+  const [symbolOptions, setSymbolOptions] = useState(() => getFallbackSymbols('forex'));
+  const [selectedSymbol, setSelectedSymbol] = useState(() => getFallbackSymbols('forex')[0] || 'EURUSD=X');
   const [selectedTimeframe, setSelectedTimeframe] = useState('1d');
   const [projectionHorizon, setProjectionHorizon] = useState(16);
 
@@ -444,7 +427,7 @@ export default function AIGraphPage({ theme = 'dark' }) {
   };
 
   const nextAutoRefreshLabel = nextAutoRefreshAt > 0
-    ? new Date(nextAutoRefreshAt).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' })
+    ? new Date(nextAutoRefreshAt).toLocaleTimeString('id-ID', { timeZone: 'UTC' })
     : '-';
 
   const predictedMove = Number(projectionMeta?.expectedReturn || 0) * 100;
@@ -473,7 +456,7 @@ export default function AIGraphPage({ theme = 'dark' }) {
         <div>
           <h1>AI Graph</h1>
           <p>
-            One compact AI page for Stocks, Forex, Crypto, and Index with live chart + projection.
+            One compact AI page for Forex and Crypto with live chart + projection.
           </p>
         </div>
         <Button
@@ -583,7 +566,7 @@ export default function AIGraphPage({ theme = 'dark' }) {
         <div className="ai-control-item ai-control-live">
           <label>Live Mode</label>
           <span>{liveModeLabel}</span>
-          <small className="ai-control-help">{`Next auto refresh (WIB): ${nextAutoRefreshLabel}`}</small>
+          <small className="ai-control-help">{`Next auto refresh (UTC): ${nextAutoRefreshLabel}`}</small>
         </div>
       </section>
 
@@ -650,7 +633,7 @@ export default function AIGraphPage({ theme = 'dark' }) {
           <span>
             Generated:{' '}
             {projectionMeta?.generatedAt
-              ? new Date(projectionMeta.generatedAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+              ? new Date(projectionMeta.generatedAt).toLocaleString('id-ID', { timeZone: 'UTC' })
               : '-'}
           </span>
         </article>
@@ -669,7 +652,7 @@ export default function AIGraphPage({ theme = 'dark' }) {
           <h3>Horizon End Time</h3>
           <strong>
             {horizonEndTime > 0
-              ? new Date(horizonEndTime * 1000).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+              ? new Date(horizonEndTime * 1000).toLocaleString('id-ID', { timeZone: 'UTC' })
               : '-'}
           </strong>
           <span>{`Projection horizon: ${projectionMeta?.horizon || projectionHorizon} step(s)`}</span>

@@ -4,7 +4,7 @@ This replaces the old mock price generation with real market data caching.
 
 Usage:
     python bin/runner.py scripts/generate_demo_prices.py -- \\
-        --symbols BBCA TLKM USIM --n 300
+        --symbols EURUSD=X GBPUSD=X BTC-USD --n 300
 """
 from __future__ import annotations
 
@@ -21,8 +21,8 @@ def main(argv: List[str] | None = None):
     parser.add_argument(
         "--symbols",
         nargs="+",
-        default=["BBCA", "TLKM", "USIM", "BMRI", "ASII"],
-        help="IDX symbols to fetch (real Yahoo Finance data)",
+        default=["EURUSD=X", "GBPUSD=X", "USDJPY=X", "BTC-USD", "ETH-USD"],
+        help="Forex/Crypto symbols to fetch (real Yahoo Finance data)",
     )
     parser.add_argument(
         "--period",

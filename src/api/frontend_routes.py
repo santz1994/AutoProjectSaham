@@ -198,8 +198,8 @@ class UserSettings(BaseModel):
     stopLossPercent: float = 5.0
     takeProfitPercent: float = 10.0
     maxOpenPositions: int = 5
-    preferredUniverse: List[str] = ["BBCA.JK", "USIM.JK", "KLBF.JK", "ASII.JK", "UNVR.JK"]
-    aiDefaultMarket: str = "stocks"
+    preferredUniverse: List[str] = ["EURUSD=X", "GBPUSD=X", "BTC-USD", "ETH-USD", "SOL-USD"]
+    aiDefaultMarket: str = "forex"
     aiPredictionStyle: str = "daily_trader"
     aiDefaultTimeframe: str = "15m"
     aiProjectionHorizon: int = 16
@@ -291,8 +291,8 @@ _default_user_settings: Dict[str, Any] = {
     "stopLossPercent": 5.0,
     "takeProfitPercent": 10.0,
     "maxOpenPositions": 5,
-    "preferredUniverse": ["BBCA.JK", "USIM.JK", "KLBF.JK", "ASII.JK", "UNVR.JK"],
-    "aiDefaultMarket": "stocks",
+    "preferredUniverse": ["EURUSD=X", "GBPUSD=X", "BTC-USD", "ETH-USD", "SOL-USD"],
+    "aiDefaultMarket": "forex",
     "aiPredictionStyle": "daily_trader",
     "aiDefaultTimeframe": "15m",
     "aiProjectionHorizon": 16,
@@ -432,7 +432,7 @@ _state_store.ensure_seed_ai_logs(
         {
             "level": "info",
             "eventType": "feature_pipeline",
-            "message": "Feature pipeline refreshed with latest IDX market snapshot.",
+            "message": "Feature pipeline refreshed with latest Forex/Crypto market snapshot.",
             "payload": {"source": "dataset.csv"},
             "timestamp": (datetime.now() - timedelta(minutes=11)).isoformat(),
         },
@@ -449,22 +449,27 @@ _state_store.get_regime_state(_default_regime_state)
 
 
 _SYMBOL_NAME_MAP: Dict[str, str] = {
-    "BBCA.JK": "Bank Central Asia",
-    "TLKM.JK": "Telekomunikasi Indonesia",
-    "INDF.JK": "Indofood Sukses Makmur",
-    "ASII.JK": "Astra International",
-    "UNVR.JK": "Unilever Indonesia",
-    "KLBF.JK": "Kalbe Farma",
-    "USIM.JK": "Universal Broker Basket",
+    "EURUSD=X": "EUR/USD",
+    "GBPUSD=X": "GBP/USD",
+    "USDJPY=X": "USD/JPY",
+    "USDCAD=X": "USD/CAD",
+    "BTC-USD": "Bitcoin",
+    "ETH-USD": "Ethereum",
+    "SOL-USD": "Solana",
+    "BNB-USD": "BNB",
+    "XRP-USD": "XRP",
 }
 
 _SYMBOL_SECTOR_MAP: Dict[str, str] = {
-    "BBCA.JK": "Financial Services",
-    "TLKM.JK": "Telecommunications",
-    "INDF.JK": "Consumer Goods",
-    "ASII.JK": "Industrials",
-    "UNVR.JK": "Consumer Goods",
-    "KLBF.JK": "Healthcare",
+    "EURUSD=X": "Forex",
+    "GBPUSD=X": "Forex",
+    "USDJPY=X": "Forex",
+    "USDCAD=X": "Forex",
+    "BTC-USD": "Crypto",
+    "ETH-USD": "Crypto",
+    "SOL-USD": "Crypto",
+    "BNB-USD": "Crypto",
+    "XRP-USD": "Crypto",
 }
 
 _TIMEFRAME_SECONDS: Dict[str, int] = {
@@ -483,14 +488,14 @@ _projection_notification_state: Dict[Tuple[str, str], str] = {}
 _regime_notification_state: Dict[str, str] = {}
 
 _MARKET_NEWS_FALLBACK = [
-    "BBCA.JK",
-    "BMRI.JK",
-    "BBRI.JK",
-    "TLKM.JK",
-    "^GSPC",
-    "^DJI",
-    "^IXIC",
-    "USDIDR=X",
+    "EURUSD=X",
+    "GBPUSD=X",
+    "USDJPY=X",
+    "USDCAD=X",
+    "BTC-USD",
+    "ETH-USD",
+    "SOL-USD",
+    "BNB-USD",
     "CL=F",
     "GC=F",
 ]
@@ -753,8 +758,6 @@ def _symbol_base(symbol: str) -> str:
     normalized = str(symbol or "").strip().upper()
     if not normalized:
         return ""
-    if normalized.endswith(".JK"):
-        return normalized.split(".")[0]
     if normalized.endswith("=X"):
         return normalized.replace("=X", "")
     if "-USD" in normalized:
@@ -771,7 +774,6 @@ def _symbol_aliases(symbol: str) -> List[str]:
     base = _symbol_base(normalized)
     if base:
         aliases.add(base)
-        aliases.add(f"{base}.JK")
 
     if normalized.endswith("=X"):
         pair = normalized.replace("=X", "")
@@ -805,31 +807,84 @@ def _symbols_match(left: str, right: str) -> bool:
 def _detect_market_from_symbol(symbol: str) -> str:
     normalized = str(symbol or "").strip().upper()
     if not normalized:
+        return "unknown"
+    if ("." in normalized) and (not normalized.endswith("=X")):
         return "stocks"
+    if normalized.startswith("^"):
+        return "index"
     if normalized.endswith("=X") or (len(normalized) == 6 and normalized.isalpha()) or "/" in normalized:
         return "forex"
     if "-USD" in normalized or normalized.endswith("USDT"):
         return "crypto"
-    if normalized.startswith("^"):
-        return "index"
-    return "stocks"
+    return "unknown"
+
+
+def _is_forex_symbol(symbol: str) -> bool:
+    normalized = str(symbol or "").strip().upper()
+    if not normalized:
+        return False
+
+    if normalized.endswith("=X"):
+        pair = normalized[:-2]
+        return len(pair) == 6 and pair.isalpha()
+
+    if "/" in normalized:
+        compact = normalized.replace("/", "")
+        return len(compact) == 6 and compact.isalpha()
+
+    return len(normalized) == 6 and normalized.isalpha()
+
+
+def _is_crypto_symbol(symbol: str) -> bool:
+    normalized = str(symbol or "").strip().upper()
+    if not normalized:
+        return False
+
+    known_bases = {
+        str(item).upper().split("-USD", 1)[0]
+        for item in _CRYPTO_SYMBOLS
+        if "-USD" in str(item).upper()
+    }
+
+    if "-USD" in normalized:
+        base = normalized.split("-USD", 1)[0]
+        return bool(base) and (base in known_bases or len(base) >= 2)
+
+    if normalized.endswith("USDT") and len(normalized) > 4:
+        base = normalized[:-4]
+        return bool(base) and (base in known_bases or len(base) >= 2)
+
+    return False
+
+
+def _is_supported_market_symbol(symbol: str, market: str) -> bool:
+    normalized_market = _normalize_market_input(market)
+
+    if normalized_market == "forex":
+        return _is_forex_symbol(symbol)
+    if normalized_market == "crypto":
+        return _is_crypto_symbol(symbol)
+    if normalized_market == "all":
+        return _is_forex_symbol(symbol) or _is_crypto_symbol(symbol)
+    return False
 
 
 def _normalize_market_input(market: Optional[str]) -> str:
-    normalized = str(market or "stocks").strip().lower()
+    normalized = str(market or "forex").strip().lower()
     aliases = {
-        "saham": "stocks",
-        "stock": "stocks",
-        "equity": "stocks",
+        "saham": "forex",
+        "stock": "forex",
+        "equity": "forex",
         "forex": "forex",
         "fx": "forex",
         "crypto": "crypto",
         "blockchain": "crypto",
         "all": "all",
         "multi": "all",
-        "index": "index",
+        "index": "forex",
+        "global": "forex",
     }
-    return aliases.get(normalized, "stocks")
+    return aliases.get(normalized, "forex")
 
 
 def _adaptive_sort(items: List[Any], key_name: str, reverse: bool = False) -> List[Any]:
@@ -1016,7 +1071,7 @@ def _fetch_global_market_news(limit: int = 10, symbol: Optional[str] = None) -> 
             from src.pipeline.data_connectors.news_connector import fetch_news
 
             symbol_base = _symbol_base(symbol or "")
-            query = "IDX OR IHSG OR Indonesia stocks OR Federal Reserve OR CPI OR oil"
+            query = "forex OR FX OR USD OR EUR OR bitcoin OR ethereum OR crypto OR Federal Reserve OR CPI OR oil"
             if symbol_base:
                 query = f"({symbol_base}) OR ({query})"
 
@@ -1716,11 +1771,22 @@ def _risk_level_from_prediction(expected_return: float, confidence: float) -> st
 def _symbol_name(symbol: str) -> str:
     if symbol in _SYMBOL_NAME_MAP:
         return _SYMBOL_NAME_MAP[symbol]
-    return str(symbol).replace(".JK", "")
+
+    normalized = str(symbol or "").strip().upper()
+    if normalized.endswith("=X") and len(normalized.replace("=X", "")) == 6:
+        pair = normalized.replace("=X", "")
+        return f"{pair[:3]}/{pair[3:]}"
+    if "-" in normalized:
+        return normalized.replace("-", "/")
+    if normalized.endswith("USDT") and len(normalized) > 4:
+        base = normalized[:-4]
+        return f"{base}/USDT"
+
+    return normalized
 
 
 def _symbol_sector(symbol: str) -> str:
-    return _SYMBOL_SECTOR_MAP.get(symbol, "IDX")
+    return _SYMBOL_SECTOR_MAP.get(symbol, "Forex/Crypto")
 
 
 def _load_transformer_runtime(project_root: Optional[str] = None) -> Optional[Dict[str, Any]]:
@@ -2397,16 +2463,16 @@ def _build_fallback_signals(limit: int, preferred_universe: Optional[List[str]])
     return [
         Signal(
             id=1,
-            symbol="INDF.JK",
-            name="Indofood Sukses Makmur",
+            symbol="EURUSD=X",
+            name="EUR/USD",
             signal="HOLD",
             confidence=0.5,
             reason="No valid model output is available yet; fallback signal is neutral.",
             predictedMove="+0.00%",
             riskLevel="Medium",
-            sector="Consumer Goods",
-            currentPrice=9150,
-            targetPrice=9150,
+            sector="Forex",
+            currentPrice=1.0,
+            targetPrice=1.0,
             timestamp=datetime.now().isoformat(),
         )
     ][:safe_limit]
@@ -2430,15 +2496,15 @@ def _normalize_symbol_input(symbol: str, market: Optional[str] = None) -> str:
     if normalized_market == "crypto":
         if normalized.endswith("USDT") and "-" not in normalized:
             return f"{normalized[:-4]}-USD"
-        if "-" not in normalized and not normalized.endswith("USD"):
+        if normalized.endswith("USD") and "-" not in normalized and len(normalized) > 3:
+            return f"{normalized[:-3]}-USD"
+        if "-" not in normalized:
             return f"{normalized}-USD"
         return normalized
 
     if normalized.startswith("^"):
         return normalized
 
-    if "." not in normalized:
-        normalized = f"{normalized}.JK"
     return normalized
 
 
@@ -2641,7 +2707,8 @@ async def _resolve_runtime_portfolio_snapshot() -> Portfolio:
     market_value = 0.0
 
     for raw_symbol, raw_quantity in positions_map.items():
-        symbol = _normalize_symbol_input(str(raw_symbol), market="stocks")
+        market_hint = _detect_market_from_symbol(str(raw_symbol))
+        symbol = _normalize_symbol_input(str(raw_symbol), market=market_hint)
         quantity = int(_safe_float(raw_quantity, default=0.0) or 0.0)
         if quantity <= 0:
             continue
@@ -3571,20 +3638,49 @@ async def get_signals(limit: int = 10):
     settings = _state_store.get_user_settings(_default_user_settings)
     preferred_universe = settings.get("preferredUniverse", [])
 
+    def _filter_forex_crypto(items: List[Signal]) -> List[Signal]:
+        filtered: List[Signal] = []
+        for item in items:
+            market = _detect_market_from_symbol(item.symbol)
+            if market in {"forex", "crypto"}:
+                filtered.append(item)
+        return filtered
+
     transformer_signals = await _run_blocking(
         _infer_signals_from_transformer,
         safe_limit,
         preferred_universe,
     )
     if transformer_signals:
-        return transformer_signals[:safe_limit]
+        filtered_transformer = _filter_forex_crypto(transformer_signals)
+        if filtered_transformer:
+            return filtered_transformer[:safe_limit]
 
     fallback_signals = await _run_blocking(
         _build_fallback_signals,
         safe_limit,
         preferred_universe,
     )
-    return fallback_signals[:safe_limit]
+    filtered_fallback = _filter_forex_crypto(fallback_signals)
+    if filtered_fallback:
+        return filtered_fallback[:safe_limit]
+
+    return [
+        Signal(
+            id=1,
+            symbol="EURUSD=X",
+            name="EUR/USD",
+            signal="HOLD",
+            confidence=0.5,
+            reason="No valid Forex/Crypto model output is available yet; fallback signal is neutral.",
+            predictedMove="+0.00%",
+            riskLevel="Medium",
+            sector="Forex",
+            currentPrice=1.0,
+            targetPrice=1.0,
+            timestamp=datetime.now().isoformat(),
+        )
+    ][:safe_limit]
 
 @router.get("/market/sentiment", response_model=MarketSentiment)
 async def get_market_sentiment():
@@ -3602,48 +3698,17 @@ async def get_market_sentiment():
 
 
 @router.get("/market/universe")
-async def get_market_universe(limit: int = 80, market: str = "stocks"):
-    """Return dynamic symbol universe across stocks, forex, crypto, and global indexes."""
+async def get_market_universe(limit: int = 80, market: str = "forex"):
+    """Return dynamic symbol universe for Forex and Crypto only."""
     safe_limit = max(10, min(500, int(limit)))
     normalized_market = _normalize_market_input(market)
     symbols: List[str] = []
-
-    if normalized_market in {"stocks", "all"}:
-        try:
-            from src.data.idx_fetcher import get_available_symbols
-
-            idx_symbols = await get_available_symbols()
-            symbols.extend([_normalize_symbol_input(item, market="stocks") for item in idx_symbols])
-        except Exception:
-            pass
-
-        settings = _state_store.get_user_settings(_default_user_settings)
-        preferred = settings.get("preferredUniverse") if isinstance(settings, dict) else []
-        if isinstance(preferred, list):
-            symbols.extend([_normalize_symbol_input(item, market="stocks") for item in preferred])
-
-        dataset_path = _resolve_dataset_csv_path()
-        try:
-            import pandas as pd
-
-            if os.path.exists(dataset_path):
-                df = pd.read_csv(dataset_path, usecols=["symbol"])
-                dataset_symbols = [
-                    _normalize_symbol_input(str(item), market="stocks")
-                    for item in df["symbol"].dropna().astype(str).tolist()
-                ]
-                symbols.extend(dataset_symbols)
-        except Exception:
-            pass
 
     if normalized_market in {"forex", "all"}:
         symbols.extend([_normalize_symbol_input(item, market="forex") for item in _FOREX_SYMBOLS])
 
     if normalized_market in {"crypto", "all"}:
         symbols.extend([_normalize_symbol_input(item, market="crypto") for item in _CRYPTO_SYMBOLS])
-
-    if normalized_market in {"index", "all"}:
-        symbols.extend([_normalize_symbol_input(item, market="index") for item in _GLOBAL_INDEX_SYMBOLS])
 
     unique_symbols: List[str] = []
     seen = set()
@@ -3656,8 +3721,6 @@ async def get_market_universe(limit: int = 80, market: str = "stocks"):
         unique_symbols.append(symbol_item)
 
     source_tags = ["realtime"]
-    if normalized_market in {"stocks", "all"}:
-        source_tags.append("idx")
     if normalized_market in {"forex", "all"}:
         source_tags.append("forex")
     if normalized_market in {"crypto", "all"}:
@@ -3665,7 +3728,7 @@ async def get_market_universe(limit: int = 80, market: str = "stocks"):
 
     return {
         "market": normalized_market,
-        "availableMarkets": ["stocks", "forex", "crypto", "index", "all"],
+        "availableMarkets": ["forex", "crypto", "all"],
         "symbols": unique_symbols[:safe_limit],
         "total": len(unique_symbols),
         "source": "+".join(source_tags),
@@ -3683,7 +3746,7 @@ async def get_sector_heatmap():
     ]
 
 @router.get("/market/movers", response_model=MarketMoversResponse)
-async def get_top_movers(market: str = "stocks"):
+async def get_top_movers(market: str = "forex"):
     """Get top market movers from realtime candle deltas."""
     symbols_payload = await get_market_universe(limit=30, market=market)
     symbols = symbols_payload.get("symbols", []) if isinstance(symbols_payload, dict) else []
@@ -3710,9 +3773,9 @@ async def get_top_movers(market: str = "stocks"):
 
     if not movers:
         movers = [
-            MarketMover(symbol="BBCA.JK", change=0.0),
-            MarketMover(symbol="BMRI.JK", change=0.0),
-            MarketMover(symbol="TLKM.JK", change=0.0),
+            MarketMover(symbol="EURUSD=X", change=0.0),
+            MarketMover(symbol="BTC-USD", change=0.0),
+            MarketMover(symbol="ETH-USD", change=0.0),
         ]
 
     sorted_payload = _adaptive_sort([item.dict() for item in movers], key_name="change", reverse=True)
@@ -3761,7 +3824,7 @@ async def get_strategies():
             name="Mean Reversion Swing",
             type="mean_reversion",
             status="ready",
-            description="Targets oversold rebounds in quality large-cap IDX names.",
+            description="Targets oversold rebounds in liquid Forex majors and top Crypto pairs.",
             icon="📉",
             desc="Enter on oversold pullbacks and exit near equilibrium moving average.",
             expectedReturn="+14.9% / year",
@@ -4336,6 +4399,15 @@ async def submit_execution_order(payload: ExecutionOrderPayload, request: Reques
     if not symbol:
         raise HTTPException(status_code=400, detail="symbol is required")
 
+    if not _is_supported_market_symbol(symbol, market="all"):
+        raise HTTPException(
+            status_code=400,
+            detail="Only Forex/Crypto symbols are supported (examples: EURUSD=X, BTC-USD).",
+        )
+
+    symbol_market = "forex" if _is_forex_symbol(symbol) else "crypto"
+    symbol = _normalize_symbol_input(symbol, market=symbol_market)
+
     side = str(payload.side or "").strip().lower()
     if side not in {"buy", "sell"}:
         raise HTTPException(status_code=400, detail="side must be buy or sell")
@@ -4692,6 +4764,16 @@ async def get_ai_projection(
     if not normalized_symbol:
         raise HTTPException(status_code=400, detail="Symbol is required")
 
+    if normalized_market == "all":
+        normalized_market = _detect_market_from_symbol(normalized_symbol)
+        normalized_symbol = _normalize_symbol_input(normalized_symbol, market=normalized_market)
+
+    if not _is_supported_market_symbol(normalized_symbol, market=normalized_market):
+        raise HTTPException(
+            status_code=400,
+            detail="Only Forex/Crypto symbols are supported for AI projection.",
+        )
+
     normalized_timeframe = str(timeframe or "1d").strip().lower()
     if normalized_timeframe not in _TIMEFRAME_SECONDS:
         raise HTTPException(status_code=400, detail="Unsupported timeframe")
@@ -4903,7 +4985,7 @@ async def get_ai_overview():
             {
                 "stage": "Data ingestion",
                 "status": "running",
-                "detail": "Collecting IDX candles and sentiment features.",
+                "detail": "Collecting Forex/Crypto candles and sentiment features.",
             },
             {
                 "stage": "Feature engineering",

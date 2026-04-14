@@ -1,7 +1,7 @@
 """Run a constrained backtest to approximate live execution guardrails.
 
 Example:
-  python scripts/backtest_live_constraints.py --symbol BBCA.JK --max-drawdown-pct 0.05
+    python scripts/backtest_live_constraints.py --symbol EURUSD=X --max-drawdown-pct 0.05
 """
 
 from __future__ import annotations

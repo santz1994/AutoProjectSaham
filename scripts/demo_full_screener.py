@@ -1,45 +1,30 @@
-"""Run the selector across IDX listings using REAL market data.
-
-This script retrieves all IDX-listed stocks and scores them using the SMA strategy
-with real historical market data from Yahoo Finance.
-"""
+"""Run the selector across a Forex/Crypto watchlist using real market data."""
 from src.ml.selector import score_symbols_for_strategy
-from src.pipeline.data_connectors.idx_listings import get_idx_listings
 from src.strategies.scalping import simple_sma_strategy
 
 
 def main():
-    print("📊 Fetching IDX listings...")
-    try:
-        items = get_idx_listings()
-    except Exception as e:
-        print(f"⚠️  Failed to fetch IDX listings: {e}")
-        print("Using top 20 IDX symbols instead...")
-        items = [{"code": s} for s in ["BBCA", "USIM", "KLBF", "ASII", "UNVR", "GOTO", "MAPI", "PROL", "TKIM", "INDX", 
-                                        "PTBA", "WIKA", "SCMA", "INTP", "SMGR", "PGAS", "TLKM", "ADRO", "INDY", "MEDC"]]
+    symbols = [
+        "EURUSD=X",
+        "GBPUSD=X",
+        "USDJPY=X",
+        "AUDUSD=X",
+        "BTC-USD",
+        "ETH-USD",
+        "SOL-USD",
+        "BNB-USD",
+        "XRP-USD",
+        "ADA-USD",
+    ]
 
-    codes = []
-    for it in items:
-        code = it.get("code") if isinstance(it, dict) else None
-        if code:
-            # Remove .JK suffix if present, we'll add it later if needed
-            if code.endswith(".JK"):
-                codes.append(code[:-3])
-            else:
-                codes.append(code)
+    print(f"🚀 Scoring {len(symbols)} Forex/Crypto symbols with real market data...")
+    print("   (Using Yahoo Finance data source.)\n")
 
-    if not codes:
-        print("❌ No IDX symbols available. Exiting.")
-        return
-
-    print(f"🚀 Scoring {len(codes)} real IDX symbols with actual market data...")
-    print("   (This may take several minutes for full IDX list. Using real Yahoo Finance data.)\n")
-    
     scored = score_symbols_for_strategy(
-        codes,
+        symbols,
         simple_sma_strategy,
         period="1y",
-        allow_demo=False,  # ALWAYS use real data, no demo fallback
+        allow_demo=False,
     )
 
     # Select with 0.9 threshold
@@ -64,7 +49,7 @@ def main():
             win_rate = m.get('win_rate', 0)
             trades = m.get('num_trades', 0)
             balance = m.get('final_balance', 0)
-            print(f"{s:8} | {score:>6.3f} | {win_rate:>8.1%} | {trades:>6} | IDR {balance:>11,.0f}")
+            print(f"{s:10} | {score:>6.3f} | {win_rate:>8.1%} | {trades:>6} | {balance:>13,.2f}")
         print("─" * 60)
     else:
         print("\n⚠️  No symbols reached the 0.9 threshold.")

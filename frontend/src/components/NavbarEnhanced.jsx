@@ -529,7 +529,7 @@ export default function NavbarEnhanced({
                 <input
                   type="text"
                   className="search-input"
-                  placeholder="Search stocks, strategies, logs..."
+                  placeholder="Search forex, crypto, strategies, logs..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   aria-label="Search input"
@@ -538,11 +538,11 @@ export default function NavbarEnhanced({
                 <div className="search-suggestions">
                   <div className="suggestion-item">
                     <span className="suggestion-icon">📊</span>
-                    <span>BBCA - Bank Central Asia</span>
+                    <span>EURUSD - Euro / US Dollar</span>
                   </div>
                   <div className="suggestion-item">
                     <span className="suggestion-icon">📈</span>
-                    <span>BMRI - Bank Mandiri</span>
+                    <span>BTC-USD - Bitcoin</span>
                   </div>
                   <div className="suggestion-item">
                     <span className="suggestion-icon">🎯</span>

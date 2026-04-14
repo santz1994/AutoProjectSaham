@@ -31,7 +31,7 @@ jobs:
 
       - name: Generate demo prices
         run: |
-          python bin/runner.py scripts/generate_demo_prices.py -- --symbols BBCA.JK TLKM.JK BMRI.JK --n 200
+          python bin/runner.py scripts/generate_demo_prices.py -- --symbols EURUSD=X GBPUSD=X BTC-USD --n 200
 
       - name: Run execution manager smoke test
         run: |

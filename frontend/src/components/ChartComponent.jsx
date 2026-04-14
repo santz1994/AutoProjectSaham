@@ -2,11 +2,11 @@
  * TradingView Chart Component
  * ============================
  * 
- * Lightweight-charts integration for IDX symbol viewing.
+ * Lightweight-charts integration for Forex/Crypto symbol viewing.
  * Features:
  * - Real-time WebSocket updates
- * - Jakarta timezone support
- * - IDX compliance (symbols, currency, trading hours)
+ * - UTC timezone support
+ * - Multi-asset currency and trading-hours metadata
  * - Multiple timeframes (1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w, 1mo)
  * - Interactive candlestick chart
  * 
@@ -44,8 +44,6 @@ function isIntradayTimeframe(timeframe = '1d') {
 
 function resolvePricePrecision(symbol = '') {
   const upper = String(symbol || '').toUpperCase();
-
-  if (upper.endsWith('.JK')) return 0;
 
   if (upper.endsWith('=X')) {
     const pair = upper.replace('=X', '').replace('/', '');
@@ -90,7 +88,7 @@ const THEME_COLORS = {
 };
 
 const ChartComponent = ({
-  symbol = 'BBCA.JK',
+  symbol = 'EURUSD=X',
   timeframe = '1d',
   onTimeframeChange,
   theme = 'dark',
@@ -126,7 +124,7 @@ const ChartComponent = ({
   // Format timestamp to readable date
   const formatDate = useCallback((timestamp) => {
     return new Date(timestamp * 1000).toLocaleString('id-ID', {
-      timeZone: 'Asia/Jakarta',
+      timeZone: 'UTC',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -155,7 +153,7 @@ const ChartComponent = ({
 
       if (intraday) {
         return date.toLocaleString('id-ID', {
-          timeZone: 'Asia/Jakarta',
+          timeZone: 'UTC',
           month: '2-digit',
           day: '2-digit',
           hour: '2-digit',
@@ -165,7 +163,7 @@ const ChartComponent = ({
 
       if (higherFrame) {
         return date.toLocaleDateString('id-ID', {
-          timeZone: 'Asia/Jakarta',
+          timeZone: 'UTC',
           year: compactView ? undefined : 'numeric',
           month: compactView ? '2-digit' : 'short',
           day: '2-digit',
@@ -173,7 +171,7 @@ const ChartComponent = ({
       }
 
       return date.toLocaleDateString('id-ID', {
-        timeZone: 'Asia/Jakarta',
+        timeZone: 'UTC',
         month: '2-digit',
         day: '2-digit',
       });
@@ -488,7 +486,9 @@ const ChartComponent = ({
         }
 
         // Get trading status
-        const statusRes = await fetch(`${getAPIBase()}/api/charts/trading-status`);
+        const statusRes = await fetch(
+          `${getAPIBase()}/api/charts/trading-status?symbol=${encodeURIComponent(symbol)}`
+        );
         if (statusRes.ok) {
           const statusData = await statusRes.json();
           setIsTrading(statusData.is_trading);
@@ -718,7 +718,7 @@ const ChartComponent = ({
                 <strong>Currency:</strong> {metadata.currency}
               </span>
               <span className="metadata-item">
-                <strong>Hours:</strong> {metadata.tradingStart || metadata.trading_hours?.start || '09:00'} - {metadata.tradingEnd || metadata.trading_hours?.end || '16:00'} WIB
+                <strong>Hours:</strong> {metadata.tradingStart || metadata.trading_hours?.start || '00:00'} - {metadata.tradingEnd || metadata.trading_hours?.end || '23:59'}
               </span>
               <span className={`metadata-item trading-status ${isTrading ? 'open' : 'closed'}`}>
                 <strong>Status:</strong> {isTrading ? '🟢 Open' : '🔴 Closed'}

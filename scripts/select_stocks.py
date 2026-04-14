@@ -1,7 +1,7 @@
 """CLI to score and select symbols for a given strategy using REAL market data.
 
 Usage examples:
-  python scripts/select_stocks.py --symbols BBCA TLKM --threshold 0.9
+    python scripts/select_stocks.py --symbols EURUSD=X BTC-USD --threshold 0.9
   python scripts/select_stocks.py
 """
 import argparse
@@ -15,8 +15,8 @@ def main():
     parser.add_argument(
         "--symbols",
         nargs="+",
-        help="IDX symbols to score (real market data)",
-        default=["BBCA", "TLKM", "BMRI", "ASII", "UNVR"],
+        help="Forex/Crypto symbols to score (real market data)",
+        default=["EURUSD=X", "GBPUSD=X", "BTC-USD", "ETH-USD", "SOL-USD"],
     )
     parser.add_argument(
         "--threshold",

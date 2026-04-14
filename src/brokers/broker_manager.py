@@ -6,18 +6,15 @@ Unified interface for managing multiple broker connections and trade execution.
 Handles broker selection, order routing, position aggregation, and account management.
 
 Timezone: Jakarta (WIB: UTC+7)
-Currency: IDR
-Exchange: IDX
+Currency: Multi-currency
+Exchange: Forex/Crypto
 """
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Optional, Any
-
-from src.data.idx_api_client import get_jakarta_now, JAKARTA_TZ
-from src.data.idx_market_data import IDXMarketDataManager
 
 from .base_broker import (
     BaseBroker, AccountInfo, Position, OrderResult, Trade,
@@ -55,7 +52,7 @@ class BrokerManager:
     - Real-time sync with market data
     """
     
-    def __init__(self, market_data_mgr: IDXMarketDataManager):
+    def __init__(self, market_data_mgr: Any):
         """
         Initialize broker manager.
         
@@ -221,12 +218,12 @@ class BrokerManager:
         
         Returns dict of:
         {
-            "BBCA.JK": {
+            "EURUSD=X": {
                 "total_quantity": 100,
                 "brokers": {"stockbit": 50, "ajaib": 50},
-                "avg_cost": 15500.0,
-                "current_price": 15600.0,
-                "market_value": 1560000.0,
+                "avg_cost": 1.0832,
+                "current_price": 1.0841,
+                "market_value": 108.41,
             }
         }
         """
@@ -279,11 +276,11 @@ class BrokerManager:
         Place order on primary or specified broker.
         
         Args:
-            symbol: Stock symbol
-            quantity: Number of shares
+            symbol: Market symbol
+            quantity: Number of units
             side: "buy" or "sell"
             order_type: "market" or "limit"
-            price: Price in IDR (required for limit orders)
+            price: Price in quote currency (required for limit orders)
             broker_name: Broker to use (default: primary)
             time_in_force: Order validity
         
@@ -319,7 +316,7 @@ class BrokerManager:
                 self.pending_orders[result.order_id] = {
                     "broker": name,
                     "order": result,
-                    "timestamp": get_jakarta_now(),
+                    "timestamp": datetime.now(timezone.utc),
                 }
             
             return result

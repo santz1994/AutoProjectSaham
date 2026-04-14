@@ -6,7 +6,7 @@ from src.strategies.scalping import simple_sma_strategy
 
 
 def main():
-    price_file = "data/prices/BBCA.JK.json"
+    price_file = "data/prices/EURUSD=X.json"
     if not os.path.exists(price_file):
         print("Price file not found:", price_file)
         return

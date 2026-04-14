@@ -11,9 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata \
     && rm -rf /var/lib/apt/lists/*
 
-# Set Jakarta timezone (WIB: UTC+7) for Indonesia market compliance
-ENV TZ=Asia/Jakarta
-RUN ln -snf /usr/share/zoneinfo/Asia/Jakarta /etc/localtime && echo "Asia/Jakarta" > /etc/timezone
+# Set UTC timezone for global Forex/Crypto workflows
+ENV TZ=UTC
+RUN ln -snf /usr/share/zoneinfo/UTC /etc/localtime && echo "UTC" > /etc/timezone
 
 # Install Python dependencies
 COPY requirements.txt ./
@@ -39,12 +39,12 @@ EXPOSE 8000
 
 # Metadata
 LABEL maintainer="AutoSaham Team"
-LABEL description="AutoSaham Trading Platform - Production Ready with Indonesia Market Compliance"
+LABEL description="AutoSaham Trading Platform - Production Ready for Forex/Crypto"
 LABEL version="3.0.0"
-LABEL timezone="Asia/Jakarta (WIB: UTC+7)"
-LABEL market="IDX/IHSG"
-LABEL currency="IDR"
-LABEL compliance="OJK, BEI, Indonesian Tax"
+LABEL timezone="UTC"
+LABEL market="FOREX/CRYPTO"
+LABEL currency="USD/USDT"
+LABEL compliance="Global broker and exchange API policies"
 
 # Default to API server
 CMD ["python", "-m", "src.api.server"]

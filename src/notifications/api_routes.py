@@ -357,20 +357,24 @@ async def get_notification_stats(
     }
 
 
-@router.get("/bei-status", response_model=Dict[str, Any])
-async def get_bei_trading_status(
-    manager = Depends(get_manager)
+@router.get("/market-status", response_model=Dict[str, Any])
+async def get_market_trading_status(
+    market: str = "forex",
+    symbol: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Get current BEI trading status"""
-    now = datetime.now(JAKARTA_TZ)
-    
+    """Get current Forex/Crypto trading status."""
+    from src.data.idx_fetcher import fetch_trading_status
+
+    status = await fetch_trading_status(market=market, symbol=symbol)
+
     return {
         "success": True,
-        "current_time": now.isoformat(),
-        "timezone": "Asia/Jakarta (WIB: UTC+7)",
-        "inside_trading_hours": manager.is_inside_bei_hours(),
-        "trading_hours": "09:30-16:00 WIB",
-        "trading_days": "Monday-Friday"
+        "market": status.get("market", market),
+        "current_time": status.get("current_time"),
+        "timezone": status.get("timezone", "UTC"),
+        "inside_trading_hours": bool(status.get("is_trading")),
+        "trading_hours": status.get("trading_hours"),
+        "next_open": status.get("next_open"),
     }
 
 
