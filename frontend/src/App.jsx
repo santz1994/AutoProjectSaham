@@ -14,6 +14,8 @@ import SettingsPage from './components/SettingsPage'
 import ProfilePage from './components/ProfilePage'
 import AIMonitorPage from './components/AIMonitorPage'
 import AIGraphPage from './components/AIGraphPage'
+import XaiPanel from './components/XaiPanel'
+import AutonomyControl from './components/AutonomyControl'
 import Login from './components/Login'
 import Register from './components/Register'
 import ForgotPassword from './components/ForgotPassword'
@@ -363,6 +365,10 @@ export default function App() {
         return <ErrorBoundary><AIMonitorPage onNavigate={handleNavigate} /></ErrorBoundary>
       case 'ai-graph':
         return <ErrorBoundary><AIGraphPage theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
+      case 'xai':
+        return <ErrorBoundary><XaiPanel theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
+      case 'autonomy':
+        return <ErrorBoundary><AutonomyControl theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
       case 'settings':
         return (
           <ErrorBoundary>

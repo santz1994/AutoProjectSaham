@@ -62,6 +62,8 @@ if FASTAPI_AVAILABLE:
         reset_password,
     )
     from src.api.frontend_routes import router as frontend_router
+    from src.api.xai_routes import router as xai_router
+    from src.api.autonomy_routes import router as autonomy_router
     from src.notifications.api_routes import setup_notification_routes
 
     app = FastAPI(title="AutoSaham API", version="0.1")
@@ -149,6 +151,8 @@ if FASTAPI_AVAILABLE:
     
     # Register frontend API routes
     app.include_router(frontend_router)
+    app.include_router(xai_router)
+    app.include_router(autonomy_router)
 
     # Register notification routes and delivery handlers
     try:

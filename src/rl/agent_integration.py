@@ -777,13 +777,17 @@ class BatchInferenceEngine:
     """Process batches of observations for efficient multi-symbol inference."""
     
     def __init__(self, agent: RLTradingAgent, batch_size: int = 32):
-        """
-        Initialize batch inference.
-        
-        Args:
-            agent: RLTradingAgent instance
-            batch_size: Batch size for vectorized inference
-        """
+"""
+RL Agent Integration Module
+
+Provides the main interface between the RL trading agent and the rest
+of the system. Handles model loading, prediction, action processing,
+and integration with sentiment data and regime detection.
+
+Note: MimoSupervisor and RegimeDetector have been extracted to
+dedicated modules (src/rl/mimo_supervisor.py, src/rl/regime_detector.py)
+but are re-exported here for backward compatibility.
+"""
         self.agent = agent
         self.batch_size = batch_size
         self.pending_observations: List[np.ndarray] = []
