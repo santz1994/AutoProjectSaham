@@ -14,7 +14,7 @@ from enum import Enum
 from typing import Dict, List, Optional
 from datetime import datetime
 
-from src.data.idx_api_client import get_jakarta_now, JAKARTA_TZ
+from src.utils.datetime_utils import get_jakarta_now, JAKARTA_TZ
 
 
 class AlertSeverity(Enum):
@@ -344,7 +344,7 @@ class IdxComplianceAlerts:
         severity=AlertSeverity.WARNING,
         annotations={
             "summary": "Invalid symbol in order",
-            "description": "Symbols must be *.JK format (e.g., BBCA.JK)",
+            "description": "Symbols must be Forex/Crypto format (e.g., BTC/USDT, EURUSD=X)",
             "impact": "Order not placed",
             "action": "Check symbol format",
         }

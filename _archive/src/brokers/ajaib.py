@@ -1,19 +1,17 @@
 """
-Stockbit Broker Client
-======================
+Ajaib Broker Client
+===================
 
-Implementation for Stockbit API integration.
-Stockbit is a robo-advisor platform for Indonesian stock trading.
+Implementation for Ajaib API integration.
+Ajaib is an Indonesian equity crowdfunding and trading platform.
 
-API: https://docs.stockbit.com
+API: https://docs.ajaib.co.id
 Timezone: Jakarta (WIB: UTC+7)
 Currency: IDR
 Exchange: Forex/Crypto integration layer
 """
 
 import asyncio
-import hashlib
-import hmac
 import json
 import logging
 from datetime import datetime
@@ -25,7 +23,7 @@ try:
 except ImportError:
     AIOHTTP_AVAILABLE = False
 
-from src.data.idx_api_client import get_jakarta_now, JAKARTA_TZ
+from src.utils.datetime_utils import get_jakarta_now, JAKARTA_TZ
 from .base_broker import (
     BaseBroker, AccountInfo, Position, OrderResult, Trade,
     ExecutionStatus, TimeInForce, AccountType, map_execution_status,
@@ -35,24 +33,19 @@ from .base_broker import (
 logger = logging.getLogger(__name__)
 
 
-# ============================================================================
-# Stockbit API Configuration
-# ============================================================================
-
-STOCKBIT_API_URL = "https://api.stockbit.com/api/v2"
-STOCKBIT_SOCKET_URL = "wss://ws.stockbit.com/wire"
+AJAIB_API_URL = "https://api.ajaib.co.id/v1"
 
 
 # ============================================================================
-# Stockbit Broker Client
+# Ajaib Broker Client
 # ============================================================================
 
-class StockbitBroker(BaseBroker):
+class AjaibBroker(BaseBroker):
     """
-    Stockbit broker integration for trade execution.
+    Ajaib broker integration for trade execution.
     
     Features:
-    - OAuth2 authentication
+    - Bearer token authentication
     - Real-time order management
     - Position tracking
     - Trade history
@@ -67,29 +60,28 @@ class StockbitBroker(BaseBroker):
         access_token: Optional[str] = None,
     ):
         """
-        Initialize Stockbit broker.
+        Initialize Ajaib broker.
         
         Args:
-            api_key: Stockbit API key
-            api_secret: Stockbit API secret
+            api_key: Ajaib API key
+            api_secret: Ajaib API secret (for auth)
             account_id: Trading account ID
             access_token: Optional pre-authorized token
         """
         super().__init__(
-            broker_name="stockbit",
+            broker_name="ajaib",
             api_key=api_key,
             api_secret=api_secret,
             account_id=account_id,
-            base_url=STOCKBIT_API_URL,
+            base_url=AJAIB_API_URL,
             timeout=30,
         )
         
         self.access_token = access_token
         self.session: Optional[aiohttp.ClientSession] = None
-        self.account_info: Optional[AccountInfo] = None
     
     async def connect(self) -> bool:
-        """Connect and authenticate with Stockbit."""
+        """Connect and authenticate with Ajaib."""
         if not AIOHTTP_AVAILABLE:
             logger.error("aiohttp library not available")
             return False
@@ -107,7 +99,7 @@ class StockbitBroker(BaseBroker):
             self.authenticated = True
             self.session_token = self.access_token
             
-            logger.info("Connected to Stockbit")
+            logger.info("Connected to Ajaib")
             return True
         
         except Exception as e:
@@ -115,40 +107,31 @@ class StockbitBroker(BaseBroker):
             return False
     
     async def disconnect(self) -> bool:
-        """Disconnect from Stockbit."""
+        """Disconnect from Ajaib."""
         if self.session:
             await self.session.close()
             self.authenticated = False
-            logger.info("Disconnected from Stockbit")
+            logger.info("Disconnected from Ajaib")
             return True
         return False
     
     async def _authenticate(self) -> Optional[str]:
         """Authenticate and get access token."""
         try:
-            # Generate HMAC signature
-            timestamp = str(int(get_jakarta_now().timestamp()))
-            signature = hmac.new(
-                self.api_secret.encode(),
-                f"{self.api_key}{timestamp}".encode(),
-                hashlib.sha256,
-            ).hexdigest()
-            
-            auth_url = f"{self.base_url}/auth/token"
-            headers = {
-                "X-API-KEY": self.api_key,
-                "X-TIMESTAMP": timestamp,
-                "X-SIGNATURE": signature,
+            auth_url = f"{self.base_url}/auth/login"
+            payload = {
+                "email": self.api_key,
+                "password": self.api_secret,
             }
             
             async with self.session.post(
                 auth_url,
-                headers=headers,
+                json=payload,
                 timeout=self.timeout,
             ) as response:
                 if response.status == 200:
                     data = await response.json()
-                    return data.get("access_token")
+                    return data.get("data", {}).get("token")
                 else:
                     logger.error(f"Auth failed: {response.status}")
                     return None
@@ -188,7 +171,7 @@ class StockbitBroker(BaseBroker):
 
         try:
             return await self._call_with_retry(
-                f"stockbit:{method}:{endpoint}",
+                f"ajaib:{method}:{endpoint}",
                 _request_once,
             )
         except Exception as e:
@@ -200,43 +183,43 @@ class StockbitBroker(BaseBroker):
     # ========================================================================
     
     async def get_account_info(self) -> Optional[AccountInfo]:
-        """Get Stockbit account information."""
-        data = await self._make_request("GET", "/accounts/summary")
+        """Get Ajaib account information."""
+        data = await self._make_request("GET", "/users/portfolio")
         
         if not data:
             return None
         
-        account = data.get("account", {})
+        portfolio = data.get("data", {})
         
         return AccountInfo(
             account_id=self.account_id,
             account_type=AccountType.CASH,
-            cash=float(account.get("cash", 0)),
-            buying_power=float(account.get("buying_power", 0)),
-            market_value=float(account.get("portfolio_value", 0)),
-            settled_cash=float(account.get("settled_cash", 0)),
-            unsettled_cash=float(account.get("unsettled_cash", 0)),
-            equity=float(account.get("equity", 0)),
+            cash=float(portfolio.get("cash", 0)),
+            buying_power=float(portfolio.get("buying_power", 0)),
+            market_value=float(portfolio.get("portfolio_value", 0)),
+            settled_cash=float(portfolio.get("cash", 0)),
+            unsettled_cash=0,
+            equity=float(portfolio.get("total_value", 0)),
         )
     
     async def get_positions(self) -> List[Position]:
-        """Get all positions from Stockbit."""
-        data = await self._make_request("GET", "/accounts/positions")
+        """Get all positions from Ajaib."""
+        data = await self._make_request("GET", "/users/portfolio/stocks")
         
-        if not data or "positions" not in data:
+        if not data or "data" not in data:
             return []
         
         positions = []
-        for pos in data["positions"]:
+        for pos in data["data"]:
             try:
                 position = Position(
                     symbol=pos["symbol"],
                     quantity=int(pos["quantity"]),
                     avg_cost=float(pos["avg_cost"]),
-                    current_price=float(pos["current_price"]),
+                    current_price=float(pos["last_price"]),
                     market_value=float(pos["market_value"]),
-                    unrealized_pl=float(pos["unrealized_pl"]),
-                    unrealized_pl_pct=float(pos["unrealized_pl_pct"]),
+                    unrealized_pl=float(pos["gain_loss"]),
+                    unrealized_pl_pct=float(pos["gain_loss_pct"]),
                 )
                 positions.append(position)
             except (KeyError, ValueError) as e:
@@ -248,22 +231,22 @@ class StockbitBroker(BaseBroker):
         """Get position for specific symbol."""
         data = await self._make_request(
             "GET",
-            f"/accounts/positions/{symbol}",
+            f"/users/portfolio/stocks/{symbol}",
         )
         
-        if not data or "position" not in data:
+        if not data or "data" not in data:
             return None
         
-        pos = data["position"]
+        pos = data["data"]
         
         return Position(
             symbol=pos["symbol"],
             quantity=int(pos["quantity"]),
             avg_cost=float(pos["avg_cost"]),
-            current_price=float(pos["current_price"]),
+            current_price=float(pos["last_price"]),
             market_value=float(pos["market_value"]),
-            unrealized_pl=float(pos["unrealized_pl"]),
-            unrealized_pl_pct=float(pos["unrealized_pl_pct"]),
+            unrealized_pl=float(pos["gain_loss"]),
+            unrealized_pl_pct=float(pos["gain_loss_pct"]),
         )
     
     # ========================================================================
@@ -279,12 +262,12 @@ class StockbitBroker(BaseBroker):
         price: Optional[float] = None,
         time_in_force: TimeInForce = TimeInForce.DAY,
     ) -> OrderResult:
-        """Place order on Stockbit."""
+        """Place order on Ajaib."""
         # Validate inputs
         if not self._validate_symbol(symbol):
             return OrderResult(
                 order_id="",
-                broker="stockbit",
+                broker="ajaib",
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
@@ -297,7 +280,7 @@ class StockbitBroker(BaseBroker):
         if not self._validate_quantity(quantity):
             return OrderResult(
                 order_id="",
-                broker="stockbit",
+                broker="ajaib",
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
@@ -311,24 +294,24 @@ class StockbitBroker(BaseBroker):
             payload = {
                 "symbol": symbol,
                 "quantity": quantity,
-                "side": side.lower(),
-                "order_type": order_type,
-                "time_in_force": time_in_force.value,
+                "side": side.upper(),  # Ajaib uses uppercase
+                "type": order_type.upper(),
+                "time_in_force": time_in_force.value.upper(),
             }
             
-            if order_type == "limit" and price:
+            if order_type.upper() == "LIMIT" and price:
                 payload["price"] = price
             
             data = await self._make_request(
                 "POST",
-                "/accounts/orders",
+                "/orders",
                 json=payload,
             )
             
-            if not data or "order" not in data:
+            if not data or "data" not in data:
                 return OrderResult(
                     order_id="",
-                    broker="stockbit",
+                    broker="ajaib",
                     symbol=symbol,
                     side=side,
                     quantity=quantity,
@@ -338,27 +321,26 @@ class StockbitBroker(BaseBroker):
                     error_message="Order placement failed",
                 )
             
-            order = data["order"]
+            order = data["data"]
             
             status = map_execution_status(order.get("status", "pending"))
             
             return OrderResult(
-                order_id=order["order_id"],
-                broker="stockbit",
+                order_id=order["id"],
+                broker="ajaib",
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
-                filled_quantity=int(order.get("filled_qty", 0)),
+                filled_quantity=int(order.get("filled_quantity", 0)),
                 avg_fill_price=float(order.get("avg_fill_price", 0)),
                 status=status,
-                fills=order.get("fills", []),
             )
         
         except Exception as e:
             logger.error(f"Order placement error: {e}")
             return OrderResult(
                 order_id="",
-                broker="stockbit",
+                broker="ajaib",
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
@@ -373,10 +355,10 @@ class StockbitBroker(BaseBroker):
         try:
             data = await self._make_request(
                 "DELETE",
-                f"/accounts/orders/{order_id}",
+                f"/orders/{order_id}",
             )
             
-            return data is not None and data.get("success", False)
+            return data is not None
         
         except Exception as e:
             logger.error(f"Cancel error: {e}")
@@ -387,23 +369,23 @@ class StockbitBroker(BaseBroker):
         try:
             data = await self._make_request(
                 "GET",
-                f"/accounts/orders/{order_id}",
+                f"/orders/{order_id}",
             )
             
-            if not data or "order" not in data:
+            if not data or "data" not in data:
                 return None
             
-            order = data["order"]
+            order = data["data"]
             
             return OrderResult(
                 order_id=order_id,
-                broker="stockbit",
+                broker="ajaib",
                 symbol=order["symbol"],
                 side=order["side"],
                 quantity=int(order["quantity"]),
-                filled_quantity=int(order.get("filled_qty", 0)),
+                filled_quantity=int(order.get("filled_quantity", 0)),
                 avg_fill_price=float(order.get("avg_fill_price", 0)),
-                status=map_execution_status(order.get("status")),
+                status=map_execution_status(order.get("status", "pending")),
             )
         
         except Exception as e:
@@ -417,17 +399,20 @@ class StockbitBroker(BaseBroker):
         try:
             data = await self._make_request(
                 "GET",
-                f"/accounts/orders?status=open&limit={safe_limit}",
+                f"/orders?status=open&limit={safe_limit}",
             )
             if not data:
                 return []
 
-            orders = data.get("orders") or []
+            items = data.get("data")
+            if not isinstance(items, list):
+                return []
+
             order_ids: List[str] = []
-            for order in orders:
-                if not isinstance(order, dict):
+            for item in items:
+                if not isinstance(item, dict):
                     continue
-                status = map_execution_status(order.get("status", "pending"))
+                status = map_execution_status(item.get("status", "pending"))
                 if status not in {
                     ExecutionStatus.PENDING,
                     ExecutionStatus.ACCEPTED,
@@ -435,7 +420,7 @@ class StockbitBroker(BaseBroker):
                 }:
                     continue
 
-                order_id = str(order.get("order_id") or order.get("id") or "").strip()
+                order_id = str(item.get("id") or item.get("order_id") or "").strip()
                 if order_id:
                     order_ids.append(order_id)
 
@@ -455,25 +440,25 @@ class StockbitBroker(BaseBroker):
     ) -> List[Trade]:
         """Get trade history."""
         try:
-            endpoint = f"/accounts/trades?limit={limit}"
+            endpoint = f"/users/trades?limit={limit}"
             if symbol:
                 endpoint += f"&symbol={symbol}"
             
             data = await self._make_request("GET", endpoint)
             
-            if not data or "trades" not in data:
+            if not data or "data" not in data:
                 return []
             
             trades = []
-            for t in data["trades"]:
+            for t in data["data"]:
                 try:
                     trade = Trade(
-                        trade_id=t["trade_id"],
+                        trade_id=t["id"],
                         symbol=t["symbol"],
-                        side=t["side"],
+                        side=t["side"].lower(),
                         quantity=int(t["quantity"]),
                         price=float(t["price"]),
-                        timestamp=datetime.fromisoformat(t["timestamp"]),
+                        timestamp=datetime.fromisoformat(t["executed_at"]),
                         commission=float(t.get("commission", 0)),
                     )
                     trades.append(trade)
@@ -489,4 +474,4 @@ class StockbitBroker(BaseBroker):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    print("Stockbit Broker Client - Ready for use")
+    print("Ajaib Broker Client - Ready for use")

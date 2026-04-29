@@ -13,8 +13,10 @@ const menuItems = [
   { id: 'trades', label: 'Trade Logs', icon: '📝', desc: 'History & Analytics', shortcut: '4' },
   { id: 'ai-monitor', label: 'AI Monitor', icon: '🧠', desc: 'Learning & Logs', shortcut: '5' },
   { id: 'ai-graph', label: 'AI Graph', icon: '🔮', desc: 'Live + Projection', shortcut: '6' },
-  { id: 'profile', label: 'Profile', icon: '👤', desc: 'Identity & Account', shortcut: '7' },
-  { id: 'settings', label: 'Settings', icon: '⚙️', desc: 'Configuration', shortcut: '8' },
+  { id: 'xai', label: 'XAI Explain', icon: '🔍', desc: 'Why AI Decides', shortcut: '7' },
+  { id: 'autonomy', label: 'Autonomy', icon: '🎛️', desc: 'AI Control & Kill-Switch', shortcut: '8' },
+  { id: 'profile', label: 'Profile', icon: '👤', desc: 'Identity & Account', shortcut: '9' },
+  { id: 'settings', label: 'Settings', icon: '⚙️', desc: 'Configuration', shortcut: '0' },
 ];
 
 export default function SidebarEnhanced({ currentPage, onNavigate }) {
@@ -26,7 +28,7 @@ export default function SidebarEnhanced({ currentPage, onNavigate }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
       // Alt+Shift + number for navigation (avoid browser tab conflicts).
-      if (e.altKey && e.shiftKey && /^[1-9]$/.test(e.key)) {
+      if (e.altKey && e.shiftKey && /^[0-9]$/.test(e.key)) {
         e.preventDefault();
         const item = menuItems.find((i) => i.shortcut === e.key);
         if (item) {

@@ -511,7 +511,7 @@ if __name__ == "__main__":
     # Simulate data for 5 symbols
     print("Generating synthetic data for 5 symbols...\n")
     
-    symbols = ['BBCA.JK', 'BMRI.JK', 'BBRI.JK', 'TLKM.JK', 'ASII.JK']
+    symbols = ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'XRP/USDT']
     X_dict = {}
     y_dict = {}
     

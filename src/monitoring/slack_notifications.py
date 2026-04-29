@@ -18,7 +18,7 @@ from typing import Dict, List, Optional
 
 import aiohttp
 
-from src.data.idx_api_client import get_jakarta_now, JAKARTA_TZ
+from src.utils.datetime_utils import get_jakarta_now, JAKARTA_TZ
 
 
 logger = logging.getLogger(__name__)

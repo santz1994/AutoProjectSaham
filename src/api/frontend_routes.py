@@ -103,9 +103,16 @@ from src.api.services.inference_runtime_service import (
     load_transformer_runtime as _load_transformer_runtime_impl,
     resolve_signal_universe as _resolve_signal_universe_impl,
 )
+from src.api.services.projection_learning_service import ProjectionLearningService
 from src.api.services.signal_inference_service import (
     build_fallback_signals as _build_fallback_signals_impl,
     infer_signals_from_transformer as _infer_signals_from_transformer_impl,
+)
+from src.api.services.runtime_portfolio_service import (
+    parse_iso_datetime as _parse_iso_datetime_impl,
+    format_runtime_uptime as _format_runtime_uptime_impl,
+    resolve_runtime_portfolio_snapshot as _resolve_runtime_portfolio_snapshot_impl,
+    resolve_runtime_bot_status as _resolve_runtime_bot_status_impl,
 )
 from src.api.services.market_data_service import (
     detect_market_from_symbol as _detect_market_from_symbol,
@@ -1816,7 +1823,7 @@ async def backtest_strategy(
 
     run_config = payload or {}
     period = str(run_config.get("period") or "1y")
-    benchmark = str(run_config.get("benchmark") or "^JKSE")
+    benchmark = str(run_config.get("benchmark") or "BTC/USDT")
 
     _state_store.append_ai_log(
         level="info",

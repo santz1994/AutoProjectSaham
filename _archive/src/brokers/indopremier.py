@@ -1,11 +1,11 @@
 """
-Ajaib Broker Client
-===================
+Indo Premier Broker Client
+==========================
 
-Implementation for Ajaib API integration.
-Ajaib is an Indonesian equity crowdfunding and trading platform.
+Implementation for Indo Premier API integration.
+Indo Premier is a major Indonesian broker with extensive trading services.
 
-API: https://docs.ajaib.co.id
+API: https://docs.indopremier.com
 Timezone: Jakarta (WIB: UTC+7)
 Currency: IDR
 Exchange: Forex/Crypto integration layer
@@ -23,7 +23,7 @@ try:
 except ImportError:
     AIOHTTP_AVAILABLE = False
 
-from src.data.idx_api_client import get_jakarta_now, JAKARTA_TZ
+from src.utils.datetime_utils import get_jakarta_now, JAKARTA_TZ
 from .base_broker import (
     BaseBroker, AccountInfo, Position, OrderResult, Trade,
     ExecutionStatus, TimeInForce, AccountType, map_execution_status,
@@ -33,19 +33,19 @@ from .base_broker import (
 logger = logging.getLogger(__name__)
 
 
-AJAIB_API_URL = "https://api.ajaib.co.id/v1"
+INDOPREMIER_API_URL = "https://api.indopremier.com/v1"
 
 
 # ============================================================================
-# Ajaib Broker Client
+# Indo Premier Broker Client
 # ============================================================================
 
-class AjaibBroker(BaseBroker):
+class IndoPremierBroker(BaseBroker):
     """
-    Ajaib broker integration for trade execution.
+    Indo Premier broker integration for trade execution.
     
     Features:
-    - Bearer token authentication
+    - OAuth2 authentication
     - Real-time order management
     - Position tracking
     - Trade history
@@ -60,20 +60,20 @@ class AjaibBroker(BaseBroker):
         access_token: Optional[str] = None,
     ):
         """
-        Initialize Ajaib broker.
+        Initialize Indo Premier broker.
         
         Args:
-            api_key: Ajaib API key
-            api_secret: Ajaib API secret (for auth)
+            api_key: Indo Premier API key
+            api_secret: Indo Premier API secret
             account_id: Trading account ID
             access_token: Optional pre-authorized token
         """
         super().__init__(
-            broker_name="ajaib",
+            broker_name="indopremier",
             api_key=api_key,
             api_secret=api_secret,
             account_id=account_id,
-            base_url=AJAIB_API_URL,
+            base_url=INDOPREMIER_API_URL,
             timeout=30,
         )
         
@@ -81,7 +81,7 @@ class AjaibBroker(BaseBroker):
         self.session: Optional[aiohttp.ClientSession] = None
     
     async def connect(self) -> bool:
-        """Connect and authenticate with Ajaib."""
+        """Connect and authenticate with Indo Premier."""
         if not AIOHTTP_AVAILABLE:
             logger.error("aiohttp library not available")
             return False
@@ -99,7 +99,7 @@ class AjaibBroker(BaseBroker):
             self.authenticated = True
             self.session_token = self.access_token
             
-            logger.info("Connected to Ajaib")
+            logger.info("Connected to Indo Premier")
             return True
         
         except Exception as e:
@@ -107,20 +107,20 @@ class AjaibBroker(BaseBroker):
             return False
     
     async def disconnect(self) -> bool:
-        """Disconnect from Ajaib."""
+        """Disconnect from Indo Premier."""
         if self.session:
             await self.session.close()
             self.authenticated = False
-            logger.info("Disconnected from Ajaib")
+            logger.info("Disconnected from Indo Premier")
             return True
         return False
     
     async def _authenticate(self) -> Optional[str]:
         """Authenticate and get access token."""
         try:
-            auth_url = f"{self.base_url}/auth/login"
+            auth_url = f"{self.base_url}/authenticate"
             payload = {
-                "email": self.api_key,
+                "userID": self.api_key,
                 "password": self.api_secret,
             }
             
@@ -131,7 +131,7 @@ class AjaibBroker(BaseBroker):
             ) as response:
                 if response.status == 200:
                     data = await response.json()
-                    return data.get("data", {}).get("token")
+                    return data.get("sessionID")
                 else:
                     logger.error(f"Auth failed: {response.status}")
                     return None
@@ -153,7 +153,7 @@ class AjaibBroker(BaseBroker):
 
         url = f"{self.base_url}{endpoint}"
         headers = {
-            "Authorization": f"Bearer {self.access_token}",
+            "sessionID": self.access_token,
             "Content-Type": "application/json",
         }
 
@@ -171,7 +171,7 @@ class AjaibBroker(BaseBroker):
 
         try:
             return await self._call_with_retry(
-                f"ajaib:{method}:{endpoint}",
+                f"indopremier:{method}:{endpoint}",
                 _request_once,
             )
         except Exception as e:
@@ -183,43 +183,46 @@ class AjaibBroker(BaseBroker):
     # ========================================================================
     
     async def get_account_info(self) -> Optional[AccountInfo]:
-        """Get Ajaib account information."""
-        data = await self._make_request("GET", "/users/portfolio")
+        """Get Indo Premier account information."""
+        data = await self._make_request("GET", f"/accounts/{self.account_id}")
         
         if not data:
             return None
         
-        portfolio = data.get("data", {})
+        account = data.get("account", {})
         
         return AccountInfo(
             account_id=self.account_id,
             account_type=AccountType.CASH,
-            cash=float(portfolio.get("cash", 0)),
-            buying_power=float(portfolio.get("buying_power", 0)),
-            market_value=float(portfolio.get("portfolio_value", 0)),
-            settled_cash=float(portfolio.get("cash", 0)),
-            unsettled_cash=0,
-            equity=float(portfolio.get("total_value", 0)),
+            cash=float(account.get("cash", 0)),
+            buying_power=float(account.get("buying_power", 0)),
+            market_value=float(account.get("securities_value", 0)),
+            settled_cash=float(account.get("settled_cash", 0)),
+            unsettled_cash=float(account.get("unsettled_cash", 0)),
+            equity=float(account.get("total_equity", 0)),
         )
     
     async def get_positions(self) -> List[Position]:
-        """Get all positions from Ajaib."""
-        data = await self._make_request("GET", "/users/portfolio/stocks")
+        """Get all positions from Indo Premier."""
+        data = await self._make_request(
+            "GET",
+            f"/accounts/{self.account_id}/positions",
+        )
         
-        if not data or "data" not in data:
+        if not data or "positions" not in data:
             return []
         
         positions = []
-        for pos in data["data"]:
+        for pos in data["positions"]:
             try:
                 position = Position(
                     symbol=pos["symbol"],
-                    quantity=int(pos["quantity"]),
-                    avg_cost=float(pos["avg_cost"]),
+                    quantity=int(pos["qty"]),
+                    avg_cost=float(pos["avg_price"]),
                     current_price=float(pos["last_price"]),
                     market_value=float(pos["market_value"]),
-                    unrealized_pl=float(pos["gain_loss"]),
-                    unrealized_pl_pct=float(pos["gain_loss_pct"]),
+                    unrealized_pl=float(pos["pl_value"]),
+                    unrealized_pl_pct=float(pos["pl_pct"]),
                 )
                 positions.append(position)
             except (KeyError, ValueError) as e:
@@ -231,22 +234,22 @@ class AjaibBroker(BaseBroker):
         """Get position for specific symbol."""
         data = await self._make_request(
             "GET",
-            f"/users/portfolio/stocks/{symbol}",
+            f"/accounts/{self.account_id}/positions/{symbol}",
         )
         
-        if not data or "data" not in data:
+        if not data or "position" not in data:
             return None
         
-        pos = data["data"]
+        pos = data["position"]
         
         return Position(
             symbol=pos["symbol"],
-            quantity=int(pos["quantity"]),
-            avg_cost=float(pos["avg_cost"]),
+            quantity=int(pos["qty"]),
+            avg_cost=float(pos["avg_price"]),
             current_price=float(pos["last_price"]),
             market_value=float(pos["market_value"]),
-            unrealized_pl=float(pos["gain_loss"]),
-            unrealized_pl_pct=float(pos["gain_loss_pct"]),
+            unrealized_pl=float(pos["pl_value"]),
+            unrealized_pl_pct=float(pos["pl_pct"]),
         )
     
     # ========================================================================
@@ -262,12 +265,12 @@ class AjaibBroker(BaseBroker):
         price: Optional[float] = None,
         time_in_force: TimeInForce = TimeInForce.DAY,
     ) -> OrderResult:
-        """Place order on Ajaib."""
+        """Place order on Indo Premier."""
         # Validate inputs
         if not self._validate_symbol(symbol):
             return OrderResult(
                 order_id="",
-                broker="ajaib",
+                broker="indopremier",
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
@@ -280,7 +283,7 @@ class AjaibBroker(BaseBroker):
         if not self._validate_quantity(quantity):
             return OrderResult(
                 order_id="",
-                broker="ajaib",
+                broker="indopremier",
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
@@ -292,11 +295,11 @@ class AjaibBroker(BaseBroker):
         
         try:
             payload = {
-                "symbol": symbol,
-                "quantity": quantity,
-                "side": side.upper(),  # Ajaib uses uppercase
+                "code": symbol,
+                "side": side.upper(),
+                "qty": quantity,
                 "type": order_type.upper(),
-                "time_in_force": time_in_force.value.upper(),
+                "validity": time_in_force.value.upper(),
             }
             
             if order_type.upper() == "LIMIT" and price:
@@ -304,14 +307,14 @@ class AjaibBroker(BaseBroker):
             
             data = await self._make_request(
                 "POST",
-                "/orders",
+                f"/accounts/{self.account_id}/orders",
                 json=payload,
             )
             
-            if not data or "data" not in data:
+            if not data or "order" not in data:
                 return OrderResult(
                     order_id="",
-                    broker="ajaib",
+                    broker="indopremier",
                     symbol=symbol,
                     side=side,
                     quantity=quantity,
@@ -321,18 +324,18 @@ class AjaibBroker(BaseBroker):
                     error_message="Order placement failed",
                 )
             
-            order = data["data"]
+            order = data["order"]
             
-            status = map_execution_status(order.get("status", "pending"))
+            status = map_execution_status(order.get("status", "new"))
             
             return OrderResult(
-                order_id=order["id"],
-                broker="ajaib",
+                order_id=order["orderID"],
+                broker="indopremier",
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
-                filled_quantity=int(order.get("filled_quantity", 0)),
-                avg_fill_price=float(order.get("avg_fill_price", 0)),
+                filled_quantity=int(order.get("filledQty", 0)),
+                avg_fill_price=float(order.get("avgPrice", 0)),
                 status=status,
             )
         
@@ -340,7 +343,7 @@ class AjaibBroker(BaseBroker):
             logger.error(f"Order placement error: {e}")
             return OrderResult(
                 order_id="",
-                broker="ajaib",
+                broker="indopremier",
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
@@ -355,10 +358,10 @@ class AjaibBroker(BaseBroker):
         try:
             data = await self._make_request(
                 "DELETE",
-                f"/orders/{order_id}",
+                f"/accounts/{self.account_id}/orders/{order_id}",
             )
             
-            return data is not None
+            return data is not None and data.get("success", False)
         
         except Exception as e:
             logger.error(f"Cancel error: {e}")
@@ -369,23 +372,23 @@ class AjaibBroker(BaseBroker):
         try:
             data = await self._make_request(
                 "GET",
-                f"/orders/{order_id}",
+                f"/accounts/{self.account_id}/orders/{order_id}",
             )
             
-            if not data or "data" not in data:
+            if not data or "order" not in data:
                 return None
             
-            order = data["data"]
+            order = data["order"]
             
             return OrderResult(
                 order_id=order_id,
-                broker="ajaib",
-                symbol=order["symbol"],
+                broker="indopremier",
+                symbol=order["code"],
                 side=order["side"],
-                quantity=int(order["quantity"]),
-                filled_quantity=int(order.get("filled_quantity", 0)),
-                avg_fill_price=float(order.get("avg_fill_price", 0)),
-                status=map_execution_status(order.get("status", "pending")),
+                quantity=int(order["qty"]),
+                filled_quantity=int(order.get("filledQty", 0)),
+                avg_fill_price=float(order.get("avgPrice", 0)),
+                status=map_execution_status(order.get("status", "new")),
             )
         
         except Exception as e:
@@ -399,12 +402,12 @@ class AjaibBroker(BaseBroker):
         try:
             data = await self._make_request(
                 "GET",
-                f"/orders?status=open&limit={safe_limit}",
+                f"/accounts/{self.account_id}/orders?status=OPEN&limit={safe_limit}",
             )
             if not data:
                 return []
 
-            items = data.get("data")
+            items = data.get("orders")
             if not isinstance(items, list):
                 return []
 
@@ -412,7 +415,7 @@ class AjaibBroker(BaseBroker):
             for item in items:
                 if not isinstance(item, dict):
                     continue
-                status = map_execution_status(item.get("status", "pending"))
+                status = map_execution_status(item.get("status", "new"))
                 if status not in {
                     ExecutionStatus.PENDING,
                     ExecutionStatus.ACCEPTED,
@@ -420,7 +423,7 @@ class AjaibBroker(BaseBroker):
                 }:
                     continue
 
-                order_id = str(item.get("id") or item.get("order_id") or "").strip()
+                order_id = str(item.get("orderID") or item.get("id") or "").strip()
                 if order_id:
                     order_ids.append(order_id)
 
@@ -440,25 +443,25 @@ class AjaibBroker(BaseBroker):
     ) -> List[Trade]:
         """Get trade history."""
         try:
-            endpoint = f"/users/trades?limit={limit}"
+            endpoint = f"/accounts/{self.account_id}/trades?limit={limit}"
             if symbol:
                 endpoint += f"&symbol={symbol}"
             
             data = await self._make_request("GET", endpoint)
             
-            if not data or "data" not in data:
+            if not data or "trades" not in data:
                 return []
             
             trades = []
-            for t in data["data"]:
+            for t in data["trades"]:
                 try:
                     trade = Trade(
-                        trade_id=t["id"],
-                        symbol=t["symbol"],
+                        trade_id=t["tradeID"],
+                        symbol=t["code"],
                         side=t["side"].lower(),
-                        quantity=int(t["quantity"]),
+                        quantity=int(t["qty"]),
                         price=float(t["price"]),
-                        timestamp=datetime.fromisoformat(t["executed_at"]),
+                        timestamp=datetime.fromisoformat(t["executedTime"]),
                         commission=float(t.get("commission", 0)),
                     )
                     trades.append(trade)
@@ -474,4 +477,4 @@ class AjaibBroker(BaseBroker):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    print("Ajaib Broker Client - Ready for use")
+    print("Indo Premier Broker Client - Ready for use")

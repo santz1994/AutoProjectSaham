@@ -1,17 +1,19 @@
 """
-Indo Premier Broker Client
-==========================
+Stockbit Broker Client
+======================
 
-Implementation for Indo Premier API integration.
-Indo Premier is a major Indonesian broker with extensive trading services.
+Implementation for Stockbit API integration.
+Stockbit is a robo-advisor platform for Indonesian stock trading.
 
-API: https://docs.indopremier.com
+API: https://docs.stockbit.com
 Timezone: Jakarta (WIB: UTC+7)
 Currency: IDR
 Exchange: Forex/Crypto integration layer
 """
 
 import asyncio
+import hashlib
+import hmac
 import json
 import logging
 from datetime import datetime
@@ -23,7 +25,7 @@ try:
 except ImportError:
     AIOHTTP_AVAILABLE = False
 
-from src.data.idx_api_client import get_jakarta_now, JAKARTA_TZ
+from src.utils.datetime_utils import get_jakarta_now, JAKARTA_TZ
 from .base_broker import (
     BaseBroker, AccountInfo, Position, OrderResult, Trade,
     ExecutionStatus, TimeInForce, AccountType, map_execution_status,
@@ -33,16 +35,21 @@ from .base_broker import (
 logger = logging.getLogger(__name__)
 
 
-INDOPREMIER_API_URL = "https://api.indopremier.com/v1"
+# ============================================================================
+# Stockbit API Configuration
+# ============================================================================
+
+STOCKBIT_API_URL = "https://api.stockbit.com/api/v2"
+STOCKBIT_SOCKET_URL = "wss://ws.stockbit.com/wire"
 
 
 # ============================================================================
-# Indo Premier Broker Client
+# Stockbit Broker Client
 # ============================================================================
 
-class IndoPremierBroker(BaseBroker):
+class StockbitBroker(BaseBroker):
     """
-    Indo Premier broker integration for trade execution.
+    Stockbit broker integration for trade execution.
     
     Features:
     - OAuth2 authentication
@@ -60,28 +67,29 @@ class IndoPremierBroker(BaseBroker):
         access_token: Optional[str] = None,
     ):
         """
-        Initialize Indo Premier broker.
+        Initialize Stockbit broker.
         
         Args:
-            api_key: Indo Premier API key
-            api_secret: Indo Premier API secret
+            api_key: Stockbit API key
+            api_secret: Stockbit API secret
             account_id: Trading account ID
             access_token: Optional pre-authorized token
         """
         super().__init__(
-            broker_name="indopremier",
+            broker_name="stockbit",
             api_key=api_key,
             api_secret=api_secret,
             account_id=account_id,
-            base_url=INDOPREMIER_API_URL,
+            base_url=STOCKBIT_API_URL,
             timeout=30,
         )
         
         self.access_token = access_token
         self.session: Optional[aiohttp.ClientSession] = None
+        self.account_info: Optional[AccountInfo] = None
     
     async def connect(self) -> bool:
-        """Connect and authenticate with Indo Premier."""
+        """Connect and authenticate with Stockbit."""
         if not AIOHTTP_AVAILABLE:
             logger.error("aiohttp library not available")
             return False
@@ -99,7 +107,7 @@ class IndoPremierBroker(BaseBroker):
             self.authenticated = True
             self.session_token = self.access_token
             
-            logger.info("Connected to Indo Premier")
+            logger.info("Connected to Stockbit")
             return True
         
         except Exception as e:
@@ -107,31 +115,40 @@ class IndoPremierBroker(BaseBroker):
             return False
     
     async def disconnect(self) -> bool:
-        """Disconnect from Indo Premier."""
+        """Disconnect from Stockbit."""
         if self.session:
             await self.session.close()
             self.authenticated = False
-            logger.info("Disconnected from Indo Premier")
+            logger.info("Disconnected from Stockbit")
             return True
         return False
     
     async def _authenticate(self) -> Optional[str]:
         """Authenticate and get access token."""
         try:
-            auth_url = f"{self.base_url}/authenticate"
-            payload = {
-                "userID": self.api_key,
-                "password": self.api_secret,
+            # Generate HMAC signature
+            timestamp = str(int(get_jakarta_now().timestamp()))
+            signature = hmac.new(
+                self.api_secret.encode(),
+                f"{self.api_key}{timestamp}".encode(),
+                hashlib.sha256,
+            ).hexdigest()
+            
+            auth_url = f"{self.base_url}/auth/token"
+            headers = {
+                "X-API-KEY": self.api_key,
+                "X-TIMESTAMP": timestamp,
+                "X-SIGNATURE": signature,
             }
             
             async with self.session.post(
                 auth_url,
-                json=payload,
+                headers=headers,
                 timeout=self.timeout,
             ) as response:
                 if response.status == 200:
                     data = await response.json()
-                    return data.get("sessionID")
+                    return data.get("access_token")
                 else:
                     logger.error(f"Auth failed: {response.status}")
                     return None
@@ -153,7 +170,7 @@ class IndoPremierBroker(BaseBroker):
 
         url = f"{self.base_url}{endpoint}"
         headers = {
-            "sessionID": self.access_token,
+            "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
         }
 
@@ -171,7 +188,7 @@ class IndoPremierBroker(BaseBroker):
 
         try:
             return await self._call_with_retry(
-                f"indopremier:{method}:{endpoint}",
+                f"stockbit:{method}:{endpoint}",
                 _request_once,
             )
         except Exception as e:
@@ -183,8 +200,8 @@ class IndoPremierBroker(BaseBroker):
     # ========================================================================
     
     async def get_account_info(self) -> Optional[AccountInfo]:
-        """Get Indo Premier account information."""
-        data = await self._make_request("GET", f"/accounts/{self.account_id}")
+        """Get Stockbit account information."""
+        data = await self._make_request("GET", "/accounts/summary")
         
         if not data:
             return None
@@ -196,18 +213,15 @@ class IndoPremierBroker(BaseBroker):
             account_type=AccountType.CASH,
             cash=float(account.get("cash", 0)),
             buying_power=float(account.get("buying_power", 0)),
-            market_value=float(account.get("securities_value", 0)),
+            market_value=float(account.get("portfolio_value", 0)),
             settled_cash=float(account.get("settled_cash", 0)),
             unsettled_cash=float(account.get("unsettled_cash", 0)),
-            equity=float(account.get("total_equity", 0)),
+            equity=float(account.get("equity", 0)),
         )
     
     async def get_positions(self) -> List[Position]:
-        """Get all positions from Indo Premier."""
-        data = await self._make_request(
-            "GET",
-            f"/accounts/{self.account_id}/positions",
-        )
+        """Get all positions from Stockbit."""
+        data = await self._make_request("GET", "/accounts/positions")
         
         if not data or "positions" not in data:
             return []
@@ -217,12 +231,12 @@ class IndoPremierBroker(BaseBroker):
             try:
                 position = Position(
                     symbol=pos["symbol"],
-                    quantity=int(pos["qty"]),
-                    avg_cost=float(pos["avg_price"]),
-                    current_price=float(pos["last_price"]),
+                    quantity=int(pos["quantity"]),
+                    avg_cost=float(pos["avg_cost"]),
+                    current_price=float(pos["current_price"]),
                     market_value=float(pos["market_value"]),
-                    unrealized_pl=float(pos["pl_value"]),
-                    unrealized_pl_pct=float(pos["pl_pct"]),
+                    unrealized_pl=float(pos["unrealized_pl"]),
+                    unrealized_pl_pct=float(pos["unrealized_pl_pct"]),
                 )
                 positions.append(position)
             except (KeyError, ValueError) as e:
@@ -234,7 +248,7 @@ class IndoPremierBroker(BaseBroker):
         """Get position for specific symbol."""
         data = await self._make_request(
             "GET",
-            f"/accounts/{self.account_id}/positions/{symbol}",
+            f"/accounts/positions/{symbol}",
         )
         
         if not data or "position" not in data:
@@ -244,12 +258,12 @@ class IndoPremierBroker(BaseBroker):
         
         return Position(
             symbol=pos["symbol"],
-            quantity=int(pos["qty"]),
-            avg_cost=float(pos["avg_price"]),
-            current_price=float(pos["last_price"]),
+            quantity=int(pos["quantity"]),
+            avg_cost=float(pos["avg_cost"]),
+            current_price=float(pos["current_price"]),
             market_value=float(pos["market_value"]),
-            unrealized_pl=float(pos["pl_value"]),
-            unrealized_pl_pct=float(pos["pl_pct"]),
+            unrealized_pl=float(pos["unrealized_pl"]),
+            unrealized_pl_pct=float(pos["unrealized_pl_pct"]),
         )
     
     # ========================================================================
@@ -265,12 +279,12 @@ class IndoPremierBroker(BaseBroker):
         price: Optional[float] = None,
         time_in_force: TimeInForce = TimeInForce.DAY,
     ) -> OrderResult:
-        """Place order on Indo Premier."""
+        """Place order on Stockbit."""
         # Validate inputs
         if not self._validate_symbol(symbol):
             return OrderResult(
                 order_id="",
-                broker="indopremier",
+                broker="stockbit",
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
@@ -283,7 +297,7 @@ class IndoPremierBroker(BaseBroker):
         if not self._validate_quantity(quantity):
             return OrderResult(
                 order_id="",
-                broker="indopremier",
+                broker="stockbit",
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
@@ -295,26 +309,26 @@ class IndoPremierBroker(BaseBroker):
         
         try:
             payload = {
-                "code": symbol,
-                "side": side.upper(),
-                "qty": quantity,
-                "type": order_type.upper(),
-                "validity": time_in_force.value.upper(),
+                "symbol": symbol,
+                "quantity": quantity,
+                "side": side.lower(),
+                "order_type": order_type,
+                "time_in_force": time_in_force.value,
             }
             
-            if order_type.upper() == "LIMIT" and price:
+            if order_type == "limit" and price:
                 payload["price"] = price
             
             data = await self._make_request(
                 "POST",
-                f"/accounts/{self.account_id}/orders",
+                "/accounts/orders",
                 json=payload,
             )
             
             if not data or "order" not in data:
                 return OrderResult(
                     order_id="",
-                    broker="indopremier",
+                    broker="stockbit",
                     symbol=symbol,
                     side=side,
                     quantity=quantity,
@@ -326,24 +340,25 @@ class IndoPremierBroker(BaseBroker):
             
             order = data["order"]
             
-            status = map_execution_status(order.get("status", "new"))
+            status = map_execution_status(order.get("status", "pending"))
             
             return OrderResult(
-                order_id=order["orderID"],
-                broker="indopremier",
+                order_id=order["order_id"],
+                broker="stockbit",
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
-                filled_quantity=int(order.get("filledQty", 0)),
-                avg_fill_price=float(order.get("avgPrice", 0)),
+                filled_quantity=int(order.get("filled_qty", 0)),
+                avg_fill_price=float(order.get("avg_fill_price", 0)),
                 status=status,
+                fills=order.get("fills", []),
             )
         
         except Exception as e:
             logger.error(f"Order placement error: {e}")
             return OrderResult(
                 order_id="",
-                broker="indopremier",
+                broker="stockbit",
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
@@ -358,7 +373,7 @@ class IndoPremierBroker(BaseBroker):
         try:
             data = await self._make_request(
                 "DELETE",
-                f"/accounts/{self.account_id}/orders/{order_id}",
+                f"/accounts/orders/{order_id}",
             )
             
             return data is not None and data.get("success", False)
@@ -372,7 +387,7 @@ class IndoPremierBroker(BaseBroker):
         try:
             data = await self._make_request(
                 "GET",
-                f"/accounts/{self.account_id}/orders/{order_id}",
+                f"/accounts/orders/{order_id}",
             )
             
             if not data or "order" not in data:
@@ -382,13 +397,13 @@ class IndoPremierBroker(BaseBroker):
             
             return OrderResult(
                 order_id=order_id,
-                broker="indopremier",
-                symbol=order["code"],
+                broker="stockbit",
+                symbol=order["symbol"],
                 side=order["side"],
-                quantity=int(order["qty"]),
-                filled_quantity=int(order.get("filledQty", 0)),
-                avg_fill_price=float(order.get("avgPrice", 0)),
-                status=map_execution_status(order.get("status", "new")),
+                quantity=int(order["quantity"]),
+                filled_quantity=int(order.get("filled_qty", 0)),
+                avg_fill_price=float(order.get("avg_fill_price", 0)),
+                status=map_execution_status(order.get("status")),
             )
         
         except Exception as e:
@@ -402,20 +417,17 @@ class IndoPremierBroker(BaseBroker):
         try:
             data = await self._make_request(
                 "GET",
-                f"/accounts/{self.account_id}/orders?status=OPEN&limit={safe_limit}",
+                f"/accounts/orders?status=open&limit={safe_limit}",
             )
             if not data:
                 return []
 
-            items = data.get("orders")
-            if not isinstance(items, list):
-                return []
-
+            orders = data.get("orders") or []
             order_ids: List[str] = []
-            for item in items:
-                if not isinstance(item, dict):
+            for order in orders:
+                if not isinstance(order, dict):
                     continue
-                status = map_execution_status(item.get("status", "new"))
+                status = map_execution_status(order.get("status", "pending"))
                 if status not in {
                     ExecutionStatus.PENDING,
                     ExecutionStatus.ACCEPTED,
@@ -423,7 +435,7 @@ class IndoPremierBroker(BaseBroker):
                 }:
                     continue
 
-                order_id = str(item.get("orderID") or item.get("id") or "").strip()
+                order_id = str(order.get("order_id") or order.get("id") or "").strip()
                 if order_id:
                     order_ids.append(order_id)
 
@@ -443,7 +455,7 @@ class IndoPremierBroker(BaseBroker):
     ) -> List[Trade]:
         """Get trade history."""
         try:
-            endpoint = f"/accounts/{self.account_id}/trades?limit={limit}"
+            endpoint = f"/accounts/trades?limit={limit}"
             if symbol:
                 endpoint += f"&symbol={symbol}"
             
@@ -456,12 +468,12 @@ class IndoPremierBroker(BaseBroker):
             for t in data["trades"]:
                 try:
                     trade = Trade(
-                        trade_id=t["tradeID"],
-                        symbol=t["code"],
-                        side=t["side"].lower(),
-                        quantity=int(t["qty"]),
+                        trade_id=t["trade_id"],
+                        symbol=t["symbol"],
+                        side=t["side"],
+                        quantity=int(t["quantity"]),
                         price=float(t["price"]),
-                        timestamp=datetime.fromisoformat(t["executedTime"]),
+                        timestamp=datetime.fromisoformat(t["timestamp"]),
                         commission=float(t.get("commission", 0)),
                     )
                     trades.append(trade)
@@ -477,4 +489,4 @@ class IndoPremierBroker(BaseBroker):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    print("Indo Premier Broker Client - Ready for use")
+    print("Stockbit Broker Client - Ready for use")
