@@ -406,6 +406,7 @@ class RLTradingAgent:
         self,
         features: np.ndarray,
         deterministic: bool = False,
+        sentiment_vector: Optional[np.ndarray] = None,
     ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """
         Get action from trained policy.
@@ -413,10 +414,19 @@ class RLTradingAgent:
         Args:
             features: Observation vector from environment
             deterministic: Use mean action (no exploration)
+            sentiment_vector: Optional 7-dim sentiment vector from MIMO LLM
+                [sentiment_score, confidence, risk_level,
+                 regime_up, regime_down, regime_ranging, regime_volatile]
+                If provided, appended to features before prediction.
         
         Returns:
             (action, state) for the policy
         """
+        # Augment observation with MIMO sentiment vector if provided
+        if sentiment_vector is not None:
+            sentiment_vec = np.asarray(sentiment_vector, dtype=np.float32).flatten()
+            features = np.concatenate([features.flatten(), sentiment_vec]).astype(np.float32)
+        
         self.last_observation = features.copy()
         action, state = self.model.predict(
             features,
