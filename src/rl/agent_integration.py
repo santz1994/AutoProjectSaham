@@ -317,17 +317,126 @@ class PositionManager:
 # RL Agent for Trading
 # ============================================================================
 
+class MimoSupervisor:
+    """
+    MiMo-V2.5-Pro Supervisor Agent (Layer 2 — Fat Tail Risk Protection).
+    
+    Runs parallel to RL agent + Anomaly Detector.
+    Before process_action() executes a leveraged order, the system calls
+    MiMo asynchronously. If MiMo detects extreme fundamental anomalies
+    (exchange hack, sudden banking crisis, geopolitical flash crash) that
+    the RL agent is blind to, it emits a veto signal that reduces or
+    zeroes the position.
+    
+    Integration point: RLTradingAgent.process_action() checks
+    self.mimo_supervisor before executing trades.
+    """
+    
+    def __init__(self, connector: Optional[Any] = None):
+        """
+        Args:
+            connector: Async MimoLLMConnector instance from
+                       src/pipeline/data_connectors/mimo_llm_connector.py
+        """
+        self.connector = connector
+        self.veto_count = 0
+        self.check_count = 0
+        self.last_veto_reason: Optional[str] = None
+        self._latest_sentiment: Optional[Dict[str, Any]] = None
+    
+    def set_latest_sentiment(self, sentiment: Dict[str, Any]) -> None:
+        """Inject latest sentiment result from SentimentScheduler."""
+        self._latest_sentiment = sentiment
+    
+    def should_veto(
+        self,
+        symbol: str,
+        target_fraction: float,
+        current_prices: Dict[str, float],
+    ) -> Tuple[bool, float, str]:
+        """
+        Check if the supervisor should veto or reduce the proposed action.
+        
+        Returns:
+            (vetoed, adjusted_fraction, reason)
+            If vetoed is True, the caller should use adjusted_fraction instead
+            of the original target_fraction.
+        """
+        self.check_count += 1
+        
+        # Guard: no sentiment data available → allow (graceful fallback)
+        if self._latest_sentiment is None:
+            return False, target_fraction, "no_sentiment_data"
+        
+        sentiment_score = float(self._latest_sentiment.get("sentiment_score", 0.0))
+        confidence = float(self._latest_sentiment.get("confidence", 0.0))
+        risk_level = float(self._latest_sentiment.get("risk_level", 0.0))
+        
+        # Veto condition 1: Extreme negative sentiment with high confidence
+        # and the agent is trying to BUY
+        if sentiment_score < -0.7 and confidence > 0.6 and target_fraction > 0.3:
+            adjusted = target_fraction * 0.25  # Severe cut
+            self.veto_count += 1
+            self.last_veto_reason = (
+                f"extreme_negative_sentiment(score={sentiment_score:.2f}, "
+                f"conf={confidence:.2f})"
+            )
+            logger.warning(
+                f"[MimoSupervisor] VETO on {symbol}: {self.last_veto_reason} "
+                f"→ fraction {target_fraction:.2f} → {adjusted:.2f}"
+            )
+            return True, adjusted, self.last_veto_reason
+        
+        # Veto condition 2: Risk level extremely high regardless of direction
+        if risk_level > 0.85 and target_fraction > 0.2:
+            adjusted = target_fraction * 0.5
+            self.veto_count += 1
+            self.last_veto_reason = f"extreme_risk_level={risk_level:.2f}"
+            logger.warning(
+                f"[MimoSupervisor] VETO on {symbol}: {self.last_veto_reason} "
+                f"→ fraction {target_fraction:.2f} → {adjusted:.2f}"
+            )
+            return True, adjusted, self.last_veto_reason
+        
+        # Veto condition 3: Strong buy signal but sentiment strongly disagrees
+        if target_fraction > 0.7 and sentiment_score < -0.4 and confidence > 0.5:
+            adjusted = target_fraction * 0.5
+            self.veto_count += 1
+            self.last_veto_reason = (
+                f"sentiment_divergence(buy={target_fraction:.2f}, "
+                f"sent={sentiment_score:.2f})"
+            )
+            logger.info(
+                f"[MimoSupervisor] VETO on {symbol}: {self.last_veto_reason} "
+                f"→ fraction {target_fraction:.2f} → {adjusted:.2f}"
+            )
+            return True, adjusted, self.last_veto_reason
+        
+        return False, target_fraction, "approved"
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Return supervisor statistics."""
+        return {
+            "check_count": self.check_count,
+            "veto_count": self.veto_count,
+            "last_veto_reason": self.last_veto_reason,
+            "has_sentiment": self._latest_sentiment is not None,
+        }
+
+
 class RLTradingAgent:
     """
     RL agent for live trading with full integration.
     
     Features:
-    - PPO or SAC policy
+    - PPO or SAC policy (1D or 2D continuous action space)
+    - 2D Action Space: Action[0] = direction/confidence, Action[1] = dynamic stop-loss
     - Anomaly detection integration (Task 9)
     - Regime detection integration (Task 10)
+    - MiMo Supervisor Agent (Layer 2 — Fat Tail Veto)
     - Fractional position management for forex/crypto
-    - Risk monitoring
-    - Performance tracking
+    - Asymmetric reward-aware risk management
+    - Risk monitoring and performance tracking
     """
     
     def __init__(
@@ -338,8 +447,10 @@ class RLTradingAgent:
         regime_detector: Optional[Any] = None,
         online_learner: Optional[Any] = None,
         meta_learner: Optional[Any] = None,
+        mimo_supervisor: Optional[MimoSupervisor] = None,
         starting_capital: float = 1_000_000.0,
         model_type: str = "auto",  # or "ppo", "sac"
+        action_space_dim: int = 1,  # 1 = legacy 1D, 2 = direction + stop-loss
     ):
         """
         Initialize RL trading agent.
@@ -363,6 +474,8 @@ class RLTradingAgent:
         self.regime_detector = regime_detector
         self.online_learner = online_learner
         self.meta_learner = meta_learner
+        self.mimo_supervisor = mimo_supervisor
+        self.action_space_dim = max(1, min(2, action_space_dim))
         
         # Load model
         self.model = self._load_model(model_path, model_type)
@@ -375,13 +488,20 @@ class RLTradingAgent:
             commission_pct=0.0008,
         )
         
+        # Dynamic stop-loss tracking (2D action space)
+        self.current_stop_loss: Dict[str, float] = {}  # symbol -> stop-loss distance
+        
         # Inference tracking
         self.inference_count = 0
-        self.last_inference_time = None
-        self.last_observation = None
-        self.last_action = None
+        self.last_inference_time: Optional[datetime] = None
+        self.last_observation: Optional[np.ndarray] = None
+        self.last_action: Optional[np.ndarray] = None
         
-        logger.info(f"Initialized RLTradingAgent with model from {model_path}")
+        logger.info(
+            f"Initialized RLTradingAgent with model from {model_path}, "
+            f"action_space_dim={self.action_space_dim}, "
+            f"mimo_supervisor={'enabled' if mimo_supervisor else 'disabled'}"
+        )
     
     def _load_model(self, path: str, model_type: str):
         """Load trained model."""
@@ -462,8 +582,18 @@ class RLTradingAgent:
         """
         Process RL action into trades.
         
+        Supports both 1D and 2D action spaces:
+        - 1D: action[i] = target fraction [0, 1]
+        - 2D: action[i][0] = direction/confidence [-1, 1] (SELL→BUY)
+               action[i][1] = dynamic stop-loss distance [0, 1]
+        
+        Also integrates:
+        - Anomaly detection (Task 9) → reduces position on anomaly
+        - Regime detection (Task 10) → adjusts risk per regime
+        - MiMo Supervisor (Layer 2) → veto on extreme sentiment divergence
+        
         Args:
-            action: Action from policy [0, 1] for each symbol
+            action: Action from policy
             current_prices: Current prices for all symbols
             anomaly_flags: Anomaly detection flags
             regime_state: Current regime states
@@ -471,20 +601,38 @@ class RLTradingAgent:
         Returns:
             Execution results
         """
-        action = np.clip(action, 0.0, 1.0)
-        
         trades = []
+        veto_log: List[Dict[str, Any]] = []
+        
+        n_symbols = len(self.symbols)
+        
+        # Parse action based on dimensionality
+        action = np.asarray(action, dtype=np.float32)
+        
+        if action.ndim == 2 and action.shape[1] >= 2:
+            # 2D action space: direction + stop-loss
+            raw_direction = np.clip(action[:n_symbols, 0], -1.0, 1.0)
+            raw_stop_loss = np.clip(action[:n_symbols, 1], 0.01, 1.0)
+        elif action.ndim == 1 and len(action) >= n_symbols:
+            # 1D legacy: treat as 0-1 fraction
+            raw_direction = np.clip(action[:n_symbols], 0.0, 1.0) * 2.0 - 1.0
+            raw_stop_loss = np.full(n_symbols, 0.5)
+        else:
+            raw_direction = np.clip(action.flatten()[:n_symbols], 0.0, 1.0)
+            raw_stop_loss = np.full(n_symbols, 0.5)
         
         for i, symbol in enumerate(self.symbols):
-            if i >= len(action):
-                break
-            
-            target_fraction = float(action[i])
+            direction = float(raw_direction[i])  # -1..+1
+            stop_dist = float(raw_stop_loss[i])  # 0..1
             price = current_prices.get(symbol, 0.0)
             
             if price <= 0:
                 logger.warning(f"Invalid price for {symbol}: {price}")
                 continue
+            
+            # Convert direction to target fraction [-1,+1] → [0,1]
+            # direction > 0 = BUY fraction, direction < 0 = SELL
+            target_fraction = max(0.0, direction)
             
             # Apply anomaly detection (Task 9)
             if anomaly_flags and anomaly_flags.get(symbol, False):
@@ -501,10 +649,30 @@ class RLTradingAgent:
                 except Exception as e:
                     logger.warning(f"Regime adjustment failed for {symbol}: {e}")
             
+            # Apply MiMo Supervisor veto (Layer 2 — Fat Tail Risk Protection)
+            if self.mimo_supervisor is not None:
+                vetoed, target_fraction, reason = self.mimo_supervisor.should_veto(
+                    symbol=symbol,
+                    target_fraction=target_fraction,
+                    current_prices=current_prices,
+                )
+                if vetoed:
+                    veto_log.append({
+                        "symbol": symbol,
+                        "original_fraction": float(raw_direction[i]),
+                        "adjusted_fraction": target_fraction,
+                        "reason": reason,
+                    })
+            
             target_fraction = float(np.clip(target_fraction, 0.0, 1.0))
-
-            # Fractional quantity sizing: target notional = fraction of
-            # leverage-adjusted buying capacity.
+            
+            # Store dynamic stop-loss distance (2D action space)
+            self.current_stop_loss[symbol] = stop_dist
+            
+            # Sell signal when direction < 0
+            sell_fraction = max(0.0, -direction)
+            
+            # Fractional quantity sizing
             buying_capacity = (
                 self.position_manager.cash * max(self.position_manager.max_leverage, 0.0)
             )
@@ -542,11 +710,13 @@ class RLTradingAgent:
                 "action": action_type,
                 "qty": qty,
                 "price": price,
+                "stop_loss_distance": stop_dist,
                 "result": result,
             })
         
         return {
             "trades": trades,
+            "veto_log": veto_log,
             "portfolio_state": self.position_manager.get_state(current_prices),
             "timestamp": get_jakarta_now(),
         }
@@ -616,8 +786,8 @@ class BatchInferenceEngine:
         """
         self.agent = agent
         self.batch_size = batch_size
-        self.pending_observations = []
-        self.pending_symbols = []
+        self.pending_observations: List[np.ndarray] = []
+        self.pending_symbols: List[str] = []
     
     def add_observation(self, symbol: str, observation: np.ndarray) -> None:
         """Queue observation for batch processing."""

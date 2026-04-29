@@ -362,6 +362,9 @@ def train(
     print(f"[Fase4] Train: {len(train_prices)} candles, Eval: {len(eval_prices)} candles")
 
     # Environment factory
+    # SAC/TD3 require continuous action space; PPO/A2C use discrete
+    _action_mode = "continuous" if algorithm.lower() in ("sac", "td3") else "discrete"
+
     def make_train_env():
         def _init():
             return SB3TradingEnvWrapper(
@@ -375,6 +378,7 @@ def train(
                 max_leverage=max_leverage,
                 maintenance_margin_fraction=maintenance_margin_fraction,
                 sharpe_lookback=sharpe_lookback,
+                action_mode=_action_mode,
             )
         return _init
 
@@ -391,6 +395,7 @@ def train(
                 max_leverage=max_leverage,
                 maintenance_margin_fraction=maintenance_margin_fraction,
                 sharpe_lookback=sharpe_lookback,
+                action_mode=_action_mode,
             )
         return _init
 

@@ -11,6 +11,17 @@ Fase 3 enhancements:
 - Death Penalty (liquidation) when equity hits maintenance margin
 - Rolling return history for Sharpe computation
 
+Fase 4 enhancements (Asymmetric Reward Shaping):
+- Loss penalty multiplier (default 10x) makes losing trades hurt far more
+  than winning trades feel good — forces agent to only enter high-probability
+  setups and cut losses immediately.
+- Quick-cut bonus: small reward for exiting a losing position fast, teaching
+  the agent that cutting losses early is better than holding losers.
+- Entry patience bonus: tiny reward for holding/no-action when no clear edge,
+  discouraging overtrading.
+- Sortino-based drawdown penalty: penalizes downside deviation, not total
+  volatility, so the agent is rewarded for upside variance.
+
 Action space:
  - 0: hold
  - 1: buy (buy `position_size` units)
@@ -47,6 +58,10 @@ class TradingEnv:
 
     Fase 3: Colosseum — brutal simulation with leverage, slippage, fees,
     Sharpe-based reward, and liquidation (death penalty).
+
+    Fase 4: Asymmetric Reward Shaping — losses are penalized far more
+    heavily than wins are rewarded, forcing the agent to only take
+    high-probability trades and cut losers fast.
     """
 
     def __init__(
@@ -62,6 +77,12 @@ class TradingEnv:
         maintenance_margin_fraction: float = 0.10,  # liquidate at 10% of initial
         sharpe_lookback: int = 50,  # rolling window for Sharpe computation
         risk_free_rate: float = 0.0,  # annualized risk-free rate for Sharpe
+        # --- Fase 4: Asymmetric Reward Shaping parameters ---
+        loss_penalty_multiplier: float = 10.0,  # losses hurt 10x more than wins
+        win_reward_multiplier: float = 1.0,  # baseline win reward scale
+        quick_cut_bonus: float = 0.5,  # bonus for exiting a loser fast
+        entry_patience_bonus: float = 0.01,  # tiny reward for HOLD (no overtrade)
+        drawdown_sortino_threshold: float = 0.10,  # drawdown % before sortino penalty
     ):
         self.prices = list(prices)
         if not self.prices:
@@ -89,6 +110,20 @@ class TradingEnv:
         self.sharpe_lookback = max(10, int(sharpe_lookback))
         self.risk_free_rate = float(risk_free_rate)
         self._return_history: deque = deque(maxlen=self.sharpe_lookback)
+
+        # --- Fase 4: Asymmetric Reward Shaping ---
+        self.loss_penalty_multiplier = max(1.0, float(loss_penalty_multiplier))
+        self.win_reward_multiplier = max(0.1, float(win_reward_multiplier))
+        self.quick_cut_bonus = max(0.0, float(quick_cut_bonus))
+        self.entry_patience_bonus = max(0.0, float(entry_patience_bonus))
+        self.drawdown_sortino_threshold = max(0.01, float(drawdown_sortino_threshold))
+
+        # Track trade entry price for asymmetric P&L calculation
+        self._entry_price: Optional[float] = None
+        self._steps_in_position: int = 0  # how long we've held current position
+        self._total_wins: int = 0
+        self._total_losses: int = 0
+        self._negative_returns: deque = deque(maxlen=self.sharpe_lookback)
 
         # optional per-tick volumes for liquidity/slippage modeling
         self.volumes = list(volumes) if volumes is not None else [0] * len(self.prices)
@@ -136,6 +171,10 @@ class TradingEnv:
         self._is_liquidated = False
         self._peak_equity = self.starting_cash
         self._return_history.clear()
+        # Fase 4: Reset asymmetric tracking
+        self._entry_price = None
+        self._steps_in_position = 0
+        self._negative_returns.clear()
         # recreate manager with broker seeded to this env starting cash so
         # the RL episode has the correct buying power (avoid hardcoded defaults)
         from src.execution.executor import PaperBroker
@@ -299,6 +338,73 @@ class TradingEnv:
         return float(np.clip(sharpe * 2.0, -10.0, 10.0))
 
     # ------------------------------------------------------------------
+    # Fase 4: Asymmetric Reward Shaping Helpers
+    # ------------------------------------------------------------------
+
+    def _compute_sortino_penalty(self, period_return: float) -> float:
+        """Compute Sortino-ratio-based penalty for downside deviation.
+
+        Unlike Sharpe which penalizes all volatility, Sortino only penalizes
+        downside volatility. This means the agent is rewarded for upside
+        variance (big wins) while still being punished for losses.
+        """
+        if period_return < 0:
+            self._negative_returns.append(period_return)
+
+        if len(self._negative_returns) < 3:
+            return 0.0
+
+        neg_arr = np.array(self._negative_returns, dtype=np.float64)
+        downside_std = float(np.sqrt(np.mean(neg_arr**2)))
+
+        if downside_std < 1e-10:
+            return 0.0
+
+        # penalty scales with downside deviation magnitude
+        # Higher downside_std = more punishment
+        penalty = float(np.clip(downside_std * 5.0, 0.0, 5.0))
+        return penalty
+
+    def _compute_asymmetric_trade_reward(
+        self, pnl_pct: float, steps_held: int
+    ) -> float:
+        """Compute asymmetric reward for a closed trade.
+
+        Core principle: losses are punished 10x more than wins are rewarded.
+        This forces the agent to only enter high-probability setups and to
+        cut losses immediately.
+
+        Args:
+            pnl_pct: percentage P&L of the trade (e.g., 0.02 = +2%)
+            steps_held: how many steps the position was held
+
+        Returns:
+            Asymmetric reward value (can be very negative for losses)
+        """
+        if pnl_pct >= 0:
+            # --- WIN: moderate positive reward ---
+            # Scale by win_reward_multiplier (default 1.0)
+            # Slight bonus for quick wins (good timing)
+            time_bonus = max(0.0, 1.0 / max(1, steps_held) * 0.5)
+            trade_reward = pnl_pct * 100.0 * self.win_reward_multiplier + time_bonus
+            self._total_wins += 1
+        else:
+            # --- LOSS: HEAVY asymmetric penalty ---
+            # loss_penalty_multiplier default = 10.0
+            # A -1% loss yields -10.0 reward, while a +1% win yields +1.0
+            trade_reward = pnl_pct * 100.0 * self.loss_penalty_multiplier
+
+            # Quick-cut bonus: if the agent exited a loser fast (within a few
+            # steps), reduce the penalty slightly — this teaches the agent
+            # that cutting losses early is better than holding losers.
+            if steps_held <= 3:
+                trade_reward += self.quick_cut_bonus  # partially offset penalty
+
+            self._total_losses += 1
+
+        return float(np.clip(trade_reward, -50.0, 20.0))
+
+    # ------------------------------------------------------------------
     # Fase 3: Liquidity Resolution (enhanced from v2)
     # ------------------------------------------------------------------
 
@@ -333,18 +439,25 @@ class TradingEnv:
         return exec_price, None
 
     # ------------------------------------------------------------------
-    # Main Step Function (Fase 3 Enhanced)
+    # Main Step Function (Fase 3 + Fase 4 Asymmetric Reward)
     # ------------------------------------------------------------------
 
     def step(self, action):
         """Execute one environment step.
 
-        Fase 3 enhancements applied here:
+        Fase 3 enhancements:
         - Slippage applied to every execution price
         - Commission (trading fees) deducted on every trade
         - Leverage amplifies buying power but also fees and risk
         - Sharpe Ratio used as reward basis
         - Death Penalty (liquidation) if equity drops to maintenance margin
+
+        Fase 4 enhancements (Asymmetric Reward Shaping):
+        - Winning trades: moderate positive reward (+1x scale)
+        - Losing trades: HEAVY negative penalty (-10x scale)
+        - Quick-cut bonus: small reward for exiting losers fast
+        - Entry patience: tiny reward for HOLD when no clear edge
+        - Sortino penalty: punishes downside deviation specifically
         """
         # If already liquidated, return terminal
         if self._is_liquidated:
@@ -379,6 +492,18 @@ class TradingEnv:
             decision = int(arr[0]) if len(arr) > 0 else int(arr)
             tp_bracket = 0
 
+        # --- Fase 4: Entry patience bonus for HOLD ---
+        # Reward the agent for not overtrading when there's no clear signal
+        if decision == 0 and self.pos == 0:
+            reward += self.entry_patience_bonus
+            info["patience_bonus"] = True
+
+        # Track steps in position
+        if self.pos > 0:
+            self._steps_in_position += 1
+        else:
+            self._steps_in_position = 0
+
         # 1) Let manager process any pending limit orders for this tick
         try:
             tick_res = self.manager.process_market_tick({self.symbol: price})
@@ -386,7 +511,19 @@ class TradingEnv:
                 for e in tick_res["executed"]:
                     if e.get("order", {}).get("symbol") == self.symbol:
                         info["limit_executed"] = True
-                        reward += 2.0
+                        # Fase 4: If TP triggered, compute asymmetric reward
+                        if self._entry_price is not None and self._entry_price > 0:
+                            pnl_pct = (price - self._entry_price) / self._entry_price
+                            asym_reward = self._compute_asymmetric_trade_reward(
+                                pnl_pct, self._steps_in_position
+                            )
+                            reward += asym_reward
+                            info["tp_asymmetric_reward"] = float(asym_reward)
+                            info["tp_pnl_pct"] = float(pnl_pct * 100.0)
+                            self._entry_price = None
+                            self._steps_in_position = 0
+                        else:
+                            reward += 2.0
                         break
         except (AttributeError, KeyError, TypeError, ValueError):
             # non-fatal: continue processing action
@@ -452,6 +589,10 @@ class TradingEnv:
                         info["fee_paid"] = float(fee)
                         info["leverage_used"] = float(self.max_leverage)
                         info["margin_debt"] = float(margin_debt)
+
+                        # Fase 4: Track entry price for asymmetric P&L
+                        self._entry_price = float(exec_price)
+                        self._steps_in_position = 0
 
             if trade.get("status") == "rejected":
                 reward -= 1.0
@@ -535,6 +676,19 @@ class TradingEnv:
                         )
                         info["fee_paid"] = float(fee)
 
+                        # Fase 4: Compute asymmetric trade reward on sell
+                        if self._entry_price is not None and self._entry_price > 0:
+                            pnl_pct = (float(exec_price) - self._entry_price) / self._entry_price
+                            asym_reward = self._compute_asymmetric_trade_reward(
+                                pnl_pct, self._steps_in_position
+                            )
+                            reward += asym_reward
+                            info["asymmetric_trade_reward"] = float(asym_reward)
+                            info["trade_pnl_pct"] = float(pnl_pct * 100.0)
+                            info["trade_result"] = "win" if pnl_pct >= 0 else "loss"
+                            self._entry_price = None
+                            self._steps_in_position = 0
+
                 if trade.get("status") == "rejected":
                     reward -= 1.0
                     info["rejected"] = trade.get("reason")
@@ -590,6 +744,12 @@ class TradingEnv:
             if drawdown > 0.20:  # >20% drawdown
                 reward -= float(drawdown * 5.0)
 
+        # Fase 4: Sortino-based downside penalty
+        sortino_penalty = self._compute_sortino_penalty(period_return)
+        if sortino_penalty > 0:
+            reward -= sortino_penalty
+            info["sortino_penalty"] = float(sortino_penalty)
+
         info["period_return_pct"] = float(period_return * 100.0)
         info["sharpe_reward"] = float(sharpe_reward)
         info["equity"] = float(new_balance)
@@ -599,6 +759,12 @@ class TradingEnv:
             else 0.0
         )
         info["leverage"] = float(self.max_leverage)
+        info["win_rate"] = float(
+            self._total_wins / max(1, self._total_wins + self._total_losses) * 100.0
+        )
+        info["total_wins"] = int(self._total_wins)
+        info["total_losses"] = int(self._total_losses)
+        info["steps_in_position"] = int(self._steps_in_position)
 
         # Always return a valid observation (SB3 requires an observation
         # even at terminal)
@@ -620,7 +786,9 @@ class TradingEnv:
         cash = self.manager.broker.cash
         lev = self.max_leverage
         status = "LIQUIDATED" if self._is_liquidated else "ACTIVE"
+        wr = self._total_wins / max(1, self._total_wins + self._total_losses) * 100.0
         print(
             f"t={self.t} price={price_str:.2f} cash={cash:.2f} "
-            f"pos={pos} equity={bal:.2f} leverage={lev}x status={status}"
+            f"pos={pos} equity={bal:.2f} leverage={lev}x "
+            f"winrate={wr:.1f}% status={status}"
         )
