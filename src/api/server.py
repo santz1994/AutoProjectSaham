@@ -64,6 +64,10 @@ if FASTAPI_AVAILABLE:
     from src.api.frontend_routes import router as frontend_router
     from src.api.xai_routes import router as xai_router
     from src.api.autonomy_routes import router as autonomy_router
+    from src.api.ghost_machine_routes import (
+        router as ghost_machine_router,
+        init_ghost_machine_services,
+    )
     from src.notifications.api_routes import setup_notification_routes
 
     app = FastAPI(title="AutoSaham API", version="0.1")
@@ -153,6 +157,7 @@ if FASTAPI_AVAILABLE:
     app.include_router(frontend_router)
     app.include_router(xai_router)
     app.include_router(autonomy_router)
+    app.include_router(ghost_machine_router)
 
     # Register notification routes and delivery handlers
     try:
@@ -1539,6 +1544,25 @@ if FASTAPI_AVAILABLE:
                 ml_service = mls
         except Exception:
             pass
+
+        # ── Ghost Machine + Anomaly Guard + AutoML initialization ──
+        try:
+            from src.execution.anomaly_guard import AnomalyExecutionGuard
+            from src.pipeline.ghost_machine import GhostMachine
+            from src.ml.continuous_automl import ContinuousAutoMLPipeline
+
+            anomaly_guard = AnomalyExecutionGuard()
+            ghost_machine = GhostMachine()
+            automl = ContinuousAutoMLPipeline()
+
+            init_ghost_machine_services(
+                ghost_machine=ghost_machine,
+                anomaly_guard=anomaly_guard,
+                automl_pipeline=automl,
+            )
+            print("[Startup] Ghost Machine, Anomaly Guard, AutoML initialized (standby)")
+        except Exception as e:
+            print(f"[Startup] Warning: Ghost Machine services init failed: {e}")
 
     @app.on_event("shutdown")
     async def shutdown_services():

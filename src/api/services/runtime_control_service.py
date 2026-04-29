@@ -88,17 +88,23 @@ def resolve_live_broker_adapter(provider: str):
     normalized = str(provider or "").strip().lower()
 
     if normalized == "indopremier":
-        from src.brokers.indopremier import IndoPremierBroker
-
-        return IndoPremierBroker
+        try:
+            from src.brokers.indopremier import IndoPremierBroker
+            return IndoPremierBroker
+        except ImportError:
+            return None
     if normalized == "stockbit":
-        from src.brokers.stockbit import StockbitBroker
-
-        return StockbitBroker
+        try:
+            from src.brokers.stockbit import StockbitBroker
+            return StockbitBroker
+        except ImportError:
+            return None
     if normalized == "ajaib":
-        from src.brokers.ajaib import AjaibBroker
-
-        return AjaibBroker
+        try:
+            from src.brokers.ajaib import AjaibBroker
+            return AjaibBroker
+        except ImportError:
+            return None
 
     return None
 

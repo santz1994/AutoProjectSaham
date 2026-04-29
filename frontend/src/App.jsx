@@ -16,6 +16,7 @@ import AIMonitorPage from './components/AIMonitorPage'
 import AIGraphPage from './components/AIGraphPage'
 import XaiPanel from './components/XaiPanel'
 import AutonomyControl from './components/AutonomyControl'
+import GhostMachineControl from './components/GhostMachineControl'
 import Login from './components/Login'
 import Register from './components/Register'
 import ForgotPassword from './components/ForgotPassword'
@@ -369,6 +370,8 @@ export default function App() {
         return <ErrorBoundary><XaiPanel theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
       case 'autonomy':
         return <ErrorBoundary><AutonomyControl theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
+      case 'ghost-machine':
+        return <ErrorBoundary><GhostMachineControl /></ErrorBoundary>
       case 'settings':
         return (
           <ErrorBoundary>

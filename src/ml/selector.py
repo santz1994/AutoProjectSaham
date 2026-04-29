@@ -86,18 +86,37 @@ def get_price_series_yf(symbol: str, period: str = "1y") -> List[float]:
 
 
 def get_price_series_yahoo(symbol: str, period: str = "1y") -> List[float]:
-    """Download historical daily prices using the robust `YahooFetcher`.
+    """Download historical daily prices using CCXT via hf_connector.
 
-    Delegates fetching and caching to
-    `src.pipeline.data_connectors.yahoo_fetcher.YahooFetcher`.
+    For crypto/forex pairs, uses CCXT (Binance) to fetch OHLCV data.
+    Returns list of close prices.
     """
     try:
-        from src.pipeline.data_connectors.yahoo_fetcher import YahooFetcher
+        from src.pipeline.data_connectors.hf_connector import fetch_historical_data
     except Exception as e:
-        raise RuntimeError("yahoo_fetcher module not available: " + repr(e)) from e
+        raise RuntimeError("hf_connector module not available: " + repr(e)) from e
 
-    fetcher = YahooFetcher()
-    return fetcher.fetch(symbol, period=period)
+    # Convert symbol to CCXT format (e.g. BTC-USD -> BTC/USDT)
+    ccxt_sym = symbol.replace("-", "/").replace("USD", "USDT")
+    if "/" not in ccxt_sym:
+        ccxt_sym = ccxt_sym + "/USDT"
+
+    _period_candles = {
+        "1d": 288, "1wk": 2016, "1mo": 8640, "3mo": 25920,
+        "6mo": 51840, "1y": 103680, "2y": 207360,
+    }
+    candles = _period_candles.get(period, 288)
+
+    df = fetch_historical_data(
+        exchange_id="binance",
+        symbol=ccxt_sym,
+        timeframe="5m",
+        candles=candles,
+        strict=False,
+    )
+    if df.empty:
+        raise RuntimeError(f"No data returned for {symbol}")
+    return [float(x) for x in df["close"].tolist()]
 
 
 def evaluate_strategy_on_series(

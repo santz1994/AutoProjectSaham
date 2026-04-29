@@ -15,6 +15,7 @@ const menuItems = [
   { id: 'ai-graph', label: 'AI Graph', icon: '🔮', desc: 'Live + Projection', shortcut: '6' },
   { id: 'xai', label: 'XAI Explain', icon: '🔍', desc: 'Why AI Decides', shortcut: '7' },
   { id: 'autonomy', label: 'Autonomy', icon: '🎛️', desc: 'AI Control & Kill-Switch', shortcut: '8' },
+  { id: 'ghost-machine', label: 'Ghost Machine', icon: '👻', desc: '24/7 Autonomous Trading', shortcut: 'G' },
   { id: 'profile', label: 'Profile', icon: '👤', desc: 'Identity & Account', shortcut: '9' },
   { id: 'settings', label: 'Settings', icon: '⚙️', desc: 'Configuration', shortcut: '0' },
 ];
