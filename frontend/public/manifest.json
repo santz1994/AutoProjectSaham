@@ -1,0 +1,127 @@
+{
+  "name": "AutoSaham - Autonomous Trading Toolkit for IDX",
+  "short_name": "AutoSaham",
+  "description": "Autonomous trading toolkit with ML models and real-time charts for Indonesia Stock Exchange (IDX/BEI)",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "dir": "ltr",
+  "lang": "id-ID",
+  "theme_color": "#131722",
+  "background_color": "#ffffff",
+  "prefer_related_applications": false,
+  "categories": ["finance", "productivity"],
+  "screenshots": [
+    {
+      "src": "icons/screenshot-1.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/screenshot-1-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "purpose": "any"
+    }
+  ],
+  "icons": [
+    {
+      "src": "icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-192x192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-256x256.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-256x256-maskable.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-384x384-maskable.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512x512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-any.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "View Charts",
+      "short_name": "Charts",
+      "description": "View TradingView charts with real-time IDX data",
+      "url": "/charts",
+      "icons": [{ "src": "icons/shortcut-charts.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Model Predictions",
+      "short_name": "Predictions",
+      "description": "View AI model predictions and explainability",
+      "url": "/predictions",
+      "icons": [{ "src": "icons/shortcut-predictions.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Trading Status",
+      "short_name": "Status",
+      "description": "Check trading portfolio and execution status",
+      "url": "/status",
+      "icons": [{ "src": "icons/shortcut-status.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.autosaham",
+      "id": "com.autosaham"
+    }
+  ]
+}

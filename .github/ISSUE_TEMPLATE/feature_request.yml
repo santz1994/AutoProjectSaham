@@ -1,0 +1,51 @@
+name: Feature Request
+description: Usulan fitur baru atau peningkatan fitur yang ada.
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: Masalah apa yang ingin diselesaikan?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Solusi yang diusulkan
+      description: Jelaskan desain atau perilaku yang diinginkan.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatif yang dipertimbangkan
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Backend/API
+        - Frontend/UI
+        - AI/ML/RL
+        - Data/ETL
+        - Security
+        - DevOps/CI
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Prioritas
+      options:
+        - P0
+        - P1
+        - P2
+        - P3
+    validations:
+      required: true

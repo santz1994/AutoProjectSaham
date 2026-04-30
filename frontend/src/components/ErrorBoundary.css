@@ -1,0 +1,225 @@
+/* Error Boundary Styles */
+
+.error-boundary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  background: linear-gradient(135deg, #0a0e27 0%, #1a2332 100%);
+}
+
+.error-boundary-content {
+  max-width: 600px;
+  width: 100%;
+  padding: 3rem;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid #334155;
+  border-radius: var(--radius-xl, 12px);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+  text-align: center;
+  animation: error-appear 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes error-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.error-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  animation: error-pulse 2s ease-in-out infinite;
+}
+
+@keyframes error-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+.error-title {
+  margin: 0 0 1rem 0;
+  color: #f1f5f9;
+  font-size: 1.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.error-message {
+  margin: 0 0 2rem 0;
+  color: #94a3b8;
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+.error-warning {
+  padding: 1rem;
+  margin-bottom: 2rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-lg, 8px);
+}
+
+.error-warning p {
+  margin: 0;
+  color: #fca5a5;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.error-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.error-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: var(--radius-lg, 8px);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.error-button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.error-button:active {
+  transform: scale(0.98);
+}
+
+.error-button.primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.error-button.primary:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+  transform: translateY(-2px);
+}
+
+.error-button.secondary {
+  background: rgba(148, 163, 184, 0.1);
+  color: #cbd5e1;
+  border: 1px solid #475569;
+}
+
+.error-button.secondary:hover {
+  background: rgba(148, 163, 184, 0.2);
+  border-color: #64748b;
+}
+
+.error-details {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: rgba(148, 163, 184, 0.05);
+  border: 1px solid #334155;
+  border-radius: var(--radius-lg, 8px);
+  text-align: left;
+}
+
+.error-details-summary {
+  color: #cbd5e1;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.5rem;
+  border-radius: var(--radius-md, 6px);
+  transition: background 0.2s ease;
+}
+
+.error-details-summary:hover {
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.error-stack {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #0a0e27;
+  border-radius: var(--radius-md, 6px);
+  overflow-x: auto;
+}
+
+.error-stack h3 {
+  margin: 1rem 0 0.5rem 0;
+  color: #f1f5f9;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.error-stack h3:first-child {
+  margin-top: 0;
+}
+
+.error-stack pre {
+  margin: 0;
+  color: #fca5a5;
+  font-family: 'Courier New', monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .error-boundary {
+    padding: 1rem;
+  }
+
+  .error-boundary-content {
+    padding: 2rem 1.5rem;
+  }
+
+  .error-icon {
+    font-size: 3rem;
+  }
+
+  .error-title {
+    font-size: 1.5rem;
+  }
+
+  .error-message {
+    font-size: 1rem;
+  }
+
+  .error-actions {
+    flex-direction: column;
+  }
+
+  .error-button {
+    width: 100%;
+  }
+
+  .error-stack {
+    font-size: 0.75rem;
+  }
+}
+
+/* Motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .error-boundary-content,
+  .error-icon {
+    animation: none;
+  }
+}

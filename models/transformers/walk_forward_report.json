@@ -1,0 +1,107 @@
+{
+  "generated_at": "2026-04-06T09:05:45.548963+00:00",
+  "dataset_csv": "data/dataset/dataset.csv",
+  "architectures": [
+    "fusion"
+  ],
+  "results": {
+    "fusion": {
+      "dataset_csv": "data/dataset/dataset.csv",
+      "architecture": "fusion",
+      "generated_at": "2026-04-06T09:05:58.623830+00:00",
+      "config": {
+        "seq_len": 32,
+        "min_train_size": 300,
+        "fold_test_size": 100,
+        "step_size": 100,
+        "purge_gap": 5,
+        "val_size": 0.1,
+        "epochs": 1,
+        "batch_size": 32,
+        "learning_rate": 0.001,
+        "d_model": 64,
+        "n_heads": 4,
+        "n_layers": 1,
+        "dropout": 0.1,
+        "random_state": 42,
+        "device": "cpu",
+        "expanding": false,
+        "max_folds": 1
+      },
+      "fold_count": 1,
+      "successful_folds": 1,
+      "aggregate": {
+        "accuracy_mean": 0.25,
+        "accuracy_std": 0.0,
+        "f1_macro_mean": 0.2,
+        "f1_macro_std": 0.0,
+        "f1_weighted_mean": 0.1,
+        "f1_weighted_std": 0.0,
+        "roc_auc_ovr_weighted_mean": 0.7189333333333333,
+        "roc_auc_ovr_weighted_std": 0.0,
+        "test_loss_mean": 0.781809389591217,
+        "test_loss_std": 0.0
+      },
+      "results": [
+        {
+          "fold": 1,
+          "window": {
+            "train_start": 0,
+            "train_end": 300,
+            "test_start": 305,
+            "test_end": 405
+          },
+          "status": "ok",
+          "num_samples": {
+            "train": 270,
+            "val": 30,
+            "test": 100
+          },
+          "metrics": {
+            "accuracy": 0.25,
+            "f1_macro": 0.2,
+            "f1_weighted": 0.1,
+            "classification_report": {
+              "0": {
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1-score": 0.0,
+                "support": 75.0
+              },
+              "1": {
+                "precision": 0.25,
+                "recall": 1.0,
+                "f1-score": 0.4,
+                "support": 25.0
+              },
+              "accuracy": 0.25,
+              "macro avg": {
+                "precision": 0.125,
+                "recall": 0.5,
+                "f1-score": 0.2,
+                "support": 100.0
+              },
+              "weighted avg": {
+                "precision": 0.0625,
+                "recall": 0.25,
+                "f1-score": 0.1,
+                "support": 100.0
+              }
+            },
+            "roc_auc_ovr_weighted": 0.7189333333333333,
+            "test_loss": 0.781809389591217,
+            "best_val_loss": 0.6561959385871887
+          },
+          "history": [
+            {
+              "epoch": 1,
+              "train_loss": 0.7507315874099731,
+              "val_loss": 0.6561959385871887
+            }
+          ],
+          "model_path": "models/transformers/walk_forward\\fusion\\fusion_fold_1.pt"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "symbol": "DEMO",
+  "timesteps": 20,
+  "n": 50,
+  "model_out": "models/rl_ppo.zip",
+  "seed": 42,
+  "tensorboard_log": "models/rl_tb",
+  "checkpoint_freq": 0,
+  "policy": "MlpPolicy",
+  "learning_rate": 0.0003,
+  "n_steps": 2048,
+  "device": "auto",
+  "wandb": false,
+  "wandb_project": "autosaham-rl"
+}
