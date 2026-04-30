@@ -233,3 +233,5 @@ celerybeat-schedule.*
 .cache/
 prompt.md
 Progress.md
+.hipothesis/*
+_archive/*
