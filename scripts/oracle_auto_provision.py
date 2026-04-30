@@ -41,10 +41,10 @@ from pathlib import Path
 
 CONFIG = {
     # Your tenancy OCID (find in OCI Console > Administration > Tenancy Details)
-    "tenancy_ocid": "ocid1.tenancy.oc1..aaaaaaaaeouubkwytuezi65r26qjh25uyldz3egavw2rrijrevykewmmhpwa",
+    "tenancy_ocid": "ocid1.tenancy.oc1..REPLACE_WITH_YOUR_TENANCY_OCID",
 
     # Compartment OCID (usually same as tenancy for root)
-    "compartment_ocid": "ocid1.tenancy.oc1..aaaaaaaaeouubkwytuezi65r26qjh25uyldz3egavw2rrijrevykewmmhpwa",
+    "compartment_ocid": "ocid1.tenancy.oc1..REPLACE_WITH_YOUR_TENANCY_OCID",
 
     # Region identifier
     "region": "ap-batam-1",
@@ -683,5 +683,3 @@ def main():
     return 1
 
 
-if __name__ == "__main__":
-    sys.exit(main())

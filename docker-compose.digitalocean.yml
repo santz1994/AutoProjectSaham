@@ -1,6 +1,8 @@
 # DigitalOcean Droplet Deployment — AutoSaham Trading Bot
-# Optimized for s-2vcpu-4gb ($24/mo) or s-4vcpu-8gb ($48/mo)
-# Total RAM allocation: ~2.8GB (fits comfortably in 4GB Droplet)
+# Optimized for s-1vcpu-1gb ($6/mo) — ultra-low-cost deployment
+# Total RAM allocation: ~920MB (fits in 1GB Droplet with swap)
+#
+# RECOMMENDED: Use swap file for safety (see deploy_digitalocean.sh)
 #
 # Usage:
 #   cp .env.example .env   # then edit .env with real values
@@ -9,7 +11,7 @@
 version: "3.9"
 
 services:
-  # ─── PostgreSQL ──────────────────────────────────────
+  # ─── PostgreSQL (ultra-light) ────────────────────────
   postgres:
     image: postgres:16-alpine
     restart: always
@@ -24,33 +26,41 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 256M
+    shm_size: 64m
+    command: >
+      postgres
+        -c shared_buffers=64MB
+        -c effective_cache_size=128MB
+        -c work_mem=4MB
+        -c maintenance_work_mem=32MB
+        -c max_connections=30
+        -c wal_buffers=2MB
+        -c checkpoint_completion_target=0.9
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-autosaham}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # ─── Redis ───────────────────────────────────────────
+  # ─── Redis (minimal) ────────────────────────────────
   redis:
     image: redis:7-alpine
     restart: always
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
-    volumes:
-      - redis_data:/data
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru --save ""
     ports:
       - "127.0.0.1:6379:6379"
     deploy:
       resources:
         limits:
-          memory: 320M
+          memory: 80M
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # ─── API Server (FastAPI) ────────────────────────────
+  # ─── API Server (FastAPI + uvicorn) ──────────────────
   api:
     build:
       context: .
@@ -61,6 +71,9 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-autosaham}:${POSTGRES_PASSWORD:-change_me_now}@postgres:5432/autosaham
       REDIS_URL: redis://redis:6379/0
       ENVIRONMENT: production
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      WEB_CONCURRENCY: 1
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,35 +83,17 @@ services:
       - model_data:/app/models
       - log_data:/app/logs
     ports:
-      - "127.0.0.1:8000:8000"
+      - "8000:8000"
     deploy:
       resources:
         limits:
-          memory: 1536M
+          memory: 512M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
-
-  # ─── Frontend (React + Vite) ─────────────────────────
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    restart: always
-    ports:
-      - "127.0.0.1:3000:80"
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+      start_period: 30s
 
   # ─── Nginx Reverse Proxy ─────────────────────────────
   nginx:
@@ -113,11 +108,10 @@ services:
       - certbot_www:/var/www/certbot:ro
     depends_on:
       - api
-      - frontend
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 64M
 
   # ─── Certbot (Let's Encrypt SSL) ────────────────────
   certbot:
@@ -129,7 +123,6 @@ services:
 
 volumes:
   pg_data:
-  redis_data:
   model_data:
   log_data:
   certbot_certs:

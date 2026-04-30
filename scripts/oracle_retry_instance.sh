@@ -9,11 +9,11 @@
 # CONFIGURATION — EDIT THESE
 # ============================================
 # Get from: OCI Console > Identity > Compartments
-COMPARTMENT_ID="ocid1.tenancy.oc1..aaaaaaaaeouubkwytuezi65r26qjh25uyldz3egavw2rrijrevykewmmhpwa"
+COMPARTMENT_ID="ocid1.tenancy.oc1..YOUR_TENANCY_OCID"
 
 # Get from: OCI Console > Compute > Instances > Create > check AD names
 # Usually: "AD-1", "AD-2", or "AD-3" (try the one with capacity)
-AVAILABILITY_DOMAIN="AD-1"
+AVAILABILITY_DOMAIN="AD-2"
 
 # Get from: OCI Console > Networking > Virtual Cloud Networks > Subnet
 SUBNET_ID="ocid1.subnet.oc1..YOUR_SUBNET_OCID"
