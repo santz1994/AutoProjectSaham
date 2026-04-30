@@ -15,7 +15,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV TZ=UTC
 RUN ln -snf /usr/share/zoneinfo/UTC /etc/localtime && echo "UTC" > /etc/timezone
 
-# Install Python dependencies
+# Install CPU-only PyTorch first (~800MB vs ~2GB full torch)
+RUN pip install --no-cache-dir \
+    torch==2.2.2+cpu \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# Install pandas-ta from GitHub (removed from PyPI)
+RUN pip install --no-cache-dir \
+    git+https://github.com/twopirllc/pandas-ta.git@production
+
+# Install remaining Python dependencies
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
