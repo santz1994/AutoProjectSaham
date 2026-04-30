@@ -1550,10 +1550,13 @@ if FASTAPI_AVAILABLE:
             from src.execution.anomaly_guard import AnomalyExecutionGuard
             from src.pipeline.ghost_machine import GhostMachine
             from src.ml.continuous_automl import ContinuousAutoMLPipeline
+            from src.pipeline.continuous_automl_scheduler import ContinuousAutoMLScheduler
 
             anomaly_guard = AnomalyExecutionGuard()
             ghost_machine = GhostMachine()
             automl = ContinuousAutoMLPipeline()
+            automl_scheduler = ContinuousAutoMLScheduler()
+            automl_scheduler.start()
 
             init_ghost_machine_services(
                 ghost_machine=ghost_machine,

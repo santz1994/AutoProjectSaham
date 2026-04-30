@@ -17,6 +17,10 @@ import AIGraphPage from './components/AIGraphPage'
 import XaiPanel from './components/XaiPanel'
 import AutonomyControl from './components/AutonomyControl'
 import GhostMachineControl from './components/GhostMachineControl'
+import PortfolioMetrics from './components/PortfolioMetrics'
+import BacktestPanel from './components/BacktestPanel'
+import PerformanceHeatmap from './components/PerformanceHeatmap'
+import RiskAnalytics from './components/RiskAnalytics'
 import Login from './components/Login'
 import Register from './components/Register'
 import ForgotPassword from './components/ForgotPassword'
@@ -39,6 +43,12 @@ import './styles/settings.css'
 import './styles/profile.css'
 import './styles/ai-monitor.css'
 import './styles/ai-graph.css'
+import './styles/autonomy.css'
+import './styles/ghost-machine.css'
+import './styles/portfolio-metrics.css'
+import './styles/backtest-panel.css'
+import './styles/performance-heatmap.css'
+import './styles/risk-analytics.css'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -372,6 +382,14 @@ export default function App() {
         return <ErrorBoundary><AutonomyControl theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
       case 'ghost-machine':
         return <ErrorBoundary><GhostMachineControl /></ErrorBoundary>
+      case 'portfolio':
+        return <ErrorBoundary><PortfolioMetrics theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
+      case 'backtest':
+        return <ErrorBoundary><BacktestPanel theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
+      case 'heatmap':
+        return <ErrorBoundary><PerformanceHeatmap theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
+      case 'risk-analytics':
+        return <ErrorBoundary><RiskAnalytics theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
       case 'settings':
         return (
           <ErrorBoundary>

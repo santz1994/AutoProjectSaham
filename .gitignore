@@ -143,15 +143,20 @@ websocket_*.log
 explainability_cache/
 shap_outputs/
 model_explanations/
-*.pkl  # Pickled models & explainers
+src/**/*.pkl
 
-# Large ML artifacts (generated during training)
-models/**/*.joblib
+# Large ML artifacts (auto-generated during training)
+models/model_*.joblib
+models/ensemble_test.joblib
 models/**/*.onnx
-models/**/*.pt
-models/**/*.pth
 models/checkpoints/
 models/exports/
+
+# Keep trained models for deployment (committed to repo):
+# models/*.pkl
+# models/*.json
+# models/transformers/*.pt
+# models/transformers/*.json
 
 # Frontend build & node modules
 node_modules/
@@ -192,17 +197,14 @@ data/**/features/
 # Temporary files
 *.tmp
 *.bak
-*.swp
 tmp/
 temp/
 
 # Node modules (if using frontend)
-node_modules/
 npm-debug.log
 yarn-error.log
 
 # OS
-.DS_Store
 Thumbs.db
 .directory
 
@@ -230,6 +232,15 @@ celerybeat-schedule
 celerybeat-schedule.*
 *.pid
 
+# Oracle Cloud Infrastructure (OCI) config
+.oci/
+oci_config
+oci_cli_history
+
+# AutoML registry (runtime data, not source)
+models/automl_registry/*.json
+!models/automl_registry/.gitkeep
+
 # Misc
 .cache/
 prompt.md
@@ -237,3 +248,4 @@ Progress.md
 .hypothesis/
 _archive/
 .hypothesis
+src/**/__pycache__/

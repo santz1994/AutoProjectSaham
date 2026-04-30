@@ -1,5 +1,4 @@
-Jad"""
-Online Learning Pipeline
+"""Online Learning Pipeline
 
 Incremental model updates without full retraining using River library.
 Enables continuous adaptation to market changes with:

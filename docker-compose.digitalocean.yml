@@ -1,0 +1,136 @@
+# DigitalOcean Droplet Deployment — AutoSaham Trading Bot
+# Optimized for s-2vcpu-4gb ($24/mo) or s-4vcpu-8gb ($48/mo)
+# Total RAM allocation: ~2.8GB (fits comfortably in 4GB Droplet)
+#
+# Usage:
+#   cp .env.example .env   # then edit .env with real values
+#   docker compose -f docker-compose.digitalocean.yml up -d --build
+
+version: "3.9"
+
+services:
+  # ─── PostgreSQL ──────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: autosaham
+      POSTGRES_USER: ${POSTGRES_USER:-autosaham}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_now}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-autosaham}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis ───────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    deploy:
+      resources:
+        limits:
+          memory: 320M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── API Server (FastAPI) ────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-autosaham}:${POSTGRES_PASSWORD:-change_me_now}@postgres:5432/autosaham
+      REDIS_URL: redis://redis:6379/0
+      ENVIRONMENT: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - model_data:/app/models
+      - log_data:/app/logs
+    ports:
+      - "127.0.0.1:8000:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ─── Frontend (React + Vite) ─────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "127.0.0.1:3000:80"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ─── Nginx Reverse Proxy ─────────────────────────────
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - certbot_certs:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
+    depends_on:
+      - api
+      - frontend
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # ─── Certbot (Let's Encrypt SSL) ────────────────────
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+volumes:
+  pg_data:
+  redis_data:
+  model_data:
+  log_data:
+  certbot_certs:
+  certbot_www:

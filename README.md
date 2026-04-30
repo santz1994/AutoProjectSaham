@@ -1,488 +1,325 @@
 # AutoSaham
 
-AutoSaham adalah platform trading automation dan AI monitoring untuk workflow Forex/Crypto global (UTC-centric), dengan frontend React + Vite dan backend FastAPI.
+**Autonomous Crypto/Forex Reinforcement Learning Trading Bot**
 
-README ini sudah disesuaikan dengan kondisi kode saat ini: fitur frontend, kemampuan backend, daftar endpoint aktif, cara menjalankan, validasi, dan rencana next updates.
+AutoSaham adalah platform trading automation berbasis AI yang menggunakan Reinforcement Learning (PPO/SAC) untuk menemukan entries, exits, dan risk-management rules secara otonom — tanpa manual tweaking. Target: $100 → $10,000 melalui multiplicative scaling, dengan target winrate ~90%.
 
-## Status Saat Ini
+## 🎯 Vision: Fully Autonomous AI Trading
 
-- Snapshot dokumen: 14 April 2026
-- Progress proyek mengikuti `Progress.md` sebagai sumber status tunggal (bukan angka statis di README)
-- Fokus aktif: dekomposisi bertahap `src/api/frontend_routes.py` ke service layer (wave infer-signals/fallback assembly selesai, regresi 41/41 PASS)
-- Fase 2.3 otomatisasi raw data -> feature dataset sudah selesai dan tervalidasi
-- Frontend: React 18 + Vite + lightweight-charts
-- Backend: FastAPI + pipeline data/ML + WebSocket realtime
-- Timezone utama: UTC
-- Market scope di UI AI Graph: Forex dan Crypto
+> Sistem ini dirancang 100% driven by AI. Model harus mampu menemukan entries, exits, dan risk-management rules sendiri tanpa intervensi manual yang konstan (Zero Manual Tweaking).
 
-## Program PM Multi-AI (10 Expert Roles)
+---
 
-Eksekusi proyek dijalankan dengan pola IT PM lintas peran:
+## Status Terkini
 
-- IT Expert AI/ML: kualitas inferensi model, fallback, dan evaluasi sinyal.
-- IT Algoritm Expert: validasi logika ranking, heuristic, dan overlay regime.
-- IT Developer App: kompatibilitas kontrak API ke aplikasi frontend.
-- IT Expert Python: kualitas refactor pythonic dan maintainability.
-- IT Programming Expert: standar coding, struktur fungsi, dan readability.
-- IT Fullstack Expert: sinkronisasi kebutuhan UI dengan backend behavior.
-- IT UI/UX Expert: keterbacaan insight AI pada UI (reason, source, confidence).
-- IT Architecture Expert: pengurangan god-file dan pemisahan concern per modul.
-- IT API Expert: konsistensi schema endpoint dan fallback contract.
-- IT Backend Expert: stabilitas runtime, error safety, dan observability.
+- **Update Terakhir:** 30 April 2026 (Wave 8 — Test Suite Stability + Critical Bug Fixes)
+- **Test Suite:** 78 passed, 1 skipped ✅
+- **Market Scope:** Forex (24/5) + Crypto (24/7) — UTC-centric
+- **Frontend:** React 18 + Vite + lightweight-charts
+- **Backend:** FastAPI + Stable-Baselines3 + Transformers + XAI + Ghost Machine
 
-### Ringkasan status fase
+### Ringkasan Status Fase
 
-- Fase 1: In Progress (cleanup dan dekomposisi file besar masih berjalan).
-- Fase 2: Selesai untuk scope data pipeline saat ini.
-- Fase 3: Belum dimulai penuh (reward/slippage/leverage env masih pending).
-- Fase 4: Belum dimulai (menunggu finalisasi fase 3).
-- Fase 5: Belum dimulai (bergantung infrastruktur cloud eksternal).
-- Fase 6: In Progress parsial (baseline UI aktif, integrasi lanjutan bertahap).
-- Fase 7: Belum dimulai penuh.
-- Fase 8: Belum dimulai.
+| Fase | Nama | Status |
+|------|------|--------|
+| 1 | Cleanup & Infrastruktur Lokal | ✅ In Progress (dead modules cleaned, service extraction ongoing) |
+| 2 | High-Frequency Data Pipeline | ✅ SELESAI |
+| 3 | RL Sandbox Architecture | ✅ SELESAI (leverage, slippage, fees, Sharpe reward, death penalty) |
+| 4 | Deep RL Training | 🟡 In Progress (training script ready, AutoML scheduler wired) |
+| 5 | 24/7 Execution Server (Ghost Machine) | ✅ Backend SELESAI (Ghost Machine wired + REST API + Oracle deployment ready) |
+| 6 | CEO Command Center | ✅ SELESAI (XAI + Autonomy + Ghost Machine + all frontend panels) |
+| 7 | UI/UX & Performance | 🟡 Partial (Portfolio Metrics, Backtest, Risk Analytics, Heatmap done) |
+| 8 | Frontend Expansion | 🟡 Partial (Multi-symbol support, Risk/Performance panels done) |
 
-## Arsitektur Singkat
+---
+
+## Arsitektur
 
 ```text
-frontend/ (React + Vite)
-  -> konsumsi REST + WebSocket
-  -> UI pages: Dashboard, Market, Strategies, Trades, AI Monitor, AI Graph, Profile, Settings
-
-src/api/server.py (FastAPI app)
-  -> auth, system, charts, training, scheduler, metrics
-  -> include router: src/api/frontend_routes.py (prefix /api)
-  -> include router: src/notifications/api_routes.py (prefix /api/notifications)
-
-src/notifications/
-  -> manajemen rule + preference + history + websocket notif
-
-src/ml, src/pipeline, src/data
-  -> fitur ML, scoring/projection, ETL/market ingestion
+┌──────────────────────────────────────────────────────────────┐
+│                     Frontend (React 18 + Vite)                │
+│  Dashboard │ Market │ AI Monitor │ AI Graph │ Settings       │
+│  Portfolio Metrics │ Backtest │ Risk Analytics │ Heatmap      │
+│  XAI Panel │ Autonomy Control │ Ghost Machine Control 👻      │
+└──────────────────────┬───────────────────────────────────────┘
+                       │ REST + WebSocket
+┌──────────────────────┴───────────────────────────────────────┐
+│                   FastAPI Backend (server.py)                  │
+│  Auth │ Charts │ Training │ Scheduler │ Metrics              │
+│  ┌─────────────────────────────────────────────────┐         │
+│  │  frontend_routes.py (thinned via 9+ services)   │         │
+│  │  xai_routes.py │ autonomy_routes.py             │         │
+│  │  ghost_machine_routes.py │ notify_routes.py      │         │
+│  └─────────────────────────────────────────────────┘         │
+│                                                               │
+│  ┌──────────┐  ┌───────────┐  ┌────────────┐  ┌───────────┐ │
+│  │ RL Agent  │  │ Ghost     │  │ Online     │  │ Anomaly   │ │
+│  │ (PPO/SAC) │  │ Machine   │  │ Learner    │  │ Detector  │ │
+│  └──────────┘  └───────────┘  └────────────┘  └───────────┘ │
+│                                                               │
+│  ┌──────────┐  ┌───────────┐  ┌────────────┐  ┌───────────┐ │
+│  │ Feature   │  │ Regime    │  │ Continuous │  │ XAI       │ │
+│  │ Store     │  │ Detector  │  │ AutoML     │  │ Service   │ │
+│  └──────────┘  └───────────┘  └────────────┘  └───────────┘ │
+└──────────────────────────────────────────────────────────────┘
+         │
+    ┌────┴────┐
+    │ CCXT    │  ← Binance / Bybit / Forex APIs
+    │ Connect │
+    └─────────┘
 ```
 
-## Kemampuan Aplikasi (Frontend)
+### Struktur Folder
 
-### Halaman dan fitur utama
+```text
+src/
+  api/                  # FastAPI app, auth, routes, services (9+ extracted)
+  brokers/              # Broker adapters
+  data/                 # Data fetcher and market adapters
+  execution/            # Order execution manager
+  ml/                   # ML models, features, online learner, anomaly detector
+  notifications/        # Notification manager + delivery handlers
+  pipeline/             # ETL, Ghost Machine, scheduler, data connectors
+  rl/                   # RL agent, trading env, policy trainer, experience replay
+  strategies/           # Strategy modules
+  utils/                # Logger, datetime utilities
+  monitoring/           # Alert rules, monitoring
+frontend/
+  src/components/       # 20+ UI components (pages + panels)
+  src/services/         # API client (api.js)
+  src/styles/           # CSS for risk analytics, heatmap, etc.
+scripts/                # Utility scripts (deploy, train, fetch, prepare)
+tests/                  # 80 backend test files
+docs/                   # Deployment guides, runbooks
+models/                 # Saved model artifacts and checkpoints
+data/dataset/           # Training datasets (e.g. hf_BTCUSDT_5m.csv)
+```
 
-| Halaman | Kemampuan |
-|---|---|
-| Dashboard | Portfolio summary, refresh portfolio, bot status, kill switch state, portfolio health, top AI signals, recent activity |
-| Market Intelligence | Realtime candlestick chart Forex/Crypto, symbol switch, timeframe switch, sentiment summary, sektor heatmap, top movers, live ask/bid orderbook + spread indicator, quick order ticket (BUY/SELL) |
-| Strategies | Daftar strategi, deploy strategy, trigger backtest, rule display, metrik performa |
-| Trade Logs | Filter/sort trades, summary analytics, export CSV, trigger report performa |
-| AI Monitor | AI overview (model/dataset/pipeline), AI activity logs, auto refresh, manual checkpoint log |
-| AI Graph | Live chart + projection overlay, market switch (forex/crypto/all), prediction style preset (Scalping/Daily Trader/Trader), prediction lock ON/OFF, rationale + news context |
-| Profile | Edit profil, risk profile, daily report schedule, status keamanan akun, broker connection summary |
-| Settings | Theme preference, notification toggles, risk settings, preferred universe, broker connect/disconnect, broker feature flags, 2FA enrollment/verify/disable |
-| Auth | Login, Register, Forgot Password, Logout via secure cookie flow |
+---
 
-### Fitur lintas halaman
+## Fitur Utama
 
-- Navbar enhanced:
-  - Search shortcut (Ctrl+K)
-  - Notification bell dengan history + unread count + mark-read + mark-all-read
-  - Realtime notification WebSocket (/api/notifications/ws/{user_id})
-  - Emergency kill switch UI
-- Sidebar enhanced:
-  - Navigasi cepat (Ctrl+1..8), toggle sidebar (Ctrl+B), shortcut modal (Ctrl+/)
-- Toast feedback + loading skeleton + error boundary
-- Responsive system:
-  - Breakpoint + device detection + safe area inset
-  - Mobile/tablet/desktop adaptive layout
-- PWA support:
-  - Manifest + service worker + install prompt + offline fallback
-  - Catatan: service worker default nonaktif di localhost dev untuk menghindari cache stale
+### 🤖 AI/ML Engine
 
-## Kemampuan Backend
+| Fitur | Deskripsi |
+|-------|-----------|
+| **RL Trading Agent** | PPO/SAC via Stable-Baselines3 — 2D action space (direction + dynamic stop-loss) |
+| **Asymmetric Reward** | Penalty kerugian (-10×) lebih berat dari reward kemenangan (+1×) — memaksa target winrate 90% |
+| **Sharpe Ratio Reward** | Reward berbasis risk-adjusted return, bukan PnL mentah |
+| **Death Penalty** | Liquidation trigger saat portfolio jatuh di bawah maintenance margin |
+| **Feature Store** | RSI, MACD, Bollinger Width, dist_to_liquidation — modular (volatility, momentum, risk) |
+| **Online Learning** | Concept drift detection (ADWIN/PH-test) + SRPClassifier streaming ensemble |
+| **Continuous AutoML** | Optuna + Walk-Forward validation scheduler — hyperparameter optimization otonom |
+| **XAI Service** | SHAP-like feature importance + MiMo narrative explanation generation |
+| **Ghost Machine** | Autonomous trading loop — pull candle → compute features → predict → execute |
+| **Experience Replay** | Prioritized Experience Replay dengan regime-aware boosting |
+| **Anomaly Detector** | Flash-crash / black swan detection — hard-brake override pada risk sizing |
 
-### Ringkasan kemampuan
+### 📊 Frontend Panels
 
-- Auth berbasis httpOnly cookie (/auth/*)
-- API domain trading/frontend (/api/*) via frontend_routes
-- API notifikasi realtime (/api/notifications/*)
-- Chart REST + WebSocket realtime (/api/charts/*, /ws/charts/{symbol})
-- ETL trigger + scheduler + training artifact endpoint
-- Monitoring metrics endpoint untuk Prometheus
-- Persistent encrypted app state (SQLite + encryption) untuk settings/connection/feature flags/AI logs
+| Panel | Kemampuan |
+|-------|-----------|
+| **Dashboard** | Portfolio summary, bot status, kill switch, top AI signals |
+| **Market Intelligence** | Realtime candlestick chart, symbol/timeframe switch, sentiment, heatmap |
+| **AI Monitor** | AI overview (model/dataset/pipeline), activity logs |
+| **AI Graph** | Live chart + projection overlay, prediction style, rationale + news |
+| **Portfolio Metrics** | Net Worth, Leverage, Open Positions, Win Rate — live refresh |
+| **Backtest Panel** | Walk-forward backtest results, equity curve, trade statistics |
+| **Risk Analytics** | VaR, CVaR, max drawdown, Sharpe/Sortino ratios, risk-adjusted metrics |
+| **Performance Heatmap** | Calendar heatmap harian PnL — visual win/loss pattern |
+| **XAI Panel** | Feature importance bar chart — breakdown keputusan RL agent |
+| **Autonomy Control** | Slider Level 1-3 (Signal Only / Human Confirm / Full Auto) + Kill Switch |
+| **Ghost Machine Control** | Start/Stop/Cycle autonomous trading loop + real-time stats |
+| **Settings** | Theme, notifications, risk settings, broker connect, 2FA |
 
-### Kondisi data saat ini (hybrid)
+### 🔌 API Endpoints
 
-Backend saat ini menggabungkan beberapa sumber:
+<details>
+<summary>Click to expand full endpoint list</summary>
 
-- Real/hampir real:
-  - Chart candles/metadata/trading status
-  - Market universe multi-market
-  - AI projection (dengan blending model + market momentum + sentiment)
-  - News context untuk projection
-- Demo/fallback untuk sebagian endpoint UI:
-  - Sebagian data portfolio, bot status, sectors, trades, report masih berbasis mock/fallback
+**Core Server (server.py)**
+- `GET /health` — Health check
+- `POST /run_etl` — Trigger ETL
+- `GET /metrics` — Prometheus metrics
+- `GET/POST /scheduler/*` — Scheduler control
+- `POST /auth/*` — Register, login, logout, 2FA
+- `GET /api/training` — Training status
+- `GET/WS /api/charts/*` — Chart REST + WebSocket
+- `WS /ws/charts/{symbol}` — Real-time candlestick WS
+- `WS /ws/events` — Event stream WS
 
-Ini sengaja menjaga UX tetap stabil saat data provider atau integrasi broker tertentu belum aktif penuh.
+**Frontend Domain (frontend_routes.py)**
+- `GET /api/portfolio` — Portfolio positions
+- `GET/POST /api/bot/*` — Bot start/stop/pause/status
+- `GET /api/signals` — AI trading signals
+- `GET /api/market/*` — Sentiment, universe, sectors, movers, news
+- `GET /api/strategies` — Strategy list + deploy + backtest
+- `GET /api/trades` — Trade logs
+- `GET /api/ai/projection/{symbol}` — AI projection with XAI
+- `GET/POST /api/system/*` — Kill switch, execution, quota
 
-## Endpoint Aktif
+**XAI (xai_routes.py)**
+- `POST /api/xai/explain` — Feature importance + narrative
+- `GET /api/xai/history` — Explanation history
+- `GET /api/xai/stats` — XAI service stats
 
-### Core server (src/api/server.py)
+**Autonomy (autonomy_routes.py)**
+- `GET /api/autonomy/status` — Current autonomy level
+- `POST /api/autonomy/level` — Set level (1/2/3)
+- `POST /api/autonomy/kill-switch/activate` — Activate kill switch
+- `POST /api/autonomy/kill-switch/deactivate` — Deactivate
+- `POST /api/autonomy/order` — Submit order (routed by autonomy level)
+- `POST /api/autonomy/order/{id}/approve` — Approve pending order
+- `POST /api/autonomy/order/{id}/reject` — Reject pending order
+- `GET /api/autonomy/pending` — List pending orders
 
-#### System and ops
+**Ghost Machine (ghost_machine_routes.py)**
+- `GET /api/v1/ghost-machine/status` — Stats (running, trades, uptime)
+- `POST /api/v1/ghost-machine/start` — Start autonomous loop
+- `POST /api/v1/ghost-machine/stop` — Stop loop
+- `POST /api/v1/ghost-machine/cycle` — Run single cycle
 
-- GET /health
-- POST /run_etl
-- GET /metrics
-- GET /etl_runs
-- POST /alert
-- POST /scheduler/start
-- POST /scheduler/stop
+**Notifications (api_routes.py)**
+- `GET/POST/PUT/DELETE /api/notifications/*` — Rules, preferences, history
+- `WS /api/notifications/ws/{user_id}` — Real-time notification WS
 
-#### Auth
+</details>
 
-- POST /auth/register
-- POST /auth/login
-- GET /auth/me
-- POST /auth/logout
-- POST /auth/forgot-password
-
-#### Training and diagnostics
-
-- GET /api/training
-- POST /api/training/trigger
-- GET /api/portfolio/reconcile
-
-#### Charts and realtime
-
-- GET /api/charts/metadata/{symbol}
-- GET /api/charts/candles/{symbol}
-- GET /api/charts/timeframes
-- GET /api/charts/trading-status
-- WS /ws/charts/{symbol}
-- WS /ws/events
-
-### Frontend domain API (src/api/frontend_routes.py, prefix /api)
-
-- Portfolio and bot:
-  - GET /api/portfolio
-  - POST /api/portfolio/refresh
-  - GET /api/bot/status
-  - POST /api/bot/start
-  - POST /api/bot/stop
-  - POST /api/bot/pause
-- Signal and market:
-  - GET /api/signals
-  - GET /api/market/sentiment
-  - GET /api/market/universe
-  - GET /api/market/sectors
-  - GET /api/market/movers
-  - GET /api/market/news
-- Strategy and trades:
-  - GET /api/strategies
-  - POST /api/strategies/{strategy_id}/deploy
-  - POST /api/strategies/{strategy_id}/backtest
-  - GET /api/trades
-  - GET /api/activity
-  - GET /api/reports/performance
-- User settings and broker:
-  - GET /api/user/settings
-  - PUT /api/user/settings
-  - GET /api/brokers/available
-  - GET /api/brokers/feature-flags
-  - PUT /api/brokers/feature-flags/{provider_id}
-  - GET /api/broker/connection
-  - POST /api/broker/connect
-  - POST /api/broker/disconnect
-  - GET /api/system/kill-switch
-  - POST /api/system/kill-switch/activate
-  - POST /api/system/kill-switch/deactivate
-  - GET /api/system/migration-control-center
-  - GET /api/system/quota/usage
-  - GET /api/system/execution/pending-orders
-- AI:
-  - GET /api/ai/projection/{symbol}
-  - GET /api/ai/overview
-  - GET /api/ai/logs
-  - POST /api/ai/logs
-
-### Notification API (src/notifications/api_routes.py, prefix /api/notifications)
-
-- Rules:
-  - POST /api/notifications/rules
-  - GET /api/notifications/rules
-  - GET /api/notifications/rules/{rule_id}
-  - PUT /api/notifications/rules/{rule_id}
-  - DELETE /api/notifications/rules/{rule_id}
-- Preferences:
-  - POST /api/notifications/preferences
-  - GET /api/notifications/preferences/{user_id}
-  - PUT /api/notifications/preferences/{user_id}
-  - PUT /api/notifications/preferences/{user_id}/channels
-  - POST /api/notifications/preferences/{user_id}/quiet-hours
-- Retrieval and stats:
-  - GET /api/notifications/history/{user_id}
-  - GET /api/notifications/unread/{user_id}
-  - POST /api/notifications/mark-read/{notification_id}
-  - GET /api/notifications/stats
-  - GET /api/notifications/market-status
-  - GET /api/notifications/health
-- Realtime:
-  - WS /api/notifications/ws/{user_id}
-
-## AI Projection: Arti Field source
-
-Pada endpoint GET /api/ai/projection/{symbol}, field source menunjukkan asal sinyal utama:
-
-- transformer: sinyal utama dari model transformer
-- market_realtime: fallback ke momentum market realtime
-- transformer+market: hasil transformer distabilkan oleh data market realtime
-- fallback: fallback non-model saat sinyal model belum memadai
-
-Di UI AI Graph, ini tampil pada kartu confidence agar user tahu asal sinyal yang sedang dipakai.
-
-## Teknologi Utama
-
-### Frontend
-
-- React 18
-- Vite 5
-- lightweight-charts
-- Zustand
-- Vitest + Testing Library
-
-### Backend and ML
-
-- Python 3.10+
-- FastAPI + Uvicorn
-- pandas, numpy, scikit-learn
-- lightgbm, xgboost, transformers, torch
-- stable-baselines3 (RL)
-- APScheduler, aiohttp, httpx
+---
 
 ## Menjalankan Aplikasi
 
-### 1) Persiapan
+### Prerequisites
+
+- Python 3.10+
+- Node.js 18+
+- Git
+
+### 1) Setup
 
 ```bash
+# Clone
+git clone https://github.com/santz1994/AutoProjectSaham.git
+cd AutoProjectSaham
+
+# Backend
 python -m venv .venv
-.venv\Scripts\activate
+.venv\Scripts\activate          # Windows
+# source .venv/bin/activate    # Linux/Mac
 pip install -r requirements.txt
 
-cd frontend
-npm install
-cd ..
+# Frontend
+cd frontend && npm install && cd ..
 ```
 
-### 2) Development mode (direkomendasikan)
+### 2) Development Mode
 
-Terminal 1 (backend):
-
+**Terminal 1 — Backend:**
 ```bash
 python -m uvicorn src.api.server:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Terminal 2 (frontend):
-
+**Terminal 2 — Frontend:**
 ```bash
-cd frontend
-npm run dev
+cd frontend && npm run dev
 ```
 
-Akses:
-
+**Akses:**
 - Frontend: http://localhost:5173
-- Backend: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+- Backend API: http://localhost:8000
+- API Docs (Swagger): http://localhost:8000/docs
 
-### 3) One-command full stack
-
-- PowerShell: ./RUN_FULLSTACK.ps1
-- CMD: RUN_FULLSTACK.bat
-- Python: python run_fullstack.py
-
-### 4) Backend only via runner
-
-```bash
-python -m src.main --api
-```
-
-## Validasi dan Testing
-
-### Quick regression backend API
-
-```bash
-./scripts/quick_regression.ps1
-./scripts/quick_regression.ps1 -SkipMutatingActions
-```
-
-### Kill switch rehearsal drill
-
-```powershell
-./scripts/kill_switch_drill.ps1 -BaseUrl http://127.0.0.1:8000 -Actor ops-weekly-drill
-```
-
-Jika hardening auth kill-switch diaktifkan, sertakan token sesi admin dan challenge code:
-
-```powershell
-./scripts/kill_switch_drill.ps1 -BaseUrl http://127.0.0.1:8000 -Actor ops-weekly-drill -AuthToken "<session_token_cookie_value>" -ChallengeCode "123456"
-```
-
-Runbook rollback procedure tersedia di `docs/KILL_SWITCH_DRILL_RUNBOOK.md`.
-
-Automasi jadwal mingguan (Windows Task Scheduler):
-
-```powershell
-./scripts/register_kill_switch_drill_task.ps1 -TaskName AutoSaham-KillSwitchWeeklyDrill -DayOfWeek Sunday -At 07:00 -BaseUrl http://127.0.0.1:8000 -Actor ops-weekly-drill
-```
-
-### Local exchange chaos simulation
-
-```bash
-python scripts/simulate_exchange_chaos.py --orders 20 --seed 42
-```
-
-### Frontend validation
-
-```bash
-cd frontend
-npm run build
-npm run test
-npm run type-check
-```
-
-### Backend tests
-
-```bash
-python -m pytest tests/ -q
-python -m pytest tests/test_notifications.py -q
-```
-
-## Konfigurasi Environment
-
-Salin .env.example menjadi .env, lalu isi sesuai kebutuhan.
-
-Variabel penting:
-
-- Runtime: MARKET_SYMBOLS, TICKS_DB_PATH, MODELS_DIR, ML_TRAIN_INTERVAL
-- Market/news: NEWSAPI_KEY, ALPHAVANTAGE_API_KEY
-- ETL corporate actions: AUTOSAHAM_CORPORATE_ACTIONS_FILE (opsional, path JSON untuk backward adjustment split/dividen/rights issue pada data historis)
-- Broker: BROKER_API_KEY, BROKER_API_SECRET
-- Notifications: SLACK_WEBHOOK_URL, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
-- State store migration:
-  - AUTOSAHAM_STATE_REDIS_URL
-  - AUTOSAHAM_STATE_REDIS_PRIMARY_NAMESPACES (default: ai_regime_state,broker_connection,user_settings)
-  - AUTOSAHAM_STATE_REDIS_PRIMARY_SHADOW_SQLITE (default: 1)
-  - AUTOSAHAM_STATE_POSTGRES_URL (fallback ke DATABASE_URL bila kosong)
-  - AUTOSAHAM_STATE_POSTGRES_AI_LOGS_ENABLED (default: 1)
-  - AUTOSAHAM_STATE_POSTGRES_AI_LOGS_SHADOW_SQLITE (default: 1)
-  - AUTOSAHAM_WS_BACKPLANE_ENABLED (default: 0)
-  - AUTOSAHAM_WS_BACKPLANE_CHANNEL (default: autosaham:events)
-  - AUTOSAHAM_INSTANCE_ID (opsional untuk identitas publisher event lintas instance)
-  - AUTH_EXPOSE_RESET_TOKEN (default: 0, aktifkan 1 hanya untuk smoke test reset password di dev)
-- Auth session:
-  - AUTH_TTL_SECONDS (default: 86400)
-  - AUTH_REMEMBER_ME_TTL_SECONDS (default: 2592000)
-  - AUTOSAHAM_LOGIN_2FA_ENABLED (default: 0)
-  - AUTOSAHAM_LOGIN_2FA_REQUIRED_ROLES (default: admin)
-  - AUTOSAHAM_LOGIN_2FA_ISSUER (default: AutoSaham, label issuer untuk enrollment URI authenticator)
-  - AUTOSAHAM_LOGIN_2FA_TOTP_SECRET (global TOTP Base32 secret)
-  - AUTOSAHAM_LOGIN_2FA_TOTP_SECRET_<USERNAME> (opsional secret per user)
-  - AUTOSAHAM_LOGIN_2FA_CODE (fallback static code)
-- Kill switch auth hardening:
-  - AUTOSAHAM_KILL_SWITCH_REQUIRE_ADMIN (default: aktif pada ENV=prod/production)
-  - AUTOSAHAM_KILL_SWITCH_ADMIN_USERS (default: admin)
-  - AUTOSAHAM_KILL_SWITCH_ADMIN_ROLES (default: mengikuti AUTOSAHAM_ADMIN_ROLES)
-  - AUTOSAHAM_KILL_SWITCH_REQUIRE_2FA (default: aktif jika verifier tersedia)
-  - AUTOSAHAM_KILL_SWITCH_TOTP_SECRET (Base32 TOTP secret, prioritas utama)
-  - AUTOSAHAM_KILL_SWITCH_2FA_CODE (fallback static challenge code untuk environment terbatas)
-- Authz/CSRF guard endpoint mutating:
-  - AUTOSAHAM_ADMIN_GUARD_ENABLED (default: aktif pada ENV=prod/production)
-  - AUTOSAHAM_ADMIN_USERS (opsional allowlist username admin global)
-  - AUTOSAHAM_ADMIN_ROLES (default: admin)
-  - AUTOSAHAM_CSRF_PROTECTION_ENABLED (default: aktif pada ENV=prod/production)
-  - AUTOSAHAM_ROLE_GUARD_ENABLED (default: aktif pada ENV=prod/production)
-  - AUTOSAHAM_ROLE_ETL_WRITE_ROLES (default: trader,developer)
-  - AUTOSAHAM_ROLE_EXECUTION_WRITE_ROLES (default: trader,developer)
-  - AUTOSAHAM_ROLE_SCHEDULER_WRITE_ROLES (default: developer)
-  - AUTOSAHAM_ROLE_MODEL_REGISTRY_WRITE_ROLES (default: developer)
-  - AUTOSAHAM_ROLE_ALERT_WRITE_ROLES (default: admin,developer)
-  - AUTOSAHAM_ROLE_STRATEGY_WRITE_ROLES (default: trader,developer)
-  - AUTOSAHAM_ROLE_SETTINGS_WRITE_ROLES (default: viewer,trader,developer)
-  - AUTOSAHAM_ROLE_AI_LOG_WRITE_ROLES (default: trader,developer)
-- Quota tier & Kong tier routing:
-  - AUTOSAHAM_QUOTA_ROLE_TIERS (default: viewer=free,trader=basic,developer=pro,admin=pro)
-  - AUTOSAHAM_QUOTA_FREE_PER_MINUTE, AUTOSAHAM_QUOTA_FREE_PER_HOUR
-  - AUTOSAHAM_QUOTA_BASIC_PER_MINUTE, AUTOSAHAM_QUOTA_BASIC_PER_HOUR
-  - AUTOSAHAM_QUOTA_PRO_PER_MINUTE, AUTOSAHAM_QUOTA_PRO_PER_HOUR
-  - Frontend otomatis mengirim header X-Autosaham-Tier (free/basic/pro) dari cookie autosaham_tier.
-
-## Docker and Observability
-
-docker-compose.yml sudah menyiapkan stack:
-
-- API (FastAPI)
-- Redis
-- PostgreSQL
-- Kong API Gateway
-- Prometheus
-- Alertmanager
-- Grafana
-- Node Exporter
-
-Jalankan:
+### 3) Docker (Production)
 
 ```bash
 docker-compose up -d
 ```
 
-## Struktur Folder Penting
+### 4) Oracle Cloud Deployment
 
-```text
-src/
-  api/             # FastAPI app, auth, routes, secure state store
-  notifications/   # Notification manager, delivery handlers, notification API
-  data/            # Data fetcher and market adapters
-  ml/              # ML models, features, evaluators
-  pipeline/        # ETL runner and scheduler
-frontend/
-  src/components/  # Pages and UI components
-  src/hooks/       # useResponsive, usePWA, market feed
-  src/utils/       # authService, apiService
-scripts/           # utility and validation scripts
-tests/             # backend test suite
-monitoring/        # Prometheus and alert configuration
+Lihat [docs/ORACLE_DEPLOYMENT_GUIDE.md](docs/ORACLE_DEPLOYMENT_GUIDE.md) untuk panduan lengkap:
+- Buat Oracle Cloud Free Tier account
+- Provision ARM64 instance (4 OCPU, 24GB RAM)
+- One-click deploy dengan `scripts/deploy_oracle_vps.sh`
+- Edit kode langsung dari VSCode via Remote SSH
+
+### 5) Data Pipeline
+
+```bash
+# Fetch 100k candle dari Binance
+python scripts/fetch_hf_data.py --exchange binance --symbol BTC/USDT --timeframe 5m --candles 100000
+
+# Prepare features
+python scripts/prepare_data.py --input-csv data/dataset/hf_BTCUSDT_5m.csv --symbol BTC/USDT --timeframe 5m
 ```
 
-## Catatan Penting
+### 6) RL Training
 
-- Saat ini backend tidak melakukan static mount frontend ke path /ui.
-  Untuk akses UI, jalankan Vite dev server (localhost:5173) atau host build frontend secara terpisah.
-- Notification channel WebSocket berjalan realtime. Beberapa channel lain (email/push) masih pada level handler/queue/logging dan dapat diperluas sesuai kebutuhan produksi.
-- Global Kill Switch memblokir trigger eksekusi baru (bot start, deploy/backtest strategy, run ETL/training trigger) sampai status di-resume melalui endpoint kill switch.
-- Aktivasi kill switch melakukan best-effort penghentian scheduler lokal dan mengembalikan ringkasan runtimeActions pada respons API untuk audit operasional cepat.
-- Aktivasi kill switch juga mencoba membatalkan seluruh pending order yang sedang dilacak oleh runtime execution manager (best-effort, non-blocking), dan hasilnya dicatat pada runtimeActions.
-- Aktivasi kill switch kini juga mencoba cancel semua open order pada koneksi broker live yang didukung adapter (saat ini: indopremier, stockbit, ajaib) menggunakan kredensial terenkripsi di secure state; provider lain tetap fail-safe sebagai unsupported_provider.
-- Aktivasi/nonaktif kill switch kini mendukung guard admin session + challenge 2FA berbasis env flag (dengan kompatibilitas payload `actor` maupun `activatedBy` untuk klien lama).
-- Endpoint operasional mutating berisiko tinggi (bot control, broker connect/disconnect, state migration, broker feature-flag update) kini mendukung guard admin session + double-submit CSRF token berbasis env flag.
-- Endpoint mutating strategi/profile/log AI kini mendukung role-guard granular berbasis env (trader/developer/admin) dengan admin override dan validasi CSRF saat guard diaktifkan.
-- Endpoint mutating server non-router (`/run_etl`, `/scheduler/start`, `/scheduler/stop`, `/api/training/registry/active`, `/alert`) kini ikut role-guard berbasis env + validasi CSRF saat role guard diaktifkan.
-- Endpoint `/api/system/execution/orders` kini tersedia untuk submit order runtime (market/limit) dari UI Market orderbook, dijaga role-guard + CSRF saat guard aktif.
-- Kong kini memiliki policy route bertingkat free/basic/pro untuk `/api`, `/api/signals|/api/ai/*`, dan jalur eksekusi; request tanpa header tier jatuh ke policy free sebagai fallback non-breaking.
-- Backend memvalidasi header X-Autosaham-Tier terhadap role sesi terautentikasi untuk mencegah spoof tier lintas role.
-- Login kini mendukung challenge two-factor authentication (2FA) untuk role yang dikonfigurasi (TOTP atau fallback static code), di samping opsi rememberMe TTL session.
-- Endpoint auth 2FA (`/auth/2fa/status`, `/auth/2fa/enroll`, `/auth/2fa/verify`, `/auth/2fa/disable`) kini aktif untuk enrollment per-user TOTP dari Settings, dengan proteksi CSRF untuk operasi mutating.
-- ETL historis mendukung corporate action backward adjustment berbasis file JSON (jika AUTOSAHAM_CORPORATE_ACTIONS_FILE dikonfigurasi) untuk membantu menjaga kontinuitas fitur ML saat stock split/dividen terjadi.
+```bash
+# Train PPO agent
+python scripts/train_crypto_rl.py
+
+# Continuous AutoML scheduler (runs in background)
+# Automatically triggered on server startup
+```
+
+---
+
+## Testing
+
+```bash
+# Full test suite (80 tests)
+python -m pytest tests/ -q
+
+# Specific test suites
+python -m pytest tests/test_advanced_modules.py -q      # XAI, Autonomy, Experience Replay (39 tests)
+python -m pytest tests/test_online_learner.py -q        # Online learning + ADWIN (20 tests)
+python -m pytest tests/test_performance.py -q           # Performance benchmarks (22 tests)
+python -m pytest tests/test_explainability.py -q        # XAI explainability (15 tests)
+
+# Frontend
+cd frontend && npm run build && npm run test
+```
+
+---
+
+## Teknologi
+
+### Frontend
+React 18 · Vite 5 · lightweight-charts · Zustand · Vitest
+
+### Backend & ML
+Python 3.10+ · FastAPI · Uvicorn · pandas · numpy · scikit-learn
+Stable-Baselines3 (PPO/SAC) · Transformers · PyTorch · LightGBM
+CCXT · pandas-ta · river (online learning) · Optuna (AutoML)
+Redis · PostgreSQL · Celery · APScheduler
+
+### Deployment
+Docker · Docker Compose · Nginx · Oracle Cloud ARM64 (Always Free)
+
+---
+
+## Program PM Multi-AI
+
+Eksekusi proyek dijalankan dengan pola IT PM lintas 10 peran:
+
+- **IT Expert AI/ML** — kualitas inferensi model, fallback, evaluasi sinyal
+- **IT Algoritm Expert** — logika ranking, heuristic, overlay regime
+- **IT Developer App** — kompatibilitas kontrak API ke frontend
+- **IT Expert Python** — refactor pythonic, maintainability, test coverage
+- **IT Programming Expert** — standar coding, struktur fungsi, readability
+- **IT Fullstack Expert** — sinkronisasi UI ↔ backend behavior
+- **IT UI/UX Expert** — keterbacaan insight AI pada UI
+- **IT Architecture Expert** — pengurangan god-file, pemisahan concern
+- **IT API Expert** — konsistensi schema endpoint, fallback contract
+- **IT Backend Expert** — stabilitas runtime, error safety, observability
+
+---
 
 ## Kontribusi
 
-Pedoman kontribusi ada di file CONTRIBUTING.md, termasuk standar commit, validasi minimal, aturan keamanan secret, dan checklist review perubahan.
-
-## Next Updates
-
-Prioritas update berikutnya yang direkomendasikan:
-
-1. Lanjutkan wave dekomposisi `frontend_routes` hingga route handlers makin tipis dan logic berat seluruhnya berada di `src/api/services/`.
-2. Tuntaskan cleanup residual `.JK/IDX` di modul legacy non-core agar konteks Forex/Crypto konsisten end-to-end.
-3. Eksekusi Fase 3 RL sandbox: implementasi reward risk-adjusted, death-penalty, serta simulasi fee/slippage leverage tinggi.
-4. Siapkan artefak training Fase 4 (`scripts/train_crypto_rl.py`, checkpointing policy, dan baseline runbook GPU).
-5. Siapkan blueprint deployment Fase 5 untuk cloud target (Oracle ARM/Kong/monitoring) setelah fase RL stabil.
-6. Perkuat test automation lintas API/UI untuk flow kritikal sebelum rollout fase ekspansi frontend.
+Lihat [CONTRIBUTING.md](CONTRIBUTING.md) untuk pedoman kontribusi, standar commit, validasi test, dan aturan keamanan.
 
 ## Lisensi
 
-Proyek ini menggunakan lisensi MIT. Lihat file LICENSE di root repository untuk detail lengkap.
+Proyek ini menggunakan lisensi MIT. Lihat [LICENSE](LICENSE) untuk detail.

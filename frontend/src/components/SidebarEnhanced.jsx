@@ -16,6 +16,10 @@ const menuItems = [
   { id: 'xai', label: 'XAI Explain', icon: '🔍', desc: 'Why AI Decides', shortcut: '7' },
   { id: 'autonomy', label: 'Autonomy', icon: '🎛️', desc: 'AI Control & Kill-Switch', shortcut: '8' },
   { id: 'ghost-machine', label: 'Ghost Machine', icon: '👻', desc: '24/7 Autonomous Trading', shortcut: 'G' },
+  { id: 'portfolio', label: 'Portfolio', icon: '📊', desc: 'Live Metrics & PnL', shortcut: 'P' },
+  { id: 'backtest', label: 'Backtest', icon: '🧪', desc: 'Strategy Backtesting', shortcut: 'B' },
+  { id: 'heatmap', label: 'Performance Heatmap', icon: '🗺️', desc: 'Symbol Performance Grid', shortcut: 'H' },
+  { id: 'risk-analytics', label: 'Risk Analytics', icon: '📉', desc: 'Return Distribution & Risk', shortcut: 'R' },
   { id: 'profile', label: 'Profile', icon: '👤', desc: 'Identity & Account', shortcut: '9' },
   { id: 'settings', label: 'Settings', icon: '⚙️', desc: 'Configuration', shortcut: '0' },
 ];

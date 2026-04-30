@@ -1,4 +1,4 @@
-yoh"""End-to-end integration test.
+"""End-to-end integration test.
 
 Validates the prepare_data → backtest pipeline using the real BTCUSDT dataset.
 Tests only the scripts/components that actually exist in the codebase.
