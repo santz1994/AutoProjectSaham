@@ -21,9 +21,9 @@ RUN pip install --no-cache-dir \
     torch==2.2.2+cpu \
     --index-url https://download.pytorch.org/whl/cpu
 
-# Install pandas-ta from GitHub (removed from PyPI)
+# Install pandas-ta from GitHub tarball (avoids git clone auth issues in Docker)
 RUN pip install --no-cache-dir \
-    git+https://github.com/twopirllc/pandas-ta.git@production
+    https://github.com/twopirllc/pandas-ta/archive/refs/heads/production.tar.gz
 
 # Install remaining Python dependencies
 COPY requirements.txt ./
