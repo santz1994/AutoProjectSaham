@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
 # AutoSaham — DigitalOcean One-Click Deploy Script
-# 
-# Usage (run on a fresh Ubuntu 22.04/24.04 Droplet):
-#   curl -sSL https://raw.githubusercontent.com/YOUR_USER/AutoProjectSaham/main/scripts/deploy_digitalocean.sh | bash
+# Optimized for s-1vcpu-2gb ($12/mo) Singapore SGP1
 #
-# Or manually:
-#   git clone <repo> /opt/autosaham
+# Usage (run on a fresh Ubuntu 24.04 Droplet):
+#   ssh root@YOUR_DROPLET_IP
+#   git clone https://github.com/santz1994/AutoProjectSaham.git /opt/autosaham
 #   cd /opt/autosaham
 #   bash scripts/deploy_digitalocean.sh
 #
-# Prerequisites:
-#   - Ubuntu 22.04/24.04 Droplet (minimum 4GB RAM)
-#   - Root or sudo access
-#   - Optional: domain name pointed to Droplet IP
+# This script:
+#   1. Creates 2GB swap file (critical for low-RAM droplets)
+#   2. Installs Docker & Docker Compose
+#   3. Clones repo and generates .env
+#   4. Configures firewall + fail2ban
+#   5. Builds and starts all containers
 # ─────────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -36,12 +37,33 @@ REPO_URL="${REPO_URL:-https://github.com/santz1994/AutoProjectSaham.git}"
 echo ""
 echo "═══════════════════════════════════════════════════════"
 echo "  🚀 AutoSaham — DigitalOcean Deployment Script"
+echo "  Optimized for: s-1vcpu-2gb Singapore SGP1"
 echo "═══════════════════════════════════════════════════════"
 echo ""
 
-# ─── Step 1: System Update & Dependencies ───────────────
-info "Step 1/7: Installing system dependencies..."
+# ─── Step 1: Swap File (critical for 2GB RAM) ────────────
+info "Step 1/8: Setting up swap file (2GB)..."
 
+if [ ! -f /swapfile ]; then
+    fallocate -l 2G /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+    echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    # Optimize swap usage
+    sysctl vm.swappiness=10
+    echo 'vm.swappiness=10' >> /etc/sysctl.conf
+    sysctl vm.vfs_cache_pressure=50
+    echo 'vm.vfs_cache_pressure=50' >> /etc/sysctl.conf
+    log "2GB swap file created and active"
+else
+    log "Swap file already exists"
+fi
+
+# ─── Step 2: System Update & Dependencies ───────────────
+info "Step 2/8: Installing system dependencies..."
+
+export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq \
     apt-transport-https \
@@ -53,12 +75,14 @@ apt-get install -y -qq \
     ufw \
     fail2ban \
     unattended-upgrades \
-    jq
+    jq \
+    htop \
+    ncdu
 
 log "System packages installed"
 
-# ─── Step 2: Install Docker ─────────────────────────────
-info "Step 2/7: Installing Docker..."
+# ─── Step 3: Install Docker ─────────────────────────────
+info "Step 3/8: Installing Docker..."
 
 if ! command -v docker &>/dev/null; then
     curl -fsSL https://get.docker.com | sh
@@ -77,21 +101,21 @@ else
     log "Docker Compose already available ($(docker compose version --short))"
 fi
 
-# ─── Step 3: Clone / Update Repository ──────────────────
-info "Step 3/7: Cloning repository..."
+# ─── Step 4: Clone / Update Repository ──────────────────
+info "Step 4/8: Cloning repository..."
 
 if [ -d "$APP_DIR/.git" ]; then
     cd "$APP_DIR"
-    git pull origin main
+    git pull origin master
     log "Repository updated"
 else
-    git clone "$REPO_URL" "$APP_DIR"
+    git clone -b master "$REPO_URL" "$APP_DIR"
     cd "$APP_DIR"
     log "Repository cloned to $APP_DIR"
 fi
 
-# ─── Step 4: Generate .env ──────────────────────────────
-info "Step 4/7: Generating environment configuration..."
+# ─── Step 5: Generate .env ──────────────────────────────
+info "Step 5/8: Generating environment configuration..."
 
 if [ ! -f .env ]; then
     # Generate secure passwords
@@ -137,14 +161,15 @@ OPENAI_API_KEY=
 MIMO_API_KEY=
 EOF
 
+    chmod 600 .env
     log ".env generated with secure passwords"
-    warn "⚠ Edit .env to add your API keys: nano $APP_DIR/.env"
+    warn "⚠  Edit .env to add your API keys: nano $APP_DIR/.env"
 else
     log ".env already exists (keeping current)"
 fi
 
-# ─── Step 5: Configure Firewall ─────────────────────────
-info "Step 5/7: Configuring firewall..."
+# ─── Step 6: Configure Firewall ─────────────────────────
+info "Step 6/8: Configuring firewall..."
 
 ufw --force reset
 ufw default deny incoming
@@ -155,8 +180,8 @@ ufw allow 443/tcp   # HTTPS
 ufw --force enable
 log "Firewall configured (SSH + HTTP + HTTPS)"
 
-# ─── Step 6: Configure Fail2Ban ─────────────────────────
-info "Step 6/7: Configuring fail2ban..."
+# ─── Step 7: Configure Fail2Ban ─────────────────────────
+info "Step 7/8: Configuring fail2ban..."
 
 cat > /etc/fail2ban/jail.local << 'EOF'
 [sshd]
@@ -180,8 +205,8 @@ EOF
 systemctl restart fail2ban
 log "Fail2Ban configured"
 
-# ─── Step 7: Build & Start Containers ───────────────────
-info "Step 7/7: Building and starting containers..."
+# ─── Step 8: Build & Start Containers ───────────────────
+info "Step 8/8: Building and starting containers..."
 
 cd "$APP_DIR"
 docker compose -f docker-compose.digitalocean.yml down 2>/dev/null || true
@@ -192,14 +217,17 @@ echo "════════════════════════�
 echo "  ✅ Deployment Complete!"
 echo "═══════════════════════════════════════════════════════"
 echo ""
-echo "  🌐 API Server:  http://$(curl -s ifconfig.me):8000"
-echo "  🖥  Frontend:    http://$(curl -s ifconfig.me)"
-echo "  📊 Health:      http://$(curl -s ifconfig.me)/nginx-health"
+
+DROPLET_IP=$(curl -s ifconfig.me 2>/dev/null || echo "YOUR_DROPLET_IP")
+
+echo "  🌐 API Server:  http://${DROPLET_IP}:8000"
+echo "  🖥  Frontend:    http://${DROPLET_IP}"
+echo "  📊 Health:      http://${DROPLET_IP}/nginx-health"
 echo ""
 
 # Wait for services to be ready
-info "Waiting for services to start..."
-sleep 15
+info "Waiting for services to start (30s)..."
+sleep 30
 
 # Check service status
 docker compose -f docker-compose.digitalocean.yml ps
@@ -208,10 +236,17 @@ echo ""
 echo "  📝 Next Steps:"
 echo "  1. Edit API keys:    nano $APP_DIR/.env"
 echo "  2. Restart services: cd $APP_DIR && docker compose -f docker-compose.digitalocean.yml restart"
-echo "  3. Set up SSL:       bash scripts/setup_ssl.sh yourdomain.com"
+echo "  3. Set up SSL:       bash scripts/setup_ssl.sh yourdomain.com your@email.com"
 echo "  4. View logs:        docker compose -f docker-compose.digitalocean.yml logs -f"
 echo "  5. Monitor:          docker stats"
 echo ""
-echo "  💰 Estimated cost: ~\$24/month (s-2vcpu-4gb Droplet)"
-echo "  🎓 Student Pack: \$200 credit = ~8 months free!"
+echo "  💰 Estimated cost: ~\$12/month (s-1vcpu-2gb Droplet)"
+echo "  🎓 Student Pack: \$200 credit = ~16 months free!"
+echo ""
+echo "  💻 Edit code via VS Code Remote SSH:"
+echo "     1. Install 'Remote - SSH' extension in VS Code"
+echo "     2. Ctrl+Shift+P → 'Remote-SSH: Connect to Host'"
+echo "     3. Enter: root@${DROPLET_IP}"
+echo "     4. Open folder: /opt/autosaham"
+echo "     5. Edit files → restart: docker compose -f docker-compose.digitalocean.yml restart"
 echo ""
