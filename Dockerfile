@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     libpq-dev \
     curl \
+    git \
     tzdata \
     && rm -rf /var/lib/apt/lists/*
 
