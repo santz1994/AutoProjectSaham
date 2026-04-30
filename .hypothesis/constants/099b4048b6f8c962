@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\distribute_lib.py
+# hypothesis_version: 6.151.10
+
+['/device:CPU:0', 'CountType', 'InputOptions', 'PER_REPLICA', 'PER_WORKER', 'Reduce_to_eagerly', 'RunOptions', 'StrategyBase', 'TFVersion', 'TODO', '_cluster_resolver', '_input_pipeline_id', '_nested_count', '_num_input_pipelines', '_old_replica_id', '_replica_id', '_strategy', '_var_creator_scope', 'api', 'colocate_with', 'distribute.Strategy', 'distribute_dataset', 'distribute_strategy', 'graph_building', 'if_graph_building', 'initial_value', 'not_graph_building', 'num_replicas', 'op', 'partitioner', 'replica_context', 'replica_mode', 'strategy', 'use run() instead', 'use_resource']

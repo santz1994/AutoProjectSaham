@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\rnn\stacked_rnn_cells.py
+# hypothesis_version: 6.151.10
+
+['call', 'cells', 'get_initial_state', 'output_size', 'state_size', 'training']

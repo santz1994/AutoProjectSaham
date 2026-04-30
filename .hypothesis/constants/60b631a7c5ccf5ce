@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\shap\explainers\other\__init__.py
+# hypothesis_version: 6.151.10
+
+['Coefficient', 'LimeTabular', 'Maple', 'Random', 'TreeGain', 'TreeMaple']

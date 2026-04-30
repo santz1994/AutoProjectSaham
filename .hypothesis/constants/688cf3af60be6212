@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\legacy\saving\json_utils.py
+# hypothesis_version: 6.151.10
+
+['CompositeTensor', 'TensorShape', 'TypeSpec', '_EXTENSION_TYPE_SPEC', '__bytes__', '__ellipsis__', '__tuple__', 'class_name', 'get_config', 'items', 'module', 'serialized', 'spec', 'tensors', 'type_spec', 'utf-8', 'value']

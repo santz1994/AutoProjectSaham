@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\framework\sparse_tensor.py
+# hypothesis_version: 6.151.10
+
+['SparseTensor', 'SparseTensorSpec', 'SparseTensorValue', '_dtype', '_shape', 'dense_shape', 'div', 'indices', 'mul', 'shape', 'sp_values', 'sparse.SparseTensor', 'tf.SparseTensorSpec', 'truediv', 'values', 'y']

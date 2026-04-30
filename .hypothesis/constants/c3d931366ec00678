@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\torch\nn\parallel\parallel_apply.py
+# hypothesis_version: 6.151.10
+
+['get_a_var', 'parallel_apply']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\utils\jax_layer.py
+# hypothesis_version: 6.151.10
+
+['(', ')', ', ', '...', '__self__', 'assign', 'batch', 'call_fn', 'dropout', 'init_fn', 'inputs', 'jax', 'method', 'module', 'params', 'rng', 'state', 'tensorflow', 'training']

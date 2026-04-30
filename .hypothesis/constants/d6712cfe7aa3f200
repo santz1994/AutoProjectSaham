@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\framework\func_graph.py
+# hypothesis_version: 6.151.10
+
+[', ', '<unknown>', 'AddValue', 'Enter', 'ReadVariableOp', 'ResourceGather', '_', '__name__', '__qualname__', '_handle', '_user_specified_name', 'dtype', 'frame_name', 'graph', 'op']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\util\tf_inspect.py
+# hypothesis_version: 6.151.10
+
+['ArgSpec', 'FullArgSpec', '__file__', '__self__', 'annotations', 'args', 'defaults', 'f_globals', 'getfullargspec', 'im_self', 'keywords', 'kwonlyargs', 'kwonlydefaults', 'varargs', 'varkw']

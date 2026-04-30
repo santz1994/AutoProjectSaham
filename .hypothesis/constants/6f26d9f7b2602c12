@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\normalization\layer_normalization.py
+# hypothesis_version: 6.151.10
+
+[0.001, 'axis', 'beta', 'beta_constraint', 'beta_initializer', 'beta_regularizer', 'center', 'epsilon', 'gamma', 'gamma_constraint', 'gamma_initializer', 'gamma_regularizer', 'ones', 'rms_scaling', 'scale', 'zeros']

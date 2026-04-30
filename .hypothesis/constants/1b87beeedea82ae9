@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\utils\audio_dataset_utils.py
+# hypothesis_version: 6.151.10
+
+[1000000.0, 1024, '.wav', 'binary', 'both', 'categorical', 'inferred', 'int', 'training', 'validation']

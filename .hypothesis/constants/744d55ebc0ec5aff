@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\legacy\preprocessing\image.py
+# hypothesis_version: 6.151.10
+
+[0.0, 1e-06, 0.5, 1.0, 10000.0, 10000000.0, 255, 256, '.tiff', 'binary', 'bmp', 'brightness', 'categorical', 'channels_first', 'channels_last', 'class', 'close', 'drop_duplicates', 'filename', 'flip_horizontal', 'flip_vertical', 'float32', 'grayscale', 'has_ext', 'input', 'int32', 'jpeg', 'jpg', 'multi_output', 'nearest', 'non-validated', 'other', 'png', 'ppm', 'raw', 'rgb', 'rgba', 'shear', 'sort', 'sparse', 'theta', 'tif', 'tiff', 'training', 'tx', 'ty', 'validated', 'validation', 'zx', 'zy']

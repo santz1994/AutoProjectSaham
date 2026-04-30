@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\monitored_session.py
+# hypothesis_version: 6.151.10
+
+[100, 120, 600, 1000, 7200, ' Conflict(s): ', 'Graph was finalized.', 'all_hooks %r', 'caller', 'init_op', 'local_init_op', 'ready_op', 'self', 'step_context', 'summary_op', 'tmp', 'tmp_%s_%d', 'train.Scaffold', 'train.SessionCreator']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\scipy\io\matlab\_byteordercodes.py
+# hypothesis_version: 6.151.10
+
+['<', '=', '>', 'S', 'aliases', 'b', 'be', 'big', 'l', 'le', 'little', 'native', 'native_code', 'swapped', 'swapped_code', 'sys_is_le', 'to_numpy_code']

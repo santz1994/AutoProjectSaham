@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\image_preprocessing\rand_augment.py
+# hypothesis_version: 6.151.10
+
+[0.5, 255, 'auto_contrast', 'bilinear', 'boxes', 'equalization', 'factor', 'interpolation', 'labels', 'layer_idxes', 'num_ops', 'random_brightness', 'random_contrast', 'random_posterization', 'random_rotation', 'random_sharpness', 'random_shear', 'random_translation', 'seed', 'solarization', 'tensorflow', 'transforms', 'value_range']

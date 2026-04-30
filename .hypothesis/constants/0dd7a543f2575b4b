@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\pyct\cfg.py
+# hypothesis_version: 6.151.10
+
+['  %s -> %s;\n', '  %s [label="%s"];\n', '%s added twice', 'Empty finally?', 'Graph', 'class %s', 'def %s', 'digraph CFG {\n', 'entry', 'error', 'exit', 'index', 'stmt_next', 'stmt_prev', '}']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\clip_ops.py
+# hypothesis_version: 6.151.10
+
+[1.0, 2.0, '%s_%d', 'ClipByValue', 'clip_by_average_norm', 'clip_by_global_norm', 'clip_by_norm', 'clip_by_value', 'global_norm', 'linalg.global_norm', 't', 't_%d']

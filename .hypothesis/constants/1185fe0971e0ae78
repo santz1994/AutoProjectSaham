@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\metrics.py
+# hypothesis_version: 6.151.10
+
+[0.0, 0.5, 1.0, 2.0, 200, 'L', 'N', 'ROC', 'T', '_by_label', 'accumulator', 'accuracy', 'binary_accuracy', 'binary_crossentropy', 'categorical_accuracy', 'categorical_hinge', 'class_id', 'cosine_similarity', 'count', 'curve', 'dtype', 'false_negatives', 'false_positives', 'fn', 'hinge', 'int32', 'interpolate_pr_auc', 'interpolation', 'label_weights', 'logcosh', 'mean', 'mean_absolute_error', 'mean_iou', 'mean_squared_error', 'mean_tensor', 'metric function', 'multi_label', 'name', 'normalizer', 'num_classes', 'num_thresholds', 'poisson', 'pr_auc_increment', 'prec_slope', 'precision', 'recall', 'sensitivity', 'specificity', 'squared_hinge', 'sum', 'sum_over_batch_size', 'summation_method', 'thresholds', 'top_k', 'total', 'true_negatives', 'true_positives']

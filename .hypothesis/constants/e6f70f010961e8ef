@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\parameter_server_strategy.py
+# hypothesis_version: 6.151.10
+
+[' for variable: ', '%s/device:GPU:%d', '/device:CPU:0', '/job:%s/task:%d', '/job:ps', '/job:ps/task:{}', 'GPU', 'V1', 'aggregation', 'chief', 'collections', 'colocate_with', 'evaluator', 'name', 'ps', 'trainable', 'worker']

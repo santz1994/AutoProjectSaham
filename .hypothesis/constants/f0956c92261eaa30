@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\dtensor\python\mesh_util.py
+# hypothesis_version: 6.151.10
+
+[1.0, 1000, '(barrier)', 'CPU', 'GPU', 'Local device IDs: %s', 'Local devices: %s', 'TPU', 'x']

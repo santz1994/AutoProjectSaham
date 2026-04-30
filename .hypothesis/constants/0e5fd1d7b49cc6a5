@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\metrics\iou_metrics.py
+# hypothesis_version: 6.151.10
+
+[1e-09, 0.5, 'axis', 'dtype', 'float', 'float32', 'ignore_class', 'int', 'int32', 'keras.metrics.IoU', 'name', 'num_classes', 'sparse_y_pred', 'sparse_y_true', 'target_class_ids', 'threshold', 'up']

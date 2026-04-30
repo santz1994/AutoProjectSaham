@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\nn_fused_batch_norm_grad.py
+# hypothesis_version: 6.151.10
+
+[b'NCDHW', b'NCHW', b'NDHWC', b'NHWC', 'FusedBatchNormGrad', 'FusedBatchNormGradV2', 'FusedBatchNormGradV3', 'data_format', 'epsilon', 'is_training']

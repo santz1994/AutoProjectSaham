@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\image_preprocessing\random_invert.py
+# hypothesis_version: 6.151.10
+
+[1.0, 255, 'apply_inversion', 'factor', 'images', 'seed', 'value_range']

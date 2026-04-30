@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\image_preprocessing\random_sharpness.py
+# hypothesis_version: 6.151.10
+
+[1.0, 5.0, 13.0, 255, 'channels_first', 'channels_last', 'factor', 'images', 'same', 'seed', 'value_range']

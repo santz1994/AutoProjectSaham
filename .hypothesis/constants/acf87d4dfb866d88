@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\gen_sdca_ops.py
+# hypothesis_version: 6.151.10
+
+[b'SdcaFprint', b'SdcaOptimizer', b'SdcaOptimizerV2', 'SdcaFprint', 'SdcaOptimizer', 'SdcaOptimizerV2', 'SdcaShrinkL1', 'adaptative', 'adaptive', 'l1', 'l2', 'loss_type', 'num_dense_features', 'num_inner_iterations', 'num_loss_partitions', 'num_sparse_features', 'raw_ops.SdcaFprint', 'raw_ops.SdcaShrinkL1', 'train.sdca_fprint', 'train.sdca_optimizer', 'train.sdca_shrink_l1']

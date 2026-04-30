@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\quantizers\gptq_config.py
+# hypothesis_version: 6.151.10
+
+[0.01, 128, 512, 'activation_order', 'dataset', 'gptq', 'group_size', 'hessian_damping', 'num_samples', 'per_channel', 'sequence_length', 'symmetric', 'tokenizer', 'weight_bits']

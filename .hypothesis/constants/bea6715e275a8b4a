@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\pandas\io\feather_format.py
+# hypothesis_version: 6.151.10
+
+['numpy_nullable', 'pyarrow', 'rb', 'storage_options', 'wb']

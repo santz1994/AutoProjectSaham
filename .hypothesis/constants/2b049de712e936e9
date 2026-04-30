@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\metrics\confusion_metrics.py
+# hypothesis_version: 6.151.10
+
+[0.0, 0.5, 1.0, 2.0, 200, 'ROC', 'accumulator', 'class_id', 'curve', 'false_negatives', 'false_positives', 'from_logits', 'interpolation', 'keras.metrics.AUC', 'keras.metrics.Recall', 'label_weights', 'multi_label', 'num_labels', 'num_thresholds', 'precision', 'recall', 'sensitivity', 'specificity', 'summation_method', 'thresholds', 'top_k', 'true_negatives', 'true_positives', 'up']

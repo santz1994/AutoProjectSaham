@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\utils\generic_utils.py
+# hypothesis_version: 6.151.10
+
+[b'/', b'\\', 0.001, 0.05, 1000.0, 1000000.0, 3600, '\x08', ' %.0fms/%s', ' %.0fs/%s', ' %.0fus/%s', ' %.4e', ' %.4f', ' %s', ' - %.0fs', ' - %s:', ' - ETA: %s', '%', '%7d/Unknown', '%d:%02d', '%d:%02d:%02d', '%ds', '(.)([A-Z][a-z0-9]+)', '([a-z])([A-Z])', '.', '=', '>', 'Cannot serialize', 'Custom', 'PYCHARM_HOSTED', '\\1_\\2', ']', '_', '__getitem__', '__len__', '__name__', '_is_default', '_passthrough', 'ascii', 'base64', 'class_name', 'compute_mask', 'config', 'config_item', 'custom_objects', 'd/%d', 'd/%d [', 'disabled', 'from_config', 'get_config', 'ipykernel', 'isatty', 'name', 'nt', 'object', 'posix', 'private', 'raw_unicode_escape', 'scope', 'shape', 'shared_object_id', 'step', 'supports_masking']

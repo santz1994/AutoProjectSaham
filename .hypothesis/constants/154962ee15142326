@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\lite\experimental\microfrontend\python\ops\audio_microfrontend_op.py
+# hypothesis_version: 6.151.10
+
+[0.025, 0.05, 0.06, 0.95, 80.0, 125.0, 7500.0, 16000, 'AudioMicrofrontend']

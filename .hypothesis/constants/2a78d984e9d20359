@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\convolutional\base_separable_conv.py
+# hypothesis_version: 6.151.10
+
+['activation', 'activity_regularizer', 'bias', 'bias_constraint', 'bias_initializer', 'bias_regularizer', 'channels_last', 'data_format', 'depth_multiplier', 'depthwise_constraint', 'depthwise_kernel', 'dilation_rate', 'filters', 'glorot_uniform', 'kernel_size', 'padding', 'pointwise_constraint', 'pointwise_kernel', 'strides', 'use_bias', 'valid', 'zeros']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\utils\losses_utils.py
+# hypothesis_version: 6.151.10
+
+[1.0, 'auto', 'bfloat16', 'float16', 'float32', 'none', 'num_elements', 'sum', 'sum_over_batch_size', 'value', 'weighted_loss']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\utils\image_utils.py
+# hypothesis_version: 6.151.10
+
+[255, ', ', 'I', 'I;16', 'L', 'RGB', 'RGBA', 'bicubic', 'bilinear', 'box', 'channels_first', 'channels_last', 'float32', 'grayscale', 'hamming', 'int32', 'jpeg', 'jpg', 'keras.utils.load_img', 'keras.utils.save_img', 'lanczos', 'nearest', 'rb', 'rgb', 'rgba', 'uint8']

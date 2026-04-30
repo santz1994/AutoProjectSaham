@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\control_flow_util.py
+# hypothesis_version: 6.151.10
+
+['0', 'Enter', 'Exit', 'Identity', 'Merge', 'RefEnter', 'RefExit', 'RefIdentity', 'RefMerge', 'RefSwitch', 'Switch', 'TF_ENABLE_COND_V2', 'TF_ENABLE_WHILE_V2', '_XlaCompile', '_captured', 'is_constant']

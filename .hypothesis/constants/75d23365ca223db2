@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorboard\compat\proto\config_pb2.py
+# hypothesis_version: 6.151.10
+
+[b'8\x01', 401, 729, 1474, 1557, 1560, 1693, 1696, 2010, 2042, 2044, 2111, 2114, 2482, 2484, 2549, 2551, 2599, 2602, 3389, 3439, 3442, 4595, 4817, 4841, 4844, 5156, 5326, 5367, 5369, 5451, 5457, 5460, 5738, 5914, 5916, 5974, 5977, 6310, 6360, 6362, 6413, 6416, 6573, 'BatchingOptions', 'CallableOptions', 'ConfigProto', 'DESCRIPTOR', 'DeviceCountEntry', 'Experimental', 'FeedDevicesEntry', 'FetchDevicesEntry', 'FunctionGraphs', 'GPUOptions', 'GlobalJitLevel', 'GraphOptions', 'Level', 'MlirBridgeRollout', 'OptimizerOptions', 'RunMetadata', 'RunOptions', 'SessionMetadata', 'StreamMergeOptions', 'TensorConnection', 'TraceLevel', 'VirtualDevices', '__module__']

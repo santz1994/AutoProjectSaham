@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\ps_values.py
+# hypothesis_version: 6.151.10
+
+[':0', 'AggregatingVariable', 'CPU:0', 'Variable:0', '__eq__', '__ne__', '_create_resource', '_destroy_resource', '_initialize', '_restored_function', 'current', 'f', 'handle_name', 'in_graph_mode', 'name', 'read_value', 'unique_id', 'use_locking', 'validate_shape']

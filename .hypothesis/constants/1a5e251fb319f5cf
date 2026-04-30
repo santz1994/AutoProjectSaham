@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\losses\loss.py
+# hypothesis_version: 6.151.10
+
+[1.0, 'Loss', 'int32', 'keras.Loss', 'keras.losses.Loss', 'mean', 'name', 'none', 'reduction', 'sum', 'sum_over_batch_size', 'tensorflow']

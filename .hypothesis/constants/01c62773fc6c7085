@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\stable_baselines3\ddpg\ddpg.py
+# hypothesis_version: 6.151.10
+
+[0.0, 0.001, 0.005, 0.1, 0.99, 100, 256, 1000000, 'DDPG', 'SelfDDPG', 'auto', 'n_critics']

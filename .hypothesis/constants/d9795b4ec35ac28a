@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\email_validator\validate_email.py
+# hypothesis_version: 6.151.10
+
+['@', '[', ']', 'ascii', 'ascii_domain', 'ascii_local_part', 'domain', 'domain_address', 'local_part', 'smtputf8']

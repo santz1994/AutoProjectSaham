@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\util\deprecation.py
+# hypothesis_version: 6.151.10
+
+['%s:', '%s=%r', '(deprecated)', ', ', 'DEPRECATED CLASS', 'DEPRECATED FUNCTION', 'Deprecated', 'DeprecatedArgSpec', '__func__', '__init__', '__new__', '`%s`', 'after %s', 'deprecated', 'deprecated_alias', 'deprecated_args', 'has_ok_value', 'in a future version', 'ok_value', 'position', 'warn_once', '{}:{}']

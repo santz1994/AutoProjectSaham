@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\export\openvino.py
+# hypothesis_version: 6.151.10
+
+['.xml', 'enable_xla', 'eval', 'ignore', 'input', 'is_static', 'jax', 'jax2tf_kwargs', 'name', 'native_serialization', 'openvino', 'tensorflow', 'torch']

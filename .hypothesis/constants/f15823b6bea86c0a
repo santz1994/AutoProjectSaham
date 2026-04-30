@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\utils\tf_utils.py
+# hypothesis_version: 6.151.10
+
+['dtype', 'float32', 'int', 'multi_hot', 'one_hot', 'shape', 'tf_idf', 'torch']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\lightgbm\__init__.py
+# hypothesis_version: 6.151.10
+
+['Booster', 'CVBooster', 'DaskLGBMClassifier', 'DaskLGBMRanker', 'DaskLGBMRegressor', 'Dataset', 'EarlyStopException', 'LGBMClassifier', 'LGBMModel', 'LGBMRanker', 'LGBMRegressor', 'Sequence', 'VERSION.txt', 'create_tree_digraph', 'cv', 'early_stopping', 'log_evaluation', 'plot_importance', 'plot_metric', 'plot_tree', 'record_evaluation', 'register_logger', 'reset_parameter', 'train', 'utf-8']

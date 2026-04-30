@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\platform\tf_logging.py
+# hypothesis_version: 6.151.10
+
+[1.0, 1000000.0, '(unknown file)', '(unknown function)', '<unknown>', 'DEBUG', 'ERROR', 'FATAL', 'I', 'INFO', 'WARN', 'get_logger', 'logging.DEBUG', 'logging.ERROR', 'logging.FATAL', 'logging.INFO', 'logging.WARN', 'logging.debug', 'logging.error', 'logging.fatal', 'logging.flush', 'logging.info', 'logging.log', 'logging.log_every_n', 'logging.log_first_n', 'logging.log_if', 'logging.vlog', 'logging.warn', 'logging.warning', 'tensorflow']

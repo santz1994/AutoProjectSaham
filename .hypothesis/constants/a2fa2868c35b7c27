@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\saving\saving_lib.py
+# hypothesis_version: 6.151.10
+
+[0.5, 1.0, 1024, '%Y-%m-%d@%H:%M:%S', '.json', '.keras', '.weights', '.weights.h5', '/', '/vars', 'Cross', 'Feature', 'Functional', 'Layer', 'Loading', 'Loss', 'Metric', 'Operation', 'Optimizer', 'README.md', 'Saving', 'Sequential', '\\', '_', '__', '__root__', '_functional', '_operations', 'a', 'assets', 'attrs', 'bfloat16', 'compile_config', 'config.json', 'date_saved', 'dtype', 'h5', 'hf://', 'int', 'int32', 'keras', 'keras_version', 'layers', 'load_assets', 'load_own_variables', 'metadata', 'metadata.json', 'model.weights', 'name', 'npz', 'operations', 'r', 'rb', 'save_assets', 'save_own_variables', 'summary_plot.png', 'total_size', 'variables', 'vars', 'w', 'wb', 'weight_map', 'weights.h5', 'weights.json']

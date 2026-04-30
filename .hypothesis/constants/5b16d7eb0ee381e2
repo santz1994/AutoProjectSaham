@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\failure_handling\failure_handling.py
+# hypothesis_version: 6.151.10
+
+['%s set to %s', '1', 'RECEIVED_SIGNAL', 'RUN_TO_CHECKPOINT', 'STOP_WATCHER', 'TERMINATED_WORKER', 'checkpointed_runs', 'ps', 'single_worker', 'workertemp_']

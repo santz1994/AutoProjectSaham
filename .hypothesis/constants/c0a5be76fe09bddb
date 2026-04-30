@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\datasets\http.py
+# hypothesis_version: 6.151.10
+
+[567498, 32400738, 'dst_bytes', 'duration', 'kdd99_http.csv', 'service', 'src_bytes']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\lite\python\interpreter.py
+# hypothesis_version: 6.151.10
+
+['CPython', 'Failed to open {}', 'ai_edge_litert', 'dtype', 'index', 'inputs', 'interpreter', 'lite.Interpreter', 'name', 'op_name', 'operand_types', 'outputs', 'quantization', 'quantized_dimension', 'result_types', 'scales', 'shape', 'shape_signature', 'sparsity_parameters', 'tflite_runtime', 'utf-8', 'zero_points']

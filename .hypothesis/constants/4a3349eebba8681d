@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\checkpoint\save_util_v1.py
+# hypothesis_version: 6.151.10
+
+['/cpu:0', 'checkpoint_key', 'factory', 'name']

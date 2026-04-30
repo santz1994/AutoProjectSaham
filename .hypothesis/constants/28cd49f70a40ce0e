@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\tpu\tpu_feed.py
+# hypothesis_version: 6.151.10
+
+['%s/%d', '%s/dequeue', '%s/enqueue', '%s/split', 'InfeedQueue']

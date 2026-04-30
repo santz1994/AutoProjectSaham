@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\eager\polymorphic_function\atomic_function.py
+# hypothesis_version: 6.151.10
+
+['<embedded', 'AtomicFunction', 'PartitionedCall', 'Tin', 'Tout', '_bound_context', '_cached_definition', '_cached_graph', '_call_options', '_children', '_function_type', '_generated_graph', '_name', 'config_proto', 'executor_type', 'f', 'is_stateful', 'tout', 'xla_compile_attr']

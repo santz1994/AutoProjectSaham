@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\lightgbm\dask.py
+# hypothesis_version: 6.151.10
+
+[0.0, 0.001, 0.1, 1.0, 100, 120, 12400, 200000, '**kwargs', ',', ':', 'DaskLGBMClassifier', 'DaskLGBMRanker', 'DaskLGBMRegressor', '_DaskLGBMModel', 'client', 'csc', 'csr', 'data', 'data_parallel', 'drop_axis', 'error', 'eval_at', 'eval_class_weight', 'eval_class_weight :', 'eval_group', 'eval_group :', 'eval_init_score', 'eval_init_score :', 'eval_metric', 'eval_metric :', 'eval_names', 'eval_sample_weight', 'eval_set', 'eval_set :', 'feature', 'feature_name :', 'feature_parallel', 'fitted_', 'gbdt', 'group', 'group :', 'init_score', 'label', 'local_listen_port', 'machines', 'np.random.Generator', 'num_machines', 'num_threads', 'predicted_result', 'predictions', 'split', 'time_out', 'timeout', 'tree_learner', 'voting', 'voting_parallel', 'weight']

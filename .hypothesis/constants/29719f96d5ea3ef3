@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\debug\cli\tensor_format.py
+# hypothesis_version: 6.151.10
+
+[0.0, 100.0, '  dtype: %s', '  shape: %s', ' |', '(%s)', '+', '+inf', ',', '-', '-inf', '...,', '0', ':', 'False', 'L', 'Numeric summary:', 'Tensor "%s":', 'True', '[', ']', 'bold', 'dtype', 'edgeitems', 'i0', 'max', 'mean', 'min', 'nan', 'omitted', 'shape', 'std', 'tensor_metadata', 'total', 'yellow', '|']

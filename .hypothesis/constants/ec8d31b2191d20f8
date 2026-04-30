@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\debug\lib\debug_graphs.py
+# hypothesis_version: 6.151.10
+
+['%s:%d', ':', '^', '_', '_Retval', '_Send', '__copy_', '__dbg_']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\legacy_tf_layers\variable_scope_shim.py
+# hypothesis_version: 6.151.10
+
+['%s/part_0', '__call__', '_regularizers', '_vars', 'aggregation', 'caching_device', 'collections', 'constraint', 'dtype', 'getter', 'initializer', 'name', 'partition_info', 'partitioner', 'regularizer', 'reuse', 'shape', 'synchronization', 'trainable', 'use_resource', 'validate_shape']

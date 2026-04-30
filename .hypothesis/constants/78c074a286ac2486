@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\stable_baselines3\common\torch_layers.py
+# hypothesis_version: 6.151.10
+
+[256, 512, 'auto', 'pi', 'qf', 'vf']

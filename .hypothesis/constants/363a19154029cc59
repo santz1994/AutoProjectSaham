@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\sparse_grad.py
+# hypothesis_version: 6.151.10
+
+['SparseAdd', 'SparseAddGrad', 'SparseConcat', 'SparseDenseCwiseAdd', 'SparseDenseCwiseDiv', 'SparseDenseCwiseMul', 'SparseFillEmptyRows', 'SparseReduceSum', 'SparseReorder', 'SparseSlice', 'SparseSoftmax', 'SparseSparseMaximum', 'SparseSparseMinimum', 'SparseTensorDenseAdd', 'SparseToDense', 'adjoint_a', 'adjoint_b']

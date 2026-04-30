@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\control_flow_ops.py
+# hypothesis_version: 6.151.10
+
+[', ', ':', 'Abstract method', 'LoopCond', 'Merge', 'NextIteration', 'PartitionedCall', 'Rank', 'Shape', 'Size', 'Switch', 'SymbolicGradient', 'b_acc', 'b_count', 'cond_ctxt', 'cond_text', 'control_dependency', 'ctxt', 'data', 'device', 'f_count', 'frame_name', 'group', 'group_deps', 'name', 'outer_graph', 'pred', 'shape', 'tuple', 'while_context', 'while_ctxt']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\datasets\base.py
+# hypothesis_version: 6.151.10
+
+['**/*', 'Classes', 'Content-Length', 'Dataset', 'Downloaded', 'Features', 'FileDataset', 'Name', 'Outputs', 'Path', 'RIVER_DATA', 'Regression', 'RemoteDataset', 'Samples', 'Size', 'Sparse', 'SyntheticDataset', 'Task', 'URL', '\\w+\\n\\s{4}\\-{3,}', 'gz', 'r', 'r:', 'r:gz', 'river_data', 'tar', 'wb', 'zip', '~', '∞']

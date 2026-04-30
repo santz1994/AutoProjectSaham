@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\eager\monitoring.py
+# hypothesis_version: 6.151.10
+
+[1000000, 'BoolGauge', 'Counter', 'IntGauge', 'MetricMethod', 'Sampler', 'StringGauge', '_cell', '_counting', '_label_length', '_metric', '_metric_methods', '_metric_name', 'buckets', 'cell', 't', 'utf-8']

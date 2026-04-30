@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\trainers\data_adapters\__init__.py
+# hypothesis_version: 6.151.10
+
+['DataLoader', 'DatasetV2', 'DistributedDataset', 'IterDataset', 'MapDataset', 'PyDataset', '__class__', '_is_multi_process', 'auto_shard_dataset', 'grain', 'sample_weights', 'tensorflow.python.', 'tf.data.Dataset', 'the sample weights', 'the targets', 'torch DataLoader', 'torch.utils.data', 'y']

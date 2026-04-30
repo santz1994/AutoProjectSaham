@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\data\ops\options.py
+# hypothesis_version: 6.151.10
+
+['Darwin', '_mutable', 'auto_shard_policy', 'autotune', 'autotune_algorithm', 'cpu_budget', 'data.Options', 'dataset_name', 'deterministic', 'enabled', 'experimental_service', 'experimental_slack', 'filter_fusion', 'framework_type', 'initial_parallelism', 'inject_prefetch', 'map_and_batch_fusion', 'map_fusion', 'map_parallelization', 'min_parallelism', 'noop_elimination', 'num_devices', 'optional_cpu_budget', 'optional_enabled', 'optional_map_fusion', 'optional_num_devices', 'optional_pinned', 'optional_ram_budget', 'optional_slack', 'optional_warm_start', 'parallel_batch', 'pinned', 'ram_budget', 'threading']

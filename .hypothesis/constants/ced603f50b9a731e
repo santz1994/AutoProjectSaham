@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\data\ops\multi_device_iterator_ops.py
+# hypothesis_version: 6.151.10
+
+['/cpu:0', '_devices', '_element_spec', '_name', '_source_device', 'device_prefetch']

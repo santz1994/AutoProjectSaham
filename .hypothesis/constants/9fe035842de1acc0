@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\tensor_array_ops.py
+# hypothesis_version: 6.151.10
+
+['TensorArray', 'TensorArrayGrad', 'TensorArrayScatter', 'TensorArraySpec', 'TensorArraySplit', 'TensorArrayStack', 'TensorArrayUnstack', 'TensorArrayV2', 'TensorArrayV2Read', 'TensorArrayV2Stack', 'TensorArrayV2Write', 'TensorArrayWrite', '_dtype', '_dynamic_size', '_element_shape', '_infer_shape', 'convert_tensor_array', 'gradient_flow', 'tf.TensorArraySpec', 'value']

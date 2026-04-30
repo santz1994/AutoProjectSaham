@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\attention\attention.py
+# hypothesis_version: 6.151.10
+
+[0.0, 65504.0, 1000000000.0, 'concat', 'concat_score_weight', 'dot', 'dropout', 'float16', 'int32', 'ones', 'scale', 'score_mode', 'scores not computed', 'use_scale']

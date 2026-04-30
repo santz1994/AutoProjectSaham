@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\dtensor\python\tpu_util.py
+# hypothesis_version: 6.151.10
+
+['/device:TPU_SYSTEM:0', '/job:', 'Actual ring_axes: %s', 'Actual ring_dims: %s', 'Actual ring_size: %d', 'All TPU core IDs: %s', 'Permutation out: %s', 'TPU', 'TPU Topology: %s, %s', 'TPU core IDs: %s', 'Using TPU megacore', 'core', 'first_column: %d', 'first_row: %d', 'mesh_%f', 'same_z: %s', 'x', 'y', 'z']

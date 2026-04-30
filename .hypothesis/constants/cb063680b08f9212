@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\cudnn_rnn_grad.py
+# hypothesis_version: 6.151.10
+
+['CudnnRNN', 'CudnnRNNV2', 'CudnnRNNV3', 'direction', 'dropout', 'input_mode', 'is_training', 'num_proj', 'rnn_mode', 'seed', 'seed2', 'time_major']

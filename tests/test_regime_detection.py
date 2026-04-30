@@ -19,7 +19,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from ml.regime_detector import (
+from src.ml.regime_detector import (
     RegimeType,
     RegimeState,
     HMMRegimeDetector,
@@ -450,4 +450,4 @@ class TestRegimeDetectionIntegration:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    pytest.main([__file__, "-v"

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\ensemble\stacking.py
+# hypothesis_version: 6.151.10
+
+['StackingClassifier', 'meta_classifier', 'models']

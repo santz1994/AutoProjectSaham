@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\ops\linalg.py
+# hypothesis_version: 6.151.10
+
+['-inf', 'bool', 'complete', 'fro', 'inf', 'int', 'keras.ops.cholesky', 'keras.ops.det', 'keras.ops.eig', 'keras.ops.eigh', 'keras.ops.inv', 'keras.ops.jvp', 'keras.ops.linalg.det', 'keras.ops.linalg.eig', 'keras.ops.linalg.inv', 'keras.ops.linalg.jvp', 'keras.ops.linalg.qr', 'keras.ops.linalg.svd', 'keras.ops.lstsq', 'keras.ops.lu_factor', 'keras.ops.norm', 'keras.ops.qr', 'keras.ops.solve', 'keras.ops.svd', 'nuc', 'reduced', 'tensorflow']

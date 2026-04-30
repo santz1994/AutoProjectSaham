@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\tpu\ops\tpu_ops.py
+# hypothesis_version: 6.151.10
+
+['AllToAll', 'CollectivePermute', 'CrossReplicaSum', 'TPUReplicatedInput', 'concat_dimension', 'lookup_id', 'split_count', 'split_dimension', 'table_id', 'unspecified']

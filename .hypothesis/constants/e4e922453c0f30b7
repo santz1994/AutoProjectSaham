@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\moving_averages.py
+# hypothesis_version: 6.151.10
+
+[1.0, 10.0, '/', ':0', 'AssignMovingAvg', 'VarHandleOp', 'Variable', 'VariableV2', 'WeightedMovingAvg', '_%d', 'biased', 'decay', 'local_step', 'num_updates', 'value_x_weight', 'weight']

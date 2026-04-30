@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\ctc_ops.py
+# hypothesis_version: 6.151.10
+
+[0.0, 1e-307, 1.0, 100, 'CPU', 'CTCBeamSearchDecoder', 'CTCGreedyDecoder', 'CTCLoss', 'CTCLossV2', 'GPU', 'api_implements', 'api_preferred_device', 'blank_index', 'ctc_loss_', 'ctc_loss_dense', 'ctc_state_trans', 'ctc_unique_labels', 'idx', 'inputs', 'label_length', 'label_seq', 'labels', 'logit_length', 'logits', 'logits_time_major', 'nn.collapse_repeated', 'nn.ctc_loss', 'nn.ctc_loss_v2', 'nn.ctc_unique_labels', 'seq_length', 'sum_states', 'unique']

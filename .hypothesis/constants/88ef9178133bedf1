@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\signal\fft_ops.py
+# hypothesis_version: 6.151.10
+
+[0.5, 1.0, 2.0, '    Tcomplex.*?\n', '    Tcomplex.*?\\n', '    Treal.*?\n', '    Treal.*?\\n', 'FFT', 'FFT2D', 'FFT3D', 'IFFT', 'IFFT2D', 'IFFT3D', 'IRFFT', 'IRFFT2D', 'RFFT', 'RFFT2D', '`input_tensor`', '`input`', 'backward', 'fftnd', 'fftshift', 'forward', 'ifftnd', 'ifftshift', 'irfft', 'irfft2d', 'irfft3d', 'irfftnd', 'ortho', 'rfft', 'rfft2d', 'rfft3d', 'rfftnd', 'signal.fftnd', 'signal.fftshift', 'signal.ifftnd', 'signal.ifftshift', 'signal.irfft', 'signal.irfft2d', 'signal.irfft3d', 'signal.irfftnd', 'signal.rfft', 'signal.rfft2d', 'signal.rfft3d', 'signal.rfftnd', 'spectral.irfft', 'spectral.irfft2d', 'spectral.irfft3d', 'spectral.rfft', 'spectral.rfft2d', 'spectral.rfft3d']

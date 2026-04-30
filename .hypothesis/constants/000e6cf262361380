@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\state_grad.py
+# hypothesis_version: 6.151.10
+
+['Assign', 'AssignAdd', 'AssignSub', 'ScatterAdd', 'ScatterDiv', 'ScatterMul', 'ScatterNdAdd', 'ScatterNdDiv', 'ScatterNdMul', 'ScatterNdSub', 'ScatterNdUpdate', 'ScatterSub']

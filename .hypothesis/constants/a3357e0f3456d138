@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\datasets\segment.py
+# hypothesis_version: 6.151.10
+
+[2310, 'category', 'exblue-mean', 'exgreen-mean', 'exred-mean', 'hedge-mean', 'hedge-sd', 'hue-mean', 'intensity-mean', 'rawblue-mean', 'rawgreen-mean', 'rawred-mean', 'region-centroid-col', 'region-centroid-row', 'saturation-mean', 'segment.csv.zip', 'short-line-density-2', 'short-line-density-5', 'value-mean', 'vedge-mean', 'vegde-sd']

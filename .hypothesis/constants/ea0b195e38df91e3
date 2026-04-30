@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\image_preprocessing\random_color_jitter.py
+# hypothesis_version: 6.151.10
+
+[255, 'brightness_factor', 'contrast_factor', 'hue_factor', 'saturation_factor', 'seed', 'tensorflow', 'value_range']

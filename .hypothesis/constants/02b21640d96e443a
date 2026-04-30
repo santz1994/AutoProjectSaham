@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\stable_baselines3\common\policies.py
+# hypothesis_version: 6.151.10
+
+[0.0, 1e-05, 0.01, 0.5, 1.0, 2.0, 'BaseModel', 'SelfBaseModel', 'auto', 'cpu', 'data', 'eps', 'full_std', 'learn_features', 'squash_output', 'state_dict', 'use_expln']

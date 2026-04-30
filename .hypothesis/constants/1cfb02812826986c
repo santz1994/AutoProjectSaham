@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\sets_impl.py
+# hypothesis_version: 6.151.10
+
+['SetSize', 'a', 'a-b', 'b', 'b-a', 'intersection', 'sets.difference', 'sets.intersection', 'sets.set_difference', 'sets.set_size', 'sets.set_union', 'sets.size', 'sets.union', 'union']

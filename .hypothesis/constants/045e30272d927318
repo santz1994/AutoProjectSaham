@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\linear_model\base.py
+# hypothesis_version: 6.151.10
+
+[0.0, 1.0, 'GLM', 'clip_gradient', 'ij,i->ij', 'initializer', 'intercept_lr', 'l1', 'l2', 'loss', 'optimizer']

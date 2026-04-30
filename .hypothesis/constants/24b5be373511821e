@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\tree\hoeffding_tree_classifier.py
+# hypothesis_version: 6.151.10
+
+[0.0, 1e-07, 0.01, 0.05, 0.99, 1.0, 100.0, 200, 1000000, 'delta', 'gini', 'grace_period', 'hellinger', 'info_gain', 'mc', 'nb', 'nba', 'tau']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\dtensor\python\config.py
+# hypothesis_version: 6.151.10
+
+[',', '/', '/bns/', '0', '1', ':', 'CPU', 'DTENSOR_CLIENT_ID', 'DTENSOR_JOBS', 'DTENSOR_JOB_NAME', 'DTENSOR_NUM_CLIENTS', 'GPU', 'TPU', 'TPU_SYSTEM', 'localhost', 'true', 'worker']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\shap\plots\_waterfall.py
+# hypothesis_version: 6.151.10
+
+[-0.1, 1e-10, 1e-08, 1e-06, 0.01, 0.02, 0.08, 0.1, 0.4, 0.5, 0.8, 1.5, 72.0, '\n$ = ', '\n$E[f(X)]$', ' = ', '#bbbbbb', '$', '$ = ', '$f(x)$', '%+0.02f', '%0.03f', '--', '=', "Explanation'>", 'FEATURE', 'bottom', 'center', 'left', 'lower_bounds', 'none', 'right', 'top', 'upper_bounds']

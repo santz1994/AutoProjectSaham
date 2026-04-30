@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\stable_baselines3\common\off_policy_algorithm.py
+# hypothesis_version: 6.151.10
+
+[0.005, 0.99, 1000000000.0, 100, 256, 1000000, 'OffPolicyAlgorithm', 'auto', 'env', 'gamma', 'l', 'n_steps', 'r', 'rollout/ep_len_mean', 'rollout/ep_rew_mean', 'rollout/success_rate', 'run', 'step', 'tensorboard', 'terminal_observation', 'time/episodes', 'time/fps', 'time/time_elapsed', 'time/total_timesteps', 'train/std', 'use_sde']

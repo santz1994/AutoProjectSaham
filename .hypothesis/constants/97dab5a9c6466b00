@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\image_preprocessing\resizing.py
+# hypothesis_version: 6.151.10
+
+[0.0, 'antialias', 'bilinear', 'boxes', 'channels_first', 'channels_last', 'constant', 'crop_to_aspect_ratio', 'data_format', 'fill_mode', 'fill_value', 'height', 'images', 'interpolation', 'pad_to_aspect_ratio', 'width', 'xyxy']

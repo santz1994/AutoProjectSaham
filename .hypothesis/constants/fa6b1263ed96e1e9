@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\debug\wrappers\framework.py
+# hypothesis_version: 6.151.10
+
+['DebugIdentity', '__del__', 'debug_run', 'non_debug_run', 'options', 'proceed', 'profile_run', 'remote_instr_loop', 'run_metadata', 'should_stop']

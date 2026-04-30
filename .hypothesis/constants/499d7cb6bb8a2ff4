@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\absl\flags\_validators_classes.py
+# hypothesis_version: 6.151.10
+
+['%s=%s', ', ', 'flag --%s=%s', 'flags ']

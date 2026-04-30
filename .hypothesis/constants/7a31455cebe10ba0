@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\profiler\option_builder.py
+# hypothesis_version: 6.151.10
+
+[100, 10000, '.*', 'account_type_regexes', 'bytes', 'file:outfile=%s', 'float_ops', 'hide_name_regexes', 'max_depth', 'micros', 'min_bytes', 'min_cpu_micros', 'min_float_ops', 'min_micros', 'min_occurrence', 'min_output_bytes', 'min_params', 'min_peak_bytes', 'min_residual_bytes', 'name', 'none', 'order_by', 'output', 'params', 'pprof:outfile=%s', 'select', 'show_name_regexes', 'start_name_regexes', 'stdout', 'step', 'timeline:outfile=%s', 'trim_name_regexes']

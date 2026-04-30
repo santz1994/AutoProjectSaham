@@ -35,7 +35,7 @@ try:
 except ImportError:
     shap = None
 
-from sklearn.metrics import confidence_score
+# NOTE: confidence_score removed — does not exist in sklearn.metrics
 
 logger = logging.getLogger(__name__)
 JAKARTA_TZ = pytz.timezone("Asia/Jakarta")

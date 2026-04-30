@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\sb3_contrib\ppo_mask\ppo_mask.py
+# hypothesis_version: 6.151.10
+
+[0.0, 1e-08, 0.0003, 0.2, 0.5, 0.95, 0.99, 1.5, 100, 2048, 'CnnPolicy', 'MaskablePPO', 'MlpPolicy', 'MultiInputPolicy', 'SelfMaskablePPO', 'TimeLimit.truncated', 'auto', 'tensorboard', 'terminal_observation', 'train/approx_kl', 'train/clip_fraction', 'train/clip_range', 'train/clip_range_vf', 'train/entropy_loss', 'train/loss', 'train/n_updates', 'train/value_loss']

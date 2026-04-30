@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\core\embedding.py
+# hypothesis_version: 6.151.10
+
+[-127, 127, 'activity_regularizer', 'embeddings', 'embeddings_scale', 'gptq', 'he_uniform', 'input_dim', 'input_length', 'int32', 'int4', 'int64', 'int8', 'lora_alpha', 'lora_embeddings_a', 'lora_embeddings_b', 'lora_rank', 'mask_zero', 'ones', 'output_dim', 'quantization_config', 'ragged', 'uniform', 'zeros']

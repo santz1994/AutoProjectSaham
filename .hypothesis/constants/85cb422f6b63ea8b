@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\hashed_crossing.py
+# hypothesis_version: 6.151.10
+
+['dtype', 'int', 'int64', 'name', 'num_bins', 'one_hot', 'output_mode', 'sparse', 'tensorflow']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorboard\compat\proto\saved_object_graph_pb2.py
+# hypothesis_version: 6.151.10
+
+[b'\x18\x01', b'8\x01', 353, 496, 588, 591, 1471, 1554, 1580, 1582, 1683, 1685, 1727, 1729, 1822, 1824, 1881, 1884, 2054, 2057, 2231, 2233, 2267, 2270, 2618, 2621, 2821, 2863, 2875, 2877, 2908, 2910, 2975, 'CapturedTensor', 'DESCRIPTOR', 'FunctionSpec', 'JitCompile', 'SaveableObject', 'SaveableObjectsEntry', 'SavedAsset', 'SavedConstant', 'SavedFunction', 'SavedObject', 'SavedObjectGraph', 'SavedResource', 'SavedUserObject', 'SavedVariable', '__module__', 'metadata']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\tpu\tpu.py
+# hypothesis_version: 6.151.10
+
+[1.0, '/GuaranteeConst', '/device:TPU_SYSTEM:0', '/pivot', 'AssignAddVariableOp', 'AssignSubVariableOp', 'AssignVariableOp', 'GuaranteeConst', 'Placeholder', 'ReadVariableOp', 'STEP_MARK_AT_ENTRY', 'TPUReplicatedInput', 'VarHandleOp', 'Variable', 'VariableV2', 'XLAOptions', '_pivot_for_cluster', '_post_device_rewrite', '_tpu_input_identity', '_tpu_output_identity', 'allow_soft_placement', 'cluster', 'cluster_', 'compilation_status', 'device_assignment', 'host_compute_core', 'input{}', 'output_%d_shard_%d', 'output{}', 'partitioner', 'replicated_input_{}', 'shard_%d', 'step_marker_location', 'topology', 'tpu.PaddingSpec', 'tpu.XLAOptions', 'tpu.batch_parallel', 'tpu.replicate', 'tpu.rewrite', 'tpu.shard', 'tpu.shutdown_system', 'tpu_init_identity']

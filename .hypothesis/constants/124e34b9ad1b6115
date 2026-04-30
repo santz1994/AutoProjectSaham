@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\tpu\tensor_tracer_flags.py
+# hypothesis_version: 6.151.10
+
+[0.5, '%s_%s', '(\\d+):(\\d+)', ',', '1', 'TENSOR_TRACER_FLAGS', '\\s*--([^=]+)=(\\S*)', '\\s*--([^=]+)\\s*', 'brief', 'delta_threshold', 'detailed', 'dump_graphs', 'enable', 'excluded_opnames', 'excluded_optypes', 'flush_summaries', 'full-tensor', 'full_tensor_summary', 'history', 'included_opnames', 'included_optypes', 'inspect_trace', 'max', 'max-abs', 'mean', 'min', 'nan-inf', 'norm', 'op_range', 'part-tensor', 'report_file', 'signatures', 'size', 'sparsity', 'submode', 'summary', 't', 'tensor_tracer', 'trace_dir', 'trace_level', 'trace_mode', 'trace_scalar', 'true', 'tt_check_filter', 'use_temp_cache', 'var', 'y', 'yes']

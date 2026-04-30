@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\eager\polymorphic_function\compiler_ir.py
+# hypothesis_version: 6.151.10
+
+['hlo', 'hlo_serialized', 'stablehlo_serialized', 'utf-8']

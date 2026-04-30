@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\parameter_server_strategy_v2.py
+# hypothesis_version: 6.151.10
+
+[1000000000.0, 1000, ' for variable: ', '/device:CPU:0', '/device:GPU:%d', '/job:%s', '/job:ps', '/job:worker', 'False', 'GPU', 'StaticHashTable', 'True', 'V2', 'aggregation', 'chief', 'colocate_with', 'dtype', 'initial_value', 'name', 'num_gpus_per_worker', 'partition_shape', 'per_worker_variable', 'ps', 'ps_strategy_num_ps', 'shape', 'shard_info', 'standalone', 'worker', '{}/part_{}']

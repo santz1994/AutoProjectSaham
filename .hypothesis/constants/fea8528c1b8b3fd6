@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\stream\__init__.py
+# hypothesis_version: 6.151.10
+
+['Cache', 'TwitchChatStream', 'TwitterLiveStream', 'iter_arff', 'iter_array', 'iter_csv', 'iter_libsvm', 'iter_pandas', 'iter_polars', 'iter_sklearn_dataset', 'iter_sql', 'iter_vaex', 'shuffle', 'simulate_qa']

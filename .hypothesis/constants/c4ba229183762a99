@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\debug\lib\check_numerics_callback.py
+# hypothesis_version: 6.151.10
+
+[b'CheckNumericsV2', b'Concat', b'ConcatV2', b'ExpandDims', b'Fill', b'FusedBatchNorm', b'FusedBatchNormV2', b'FusedBatchNormV3', b'Gather', b'Maximum', b'Minimum', b'Placeholder', b'Reshape', b'Slice', b'Squeeze', b'Stack', b'StridedSlice', b'StridedSliceGrad', b'TensorListConcatV2', b'TensorListGather', b'TensorListGetItem', b'TensorListPopBack', b'TensorListStack', b'Transpose', b'Unpack', 0.0, '\n  Input tensor: %s\n', '         %d: %s\n', '    + %s (L%d) %s\n', '  Graph name: "%s"\n', '  dtype: %s\n', '  shape: %s\n', ' -> ', '%s|   %s\n', '...', 'eagerly-executing', 'graph', 'name']

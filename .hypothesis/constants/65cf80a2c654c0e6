@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\optimizer_v2\adadelta.py
+# hypothesis_version: 6.151.10
+
+[1e-07, 0.001, 0.95, 'Adadelta', 'accum_grad', 'accum_var', 'decay', 'epsilon', 'learning_rate', 'lr', 'lr_t', 'rho']

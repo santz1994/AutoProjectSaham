@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\engine\base_layer_utils.py
+# hypothesis_version: 6.151.10
+
+['_keras_history', '_keras_mask', '_tfp_distribution', '_variable_list', '_variables', 'activity_regularizer', 'add_loss', 'add_metric', 'build_graph', 'call_context', 'graph', 'inputs', 'keras.engine', 'keras.layers', 'keras_graph', 'layer', 'name', 'saving', 'trainable_weights', 'training', 'wrapped_function']

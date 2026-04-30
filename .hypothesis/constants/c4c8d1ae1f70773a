@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\impl\api.py
+# hypothesis_version: 6.151.10
+
+['    {}: {}', '0', '<string>', 'Calling %s with\n%s\n', 'Defaults of %s : %s', 'Error converting %s', '__call__', '__class__', '__code__', '__self__', 'ag__', 'ag_error_metadata', 'ag_module', 'ag_pass_through', 'ag_source_map', 'autograph', 'autograph.to_code', 'autograph.to_graph', 'autograph_info__', 'co_filename', 'message', 'node_def', 'op', 'self', 'tf__', '{}: {}']

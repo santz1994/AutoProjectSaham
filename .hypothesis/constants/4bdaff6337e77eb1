@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\framework\random_seed.py
+# hypothesis_version: 6.151.10
+
+[87654321, '_seed_used', 'get_seed', 'random.get_seed', 'random.set_seed', 'set_random_seed']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\cryptography\hazmat\bindings\openssl\binding.py
+# hypothesis_version: 6.151.10
+
+[b'base', b'default', b'fips', b'legacy', 'ascii', 'lib', 'win32']

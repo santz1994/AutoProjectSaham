@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\utils\layer_utils.py
+# hypothesis_version: 6.151.10
+
+[0.33, 0.45, 0.55, 0.67, 0.85, 1.0, ' (', ')', '0 (unused)', '=', '?', 'Connected to', 'Layer (type)', 'Model: "{}"', 'Output Shape', 'Param #', 'Sequential', 'Total params: {:,}', '_', '_is_graph_network', '_is_layer', '_keras_api_names', '_keras_history', '`None`, ', 'a `Callable`, ', 'channels_first', 'channels_last', 'keras.layers.Layer', 'layers', 'multiple', '{}[{}][{}]']

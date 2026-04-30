@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\framework\device_spec.py
+# hypothesis_version: 6.151.10
+
+['*', '/', '/device:%s:%s', '/job:', '/replica:', '/task:', ':', 'CPU', 'CUSTOM', 'DeviceSpec', 'EPU', 'GPU', 'TPU', '_as_string', '_device_index', '_device_type', '_hash', '_job', '_replica', '_task', 'cpu', 'device', 'gpu', 'job', 'replica', 'task']

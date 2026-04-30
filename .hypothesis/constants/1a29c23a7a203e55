@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\datasets\taxis.py
+# hypothesis_version: 6.151.10
+
+[1458644, 195271696, '%Y-%m-%d %H:%M:%S', 'dropoff_datetime', 'dropoff_latitude', 'dropoff_longitude', 'id', 'passenger_count', 'pickup_datetime', 'pickup_latitude', 'pickup_longitude', 'train.csv', 'trip_duration']

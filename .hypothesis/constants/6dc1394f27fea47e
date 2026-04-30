@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\saved_model\save_options.py
+# hypothesis_version: 6.151.10
+
+['extra_tags', 'function_aliases', 'namespace_whitelist', 'save_debug_info']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\feature_space.py
+# hypothesis_version: 6.151.10
+
+[0.0, 1.0, 'Cross', 'Feature', '_X_', 'adapt', 'concat', 'crosses', 'crossing_dim', 'dict', 'dtype', 'feature_names', 'features', 'float', 'float32', 'float_discretized', 'float_normalized', 'float_rescaled', 'hashing_dim', 'int', 'int32', 'integer_categorical', 'integer_hashed', 'multi_hot', 'one_hot', 'output_mode', 'preprocessor', 'string', 'string_categorical', 'string_hashed', 'tensorflow']

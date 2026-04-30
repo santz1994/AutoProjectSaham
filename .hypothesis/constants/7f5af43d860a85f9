@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\rnn\lstm.py
+# hypothesis_version: 6.151.10
+
+[0.0, 1.0, 'activation', 'activity_regularizer', 'auto', 'bias', 'bias_constraint', 'bias_initializer', 'bias_regularizer', 'cell', 'dropout', 'dtype', 'glorot_uniform', 'implementation', 'keras.layers.LSTM', 'kernel', 'kernel_constraint', 'kernel_initializer', 'kernel_regularizer', 'lstm_cell', 'ones', 'orthogonal', 'recurrent_activation', 'recurrent_constraint', 'recurrent_dropout', 'recurrent_kernel', 'seed', 'sigmoid', 'tanh', 'tensorflow', 'trainable', 'unit_forget_bias', 'units', 'use_bias', 'zeros']

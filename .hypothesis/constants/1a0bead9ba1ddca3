@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\session_manager.py
+# hypothesis_version: 6.151.10
+
+[7200, '%s : error [%s]', ', ', '<no name for %s>', 'Inf', 'Model not ready', 'None', '_duration_secs', '_start_time_secs', 'name', 'train.SessionManager', 'uninitialized', 'utf-8']

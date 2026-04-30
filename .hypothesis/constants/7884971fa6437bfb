@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\signal\shape_ops.py
+# hypothesis_version: 6.151.10
+
+['axis', 'frame', 'frame_length', 'frame_step', 'signal', 'signal.frame']

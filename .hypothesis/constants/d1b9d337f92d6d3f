@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\experimental\dtensor_util.py
+# hypothesis_version: 6.151.10
+
+['/device:CPU:0', 'batch']

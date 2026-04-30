@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\gen_set_ops.py
+# hypothesis_version: 6.151.10
+
+[b'DenseToDenseSetOperation', b'DenseToSparseSetOperation', b'SetSize', b'SparseToSparseSetOperation', 'SetSize', 'T', 'TV_SetSize_T', '_atypes.Int16', '_atypes.Int32', '_atypes.Int64', '_atypes.Int8', '_atypes.String', '_atypes.UInt16', '_atypes.UInt8', 'raw_ops.SetSize', 'result_indices', 'result_shape', 'result_values', 'set_operation', 'validate_indices']

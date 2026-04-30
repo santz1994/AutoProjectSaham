@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\shap\explainers\_additive.py
+# hypothesis_version: 6.151.10
+
+['auto', 'clustering', 'expected_values', 'main_effects', 'mask_shapes', 'values']

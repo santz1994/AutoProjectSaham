@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorboard\compat\proto\trackable_object_graph_pb2.py
+# hypothesis_version: 6.151.10
+
+[103, 194, 598, 652, 654, 753, 755, 863, 865, 917, 'DESCRIPTOR', 'ObjectReference', 'RegisteredSaver', 'SerializedTensor', 'TrackableObject', 'TrackableObjectGraph', '__module__']

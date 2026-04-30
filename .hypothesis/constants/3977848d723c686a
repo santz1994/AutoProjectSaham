@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\tpu_util.py
+# hypothesis_version: 6.151.10
+
+['_packed_var', 'outer_graph', 'packed_handle']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\ragged\ragged_string_ops.py
+# hypothesis_version: 6.151.10
+
+[65533, "'", "(['\\\\])", ', ', '...', 'AsString', 'RaggedSegmentJoin', 'RaggedStringJoin', 'RaggedTensor', 'SparseTensor', 'StringFormat', 'StringNGrams', 'StringSplit', 'StringsByteSplit', 'UnicodeDecode', 'UnicodeEncode', 'UnicodeSplit', '[', '\\\\\\1', ']', 'data', 'delimiter', 'input', 'replace', 'source', 'string_split', 'strings.bytes_split', 'strings.ngrams', 'strings.split', '{}']

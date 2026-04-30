@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\applications\imagenet_utils.py
+# hypothesis_version: 6.151.10
+
+[0.224, 0.225, 0.229, 0.406, 0.456, 0.485, 1.0, 103.939, 116.779, 123.68, 127.5, 255.0, 1000, 'caffe', 'channels_first', 'channels_last', 'imagenet', 'models', 'softmax', 'tf', 'torch']

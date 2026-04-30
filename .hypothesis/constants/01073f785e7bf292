@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\image_preprocessing\random_perspective.py
+# hypothesis_version: 6.151.10
+
+[-0.5, 0.0, 0.5, 1.0, 'apply_perspective', 'bilinear', 'boxes', 'channels_first', 'end_points', 'factor', 'fill_value', 'images', 'input_shape', 'interpolation', 'nearest', 'scale', 'seed', 'start_points', 'tensorflow', 'xyxy']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\quantizers\quantization_config.py
+# hypothesis_version: 6.151.10
+
+['activation_quantizer', 'default', 'float8', 'gptq', 'int4', 'int8', 'weight_quantizer']

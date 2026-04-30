@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\torch\utils\tensorboard\__init__.py
+# hypothesis_version: 6.151.10
+
+['1.15', 'FileWriter', 'RecordWriter', 'SummaryWriter', '__version__']

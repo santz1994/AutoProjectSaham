@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\initializers\random_initializers.py
+# hypothesis_version: 6.151.10
+
+[-0.05, 0.0, 0.05, 0.8796256610342398, 1.0, 2.0, 3.0, 'distribution', 'fan_avg', 'fan_in', 'fan_out', 'gain', 'maxval', 'mean', 'minval', 'mode', 'normal', 'scale', 'seed', 'stddev', 'truncated_normal', 'uniform', 'untruncated_normal']

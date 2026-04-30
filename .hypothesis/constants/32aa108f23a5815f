@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\while_v2_indexed_slices_rewriter.py
+# hypothesis_version: 6.151.10
+
+['ConcatV2', 'Identity', 'indices_init', 'shape_init', 'values_init']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\ops\math.py
+# hypothesis_version: 6.151.10
+
+['bool', 'complex64', 'float32', 'hann', 'int32', 'keras.ops.erf', 'keras.ops.erfinv', 'keras.ops.fft', 'keras.ops.fft2', 'keras.ops.ifft2', 'keras.ops.in_top_k', 'keras.ops.irfft', 'keras.ops.istft', 'keras.ops.logdet', 'keras.ops.logsumexp', 'keras.ops.rfft', 'keras.ops.rsqrt', 'keras.ops.stft', 'keras.ops.top_k']

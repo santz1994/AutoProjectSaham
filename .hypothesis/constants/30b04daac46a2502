@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\ragged\row_partition.py
+# hypothesis_version: 6.151.10
+
+[', not ', '_dtype', '_nrows', '_nrows.dtype=', '_nvals', '_row_lengths.dtype=', '_uniform_row_length', '_value_rowids.dtype=', 'monotonic', 'must equal nvals', 'nrows', 'nvals', 'rank', 'row_lengths', 'row_limits', 'row_splits', 'row_starts', 'tf.RowPartitionSpec', 'times nrows', 'uniform_row_length', 'value_rowids', 'zero']

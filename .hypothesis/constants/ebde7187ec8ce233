@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\legacy\saving\legacy_h5_format.py
+# hypothesis_version: 6.151.10
+
+[64512, '%s%d', '1', 'backend', 'decode', 'finalize_state', 'keras_version', 'layer_names', 'model_config', 'model_weights', 'optimizer', 'optimizer_weights', 'r', 'top-level model', 'training_config', 'utf-8', 'utf8', 'w', 'weight_names', 'weights']

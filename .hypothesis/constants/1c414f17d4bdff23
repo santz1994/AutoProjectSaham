@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\stable_baselines3\common\vec_env\subproc_vec_env.py
+# hypothesis_version: 6.151.10
+
+['TimeLimit.truncated', 'close', 'env_method', 'forkserver', 'get_attr', 'get_spaces', 'has_attr', 'is_wrapped', 'options', 'render', 'reset', 'rgb_array', 'set_attr', 'spawn', 'step', 'terminal_observation']

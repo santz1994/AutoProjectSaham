@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\drift\datasets\bitcoin.py
+# hypothesis_version: 6.151.10
+
+[502, 522, 540, 579, 580, 583, 591, 597, 629, 701, 702, 703, 747, 760, 772, 822, '%Y-%m-%d', '12', '13', '14', '6', '8', 'bitcoin.csv', 'date', 'price']

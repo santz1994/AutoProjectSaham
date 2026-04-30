@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\data\experimental\ops\data_service_ops.py
+# hypothesis_version: 6.151.10
+
+['/', '://', 'AUTO', 'SNAPPY', 'address', 'consumer_index', 'dataset_id', 'dataset_id=', 'distributed_epoch', 'job_name', 'num_consumers', 'parallel_epochs', 'processing_mode', 'protocol']

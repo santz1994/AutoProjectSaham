@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\absl\flags\_flagvalues.py
+# hypothesis_version: 6.151.10
+
+['\n%s%s:', '\nUSAGE: %s [flags]\n', '#', '%s', '%s: %s', '(%s)', '(default: %s)', ',', '-', '-%s,', '--', '--%s:', '--[no]%s:', '--flagfile', '--flagfile=', '-flagfile', '-flagfile=', '//', '=', 'AllFlags', 'FlagValues', '_T', '_T_co', '__banned_flag_names', '__flags', '__flags_by_module', '__flags_by_module_id', '__flags_parsed', '__hiddenflags', '__main__', '__set_unknown', '__use_gnu_getopt', 'a', 'absl.flags', 'false', 'no', 'program', 'true', 'undefok', 'usage', 'utf-8']

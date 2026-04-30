@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\absl\logging\__init__.py
+# hypothesis_version: 6.151.10
+
+[1.0, 1000000.0, '%Y%m%d-%H%M%S', '%s.%s.%s.log', '%s.INFO.%s.%d', ',', '.INFO', '0', '1', '2', '3', ':', 'CRITICAL - ', 'L', 'TEST_TMPDIR', '__code__', '__init__.', '_absl_log_fatal', 'a', 'absl', 'also log to stderr?', 'alsologtostderr', 'debug', 'error', 'extra', 'fatal', 'flush', 'getuid', 'info', 'isatty', 'log_dir', 'logger_levels', 'logging', 'logtostderr', 'name', 'py_%s', 'showprefixforinfo', 'stderrthreshold', 'symlink', 'unknown', 'utf-8', 'v', 'verbosity', 'warn', 'warning']

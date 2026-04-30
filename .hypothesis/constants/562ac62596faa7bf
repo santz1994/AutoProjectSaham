@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\backend\tensorflow\nn.py
+# hypothesis_version: 6.151.10
+
+[-1.0, -0.7, 0.0, 0.001, 0.2, 0.5, 1.0, 3.0, 6.0, 65500.0, 3.38953e+38, 100, 'AVG', 'BNTS,BSNH->BTNH', 'BTNH,BSNH->BNTS', 'DESCENDING', 'MAX', 'NCDHW', 'NCHW', 'NCW', 'NDHWC', 'NHWC', 'NWC', 'Sigmoid', 'Softmax', 'VALID', '_keras_logits', 'beam_search', 'bfloat16', 'binary_crossentropy', 'bool', 'channels_first', 'channels_last', 'count', 'float16', 'float32', 'float64', 'greedy', 'ij', 'int32', 'int64', 'int8', 'op', 'optimal', 'valid']

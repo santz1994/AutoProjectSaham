@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\lookup_grad.py
+# hypothesis_version: 6.151.10
+
+['HashTable', 'HashTableV2', 'InitializeTable', 'InitializeTableV2', 'LookupTableFind', 'LookupTableFindV2', 'LookupTableInsert', 'LookupTableInsertV2', 'LookupTableSize', 'LookupTableSizeV2', 'MutableHashTable', 'MutableHashTableV2']

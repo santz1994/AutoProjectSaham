@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\losses.py
+# hypothesis_version: 6.151.10
+
+[-2.0, 0.0, 0.5, 1.0, 2.0, 100.0, '<lambda>', '_', '__name__', 'binary_crossentropy', 'categorical_hinge', 'cosine_similarity', 'hinge', 'huber_loss', 'int32', 'kl_divergence', 'lambda', 'log_cosh', 'loss function', 'mean_absolute_error', 'mean_squared_error', 'name', 'poisson', 'reduction', 'squared_hinge']

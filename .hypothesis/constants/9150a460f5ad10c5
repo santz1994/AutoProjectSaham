@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\backend_config.py
+# hypothesis_version: 6.151.10
+
+[1e-07, 'channels_first', 'channels_last', 'float16', 'float32', 'float64']

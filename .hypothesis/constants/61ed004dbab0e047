@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\models\functional.py
+# hypothesis_version: 6.151.10
+
+['.', 'Functional', '__len__', '_call_context_args', '_keras_history', '_manual_input_spec', 'args', 'inbound_nodes', 'input_layers', 'kwargs', 'layers', 'module', 'name', 'output_layers', 'trainable', 'use_legacy_config']

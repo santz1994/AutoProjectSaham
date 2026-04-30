@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorboard\plugins\audio\summary.py
+# hypothesis_version: 6.151.10
+
+['%s/audio_summary', 'Unknown encoding: %r', 'WAV', 'audio_summary', 'encode_each_audio', 'wav']

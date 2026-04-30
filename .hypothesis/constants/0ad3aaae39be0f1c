@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\gen_bitwise_ops.py
+# hypothesis_version: 6.151.10
+
+[b'BitwiseAnd', b'BitwiseOr', b'BitwiseXor', b'Invert', b'LeftShift', b'PopulationCount', b'RightShift', 'BitwiseAnd', 'BitwiseOr', 'BitwiseXor', 'Invert', 'LeftShift', 'PopulationCount', 'RightShift', 'T', 'TV_BitwiseAnd_T', 'TV_BitwiseOr_T', 'TV_BitwiseXor_T', 'TV_Invert_T', 'TV_LeftShift_T', 'TV_PopulationCount_T', 'TV_RightShift_T', '_atypes.Int16', '_atypes.Int32', '_atypes.Int64', '_atypes.Int8', '_atypes.UInt16', '_atypes.UInt32', '_atypes.UInt64', '_atypes.UInt8', 'bitwise.bitwise_and', 'bitwise.bitwise_or', 'bitwise.bitwise_xor', 'bitwise.invert', 'bitwise.left_shift', 'bitwise.right_shift', 'raw_ops.BitwiseAnd', 'raw_ops.BitwiseOr', 'raw_ops.BitwiseXor', 'raw_ops.Invert', 'raw_ops.LeftShift', 'raw_ops.RightShift']

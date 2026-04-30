@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\eager\polymorphic_function\attributes.py
+# hypothesis_version: 6.151.10
+
+['_OutputsOnOpDevice', '_XlaCompile', '_XlaMustCompile', '_XlaScope', '_disable_acd', '_implements', '_input_shapes', '_noinline', '_original_func_name', '_tf_data_function', '_tftrt_is_dyn_op', 'api_implements', 'api_preferred_device', 'go_backwards', 'shared_rendezvous', 'time_major']

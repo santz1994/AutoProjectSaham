@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\cluster_resolver\tfconfig_cluster_resolver.py
+# hypothesis_version: 6.151.10
+
+['%s://%s', 'TF_CONFIG', 'cluster', 'index', 'rpc_layer', 'session_master', 'task', 'type', '{}']

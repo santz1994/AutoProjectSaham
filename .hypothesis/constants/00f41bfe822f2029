@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\fsspec\spec.py
+# hypothesis_version: 6.151.10
+
+[b'\n', 0.9, 100, 1024, ' (empty folder)', '%s read: %i - %i %s', '*', '**', '/', '://', '::', '?', 'B', 'Flush on closed file', 'G', 'M', 'P', 'T', '[', '_closed', '_unclosable', 'ab', 'abstract', 'add_aliases', 'add_docs', 'args', 'autocommit', 'b', 'cls', 'create', 'default', 'detail', 'directory', 'encoding', 'errors', 'file', 'fsspec', 'ignore', 'include_password', 'k', 'name', 'newline', 'none', 'omit', 'overwrite', 'password', 'protocol', 'r', 'raise', 'rb', 'readahead', 'return', 'size', 'skip_instance_cache', 't', 'trim', 'type', 'w', 'wb', 'withdirs', 'xb', '─', '│', '└', '├']

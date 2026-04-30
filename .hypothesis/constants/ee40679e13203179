@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\distributions\kullback_leibler.py
+# hypothesis_version: 6.151.10
+
+['2019-01-01', 'KullbackLeibler', 'RegisterKL', 'checked_kl', 'cross_entropy', 'kl', 'kl_divergence']

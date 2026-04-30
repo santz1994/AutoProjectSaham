@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\losses\losses_impl.py
+# hypothesis_version: 6.151.10
+
+[0.0, 1e-07, 0.5, 1.0, 2.0, 'absolute_difference', 'axis', 'cosine_distance_loss', 'dim', 'hinge_loss', 'huber_loss', 'labels_stop_gradient', 'log_loss', 'losses.Reduction', 'losses.hinge_loss', 'losses.huber_loss', 'losses.log_loss', 'mean_squared_error', 'none', 'num_elements', 'num_present', 'value', 'weighted_loss', 'weighted_mean', 'weighted_sum', 'xentropy']

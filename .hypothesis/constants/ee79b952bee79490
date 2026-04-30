@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\saved_model\save.py
+# hypothesis_version: 6.151.10
+
+[', ', '2', ':', ':0', '>', 'Assert', 'CheckNumerics', 'Identity', 'NoOp', 'Print', 'PrintV2', 'T', '[^A-Za-z0-9_.\\\\-]', '^', '^[^A-Za-z0-9.]*', '_', '_AssetInfo', '_CapturedTensor', '_cached_variable', '_gradient_op_type', '_initialize', '_user_specified_name', 'asset_defs', 'asset_filename_map', 'asset_index', 'attr', 'big', 'concrete_function', 'graph', 'input', 'little', 'name', 'save_v2', 'saved_model', 'saved_model.save', '{}_{}']

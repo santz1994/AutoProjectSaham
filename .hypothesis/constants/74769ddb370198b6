@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\distribute_coordinator.py
+# hypothesis_version: 6.151.10
+
+[7200, '://', 'TF_CONFIG', '[local]', '_cluster_resolver', '_std_server_started', 'chief', 'client', 'cluster', 'coord', 'environment', 'evaluator', 'google', 'grpc', 'independent_worker', 'index', 'ps', 'rpc_layer', 'server', 'standalone_client', 'task', 'type', 'worker', 'worker_barrier', '{}']

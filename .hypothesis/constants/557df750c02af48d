@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\optimizer_v2\adamax.py
+# hypothesis_version: 6.151.10
+
+[1e-07, 0.001, 0.9, 0.999, 'Adamax', 'beta_1', 'beta_1_power', 'beta_1_t', 'beta_2', 'beta_2_t', 'decay', 'epsilon', 'learning_rate', 'lr', 'lr_t', 'm', 'neg_scaled_lr', 'one_minus_beta_1_t', 'v', 'zero']

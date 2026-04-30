@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\torch\utils\tensorboard\_pytorch_graph.py
+# hypothesis_version: 6.151.10
+
+["'", '.', '/', '/device:CPU:0', ': ', 'ClassType', 'IO Node', 'Module', 'Parameter', 'UnSpecified', '__', '__module', 'all nodes', 'attributeNames', 'debugName', 'default', 'hasMultipleOutputs', 'hasUses', 'input', 'input_or_output', 'inputs', 'kind', 'name', 'node', 'offset', 'original_name', 'output', 'outputs', 'outputsSize', 'prim::GetAttr', 'scope', 'scopeName', 'tensor_size']

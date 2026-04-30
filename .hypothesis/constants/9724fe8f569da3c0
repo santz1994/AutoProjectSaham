@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\init_ops.py
+# hypothesis_version: 6.151.10
+
+[0.0, 0.8796256610342398, 1.0, 2.0, 3.0, 'constant_initializer', 'distribution', 'dtype', 'factor', 'fan_avg', 'fan_in', 'fan_out', 'gain', 'initializers.ones', 'initializers.zeros', 'maxval', 'mean', 'minval', 'mode', 'normal', 'ones_initializer', 'scale', 'seed', 'stddev', 'truncated_normal', 'uniform', 'untruncated_normal', 'value', 'verify_shape', 'zeros_initializer']

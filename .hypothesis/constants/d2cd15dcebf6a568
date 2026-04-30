@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\multi_worker_test_base.py
+# hypothesis_version: 6.151.10
+
+[0.7, 'GPU', 'TF_CONFIG', 'cached_session', 'chief', 'cluster', 'dict', 'environ', 'evaluator', 'grpc', 'grpc://', 'index', 'localhost:%s', 'ps', 'server_started', 'task', 'tf_config', 'type', 'worker', '{}{} {}']

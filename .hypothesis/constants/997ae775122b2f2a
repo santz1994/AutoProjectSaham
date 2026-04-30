@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\framework\versions.py
+# hypothesis_version: 6.151.10
+
+['COMPILER_VERSION', 'CXX11_ABI_FLAG', 'CXX_VERSION', 'GIT_VERSION', 'GRAPH_DEF_VERSION', 'MONOLITHIC_BUILD', 'VERSION', '__compiler_version__', '__cxx11_abi_flag__', '__cxx_version__', '__git_version__', '__monolithic_build__', '__version__', 'version.GIT_VERSION', 'version.VERSION']

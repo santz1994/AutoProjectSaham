@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorboard\compat\proto\event_pb2.py
+# hypothesis_version: 6.151.10
+
+[b'\x18\x01', 471, 473, 505, 508, 585, 666, 670, 673, 780, 856, 858, 912, 914, 950, 952, 990, 993, 1178, 1181, 1314, 1316, 1407, 1409, 1516, 'DESCRIPTOR', 'Event', 'Level', 'LogMessage', 'RequestedExitCode', 'SessionLog', 'SessionStatus', 'SourceMetadata', 'TaggedRunMetadata', 'WatchdogConfig', 'WorkerHealth', 'WorkerShutdownMode', '__module__', 'log_message']

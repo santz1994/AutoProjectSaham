@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\summary_ops_v2.py
+# hypothesis_version: 6.151.10
+
+[b'1', 255, 1000, '.v2', '/', '/CPU:0', 'SerializeToString', 'TraceContext', '[^-_/.A-Za-z0-9]', '_SUMMARY_WRITER_V2', '_mesh', 'cpu:0', 'create_file_writer', 'eval', 'eval_', 'graph', 'graph_run_metadata', 'logdir:', 'profiler', 'summary', 'summary.flush', 'summary.graph', 'summary.initialize', 'summary.record_if', 'summary.trace_export', 'summary.trace_off', 'summary.trace_on', 'summary.write', 'summary_cond', 'write_raw_pb', 'write_summary']

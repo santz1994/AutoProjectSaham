@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\gradients_util.py
+# hypothesis_version: 6.151.10
+
+['  in  --> %s', '  out --> %s', '%s_grad_%s', "'", ', ', '/', 'AggregationMethod', "Gradient for '", 'IdentityN', 'PartitionedCall', 'Placeholder', 'StatelessWhile', 'While', '_', '_XlaCompile', '_XlaScope', '__defun', '__unsupported__', '_grad', '_gradient_sum', 'add_n', 'f', 'grad_y', 'grad_ys_%d', 'grad_ys_%d_indices', 'grad_ys_%d_shape', 'grad_ys_%d_values', 'gradients', 'nop', 'outer_graph', 'tree', 'uid', 'x', 'y']

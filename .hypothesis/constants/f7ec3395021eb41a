@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\tpu_values.py
+# hypothesis_version: 6.151.10
+
+['_', 'is_packed', 'scatter_add', 'scatter_div', 'scatter_max', 'scatter_min', 'scatter_mul', 'scatter_sub', 'scatter_update']

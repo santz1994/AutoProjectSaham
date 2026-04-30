@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\saver.py
+# hypothesis_version: 6.151.10
+
+[10000.0, 3600, 1000000, '%s-%d', '%s-%s', ', ', '.part', 'CPU', 'Const', 'Ignoring: %s', 'No variables to save', '^s3://.*', '_temp/part', 'checkpoint', 'cpu:0', 'filename', 'meta', 'model', 'now on by default.', 'num_shards', 'restore_all', 'restore_shard', 'save', 'saver_def', 'saver_v1', 'train.Saver', '{:08d}', '{}*']

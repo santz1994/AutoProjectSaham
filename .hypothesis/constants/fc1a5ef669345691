@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\shap\plots\_labels.py
+# hypothesis_version: 6.151.10
+
+['FEATURE', 'FEATURE_VALUE', 'FEATURE_VALUE_HIGH', 'FEATURE_VALUE_LOW', 'Feature %s', 'Feature value', 'GLOBAL_VALUE', 'High', 'INTERACTION_EFFECT', 'INTERACTION_VALUE', 'JOINT_VALUE', 'Joint SHAP value', 'Low', 'MAIN_EFFECT', 'MODEL_OUTPUT', 'Model output value', 'PLOT_FOR', 'SHAP plot for %s', 'SHAP value for\n%s', 'VALUE', 'VALUE_FOR']

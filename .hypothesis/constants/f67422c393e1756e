@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\stable_baselines3\common\vec_env\__init__.py
+# hypothesis_version: 6.151.10
+
+['CloudpickleWrapper', 'DummyVecEnv', 'StackedObservations', 'SubprocVecEnv', 'VecCheckNan', 'VecEnv', 'VecEnvWrapper', 'VecEnvWrapperT', 'VecExtractDictObs', 'VecFrameStack', 'VecMonitor', 'VecNormalize', 'VecTransposeImage', 'VecVideoRecorder', 'is_vecenv_wrapped', 'obs_rms', 'unwrap_vec_normalize', 'unwrap_vec_wrapper']

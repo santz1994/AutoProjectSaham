@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\trackable\data_structures.py
+# hypothesis_version: 6.151.10
+
+['%d', '-non_string_key', 'Abstract method', 'DictWrapper(%s)', 'List(%s)', 'ListWrapper(%s)', 'Mapping(%s)', '_TupleWrapper(%s)', '__wrapped__', '_attribute_sentinel', '_storage', 'losses', 'trainable_variables', 'updates', 'value']

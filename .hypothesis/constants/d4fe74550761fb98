@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\data\ops\iterator_autograph.py
+# hypothesis_version: 6.151.10
+
+['dtype', 'no dtype', 'the default argument', 'the iterate', '{} cannot be None']

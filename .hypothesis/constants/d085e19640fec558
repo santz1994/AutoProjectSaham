@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\backend\common\dtypes.py
+# hypothesis_version: 6.151.10
+
+[512, '16', '32', '64', 'b', 'bfloat16', 'bool', 'complex', 'complex128', 'complex64', 'f', 'float', 'float16', 'float32', 'float64', 'float8_e4m3fn', 'float8_e5m2', 'i', 'int', 'int16', 'int32', 'int64', 'int8', 'string', 'tensorflow', 'u', 'uint16', 'uint32', 'uint64', 'uint8']

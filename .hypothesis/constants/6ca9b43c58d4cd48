@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\optimizers\schedules\learning_rate_schedule.py
+# hypothesis_version: 6.151.10
+
+[0.0, 0.0001, 0.5, 1.0, 2.0, 'CosineDecay', 'ExponentialDecay', 'InverseTimeDecay', 'PiecewiseConstant', 'PolynomialDecay', 'SGDRDecay', 'alpha', 'boundaries', 'cycle', 'decay', 'decay_rate', 'decay_steps', 'end_learning_rate', 'first_decay_steps', 'm_mul', 'name', 'power', 'staircase', 't_mul', 'values', 'warmup_steps', 'warmup_target']

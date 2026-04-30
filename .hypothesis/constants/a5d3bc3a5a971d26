@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\engine\input_spec.py
+# hypothesis_version: 6.151.10
+
+[' expects ', ' of layer ', ', ', ', found dtype=', ', found ndim=', ', found shape=', ': expected shape=', 'Input ', 'InputSpec(%s)', 'Layer ', 'axes', 'axes=', 'dtype', 'dtype=', 'layers.InputSpec', 'max_ndim', 'max_ndim=', 'min_ndim', 'min_ndim=', 'ndim', 'ndim=', 'shape', 'shape=', 'value']

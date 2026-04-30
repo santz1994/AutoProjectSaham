@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\saving\saved_model\load.py
+# hypothesis_version: 6.151.10
+
+[':0', 'Functional', 'InputLayer', 'InputSpec', 'Sequential', '_build', '_config', '_input', '_is_default', '_is_feature_layer', '_metrics', 'activity_regularizer', 'base_layer', 'batch_input_shape', 'build_input_shape', 'class_name', 'config', 'dtype', 'expects_training_arg', 'functional_lib', 'input_layer', 'input_spec', 'is_graph_network', 'kind', 'layer-(\\d+)', 'layer_metrics', 'layers', 'layers_module', 'metadata', 'metrics', 'models_lib', 'name', 'ragged', 'rb', 'recurrent', 'root', 'save_spec', 'shared_object_id', 'sparse', 'stateful', 'states', 'trainable', 'training', 'training_config', 'training_lib', 'training_lib_v1', 'user_object', 'variable', '{}.layer_metrics.{}', '{}.{}']

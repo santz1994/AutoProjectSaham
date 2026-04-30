@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\export\tf2onnx_lib.py
+# hypothesis_version: 6.151.10
+
+['Add', 'Cast', 'ConcatV2', 'GreaterEqual', 'Less', 'ListDiff', 'Mul', 'Pack', 'Range', 'Sqrt', 'Sub', 'Tidx', '_', 'axis', 'location', 'object', 'op name %s, %s, %s', 'out_idx', 'product', 'raw_data', 'to', 'value', '~"#%&*:<>?/\\{|}']

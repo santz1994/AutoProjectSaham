@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\opt_einsum\backends\cupy.py
+# hypothesis_version: 6.151.10
+
+['build_expression', 'cupy', 'evaluate_constants', 'to_cupy']

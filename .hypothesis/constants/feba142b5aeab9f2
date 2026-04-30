@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\mirrored_strategy.py
+# hypothesis_version: 6.151.10
+
+['%s/replica_%d/', '/device:CPU:0', '/job:%s/task:%d', ':', 'CPU', 'GPU', 'MirroredStrategy', 'V1', 'V2', 'chief', 'colocate_with', 'cpu', 'gpu', 'initial_value', 'localhost', 'name', 'update_%d', 'worker']

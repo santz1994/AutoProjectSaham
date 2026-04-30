@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\eager\polymorphic_function\saved_model_exported_concrete.py
+# hypothesis_version: 6.151.10
+
+['_parent_trackable', 'function', 'tensor_map']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\utils\dataset_utils.py
+# hypothesis_version: 6.151.10
+
+[1000000.0, '.', '/', 'Dataset', 'DatasetV2', 'IterDataset', 'MapDataset', '__class__', '_batch_size', 'binary', 'both', 'categorical', 'cpu', 'float32', 'grain._src.python', 'inferred', 'int', 'int32', 'left', 'right', 'split_dataset', 'tensorflow', 'tensorflow.data', 'torch', 'torch.utils.data', 'training', 'validation']

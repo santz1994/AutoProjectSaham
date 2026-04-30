@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\data\experimental\ops\shuffle_ops.py
+# hypothesis_version: 6.151.10
+
+['buffer_size', 'count', 'files', 'num_elements', 'offsets', 'path', 'skip', 'take', 'thresholds']

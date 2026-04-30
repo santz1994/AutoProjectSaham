@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\debug\lib\op_callbacks_common.py
+# hypothesis_version: 6.151.10
+
+[b'ConfigureDistributedTPU', b'DestroyResourceOp', b'Enter', b'Exit', b'Identity', b'If', b'LoopCond', b'Merge', b'NextIteration', b'RemoteCall', b'StatefulPartitionedCall', b'StatelessIf', b'Switch', b'TPUCompilationResult', b'TPUReplicateMetadata', b'TPUReplicatedInput', b'TPUReplicatedOutput', b'While']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\flatbuffers\number_types.py
+# hypothesis_version: 6.151.10
+
+['<', '<1L', '<1Q', '<1d', '<1f', 'Numpy was not found.', 'bool', 'float32', 'float64', 'int16', 'int32', 'int64', 'int8', 'uint16', 'uint32', 'uint64', 'uint8']

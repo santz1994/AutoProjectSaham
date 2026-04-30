@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\cluster_resolver\slurm_cluster_resolver.py
+# hypothesis_version: 6.151.10
+
+[8888, '%s:%d', '(\\d+)(\\(x(\\d+)\\))?$', ',', '-', '--list-gpus', 'CUDA_VISIBLE_DEVICES', 'GPU', 'GPU ', 'Invalid part: %s', 'PROCID', 'SLURM_', 'STEP_NODELIST', 'STEP_NUM_TASKS', 'STEP_TASKS_PER_NODE', '[', ']', 'grpc', 'nvidia-smi', 'utf-8', 'worker']

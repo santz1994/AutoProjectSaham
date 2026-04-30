@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\absl\testing\parameterized.py
+# hypothesis_version: 6.151.10
+
+['\n%s', '%s%d', '%s(%s)', '%s=%s', '(%s)', ', ', '<\\1>', '_', '__x_params_repr__', '__x_use_name__', '_test_params_reprs', 'test_', 'testcase_name', '{}{} ({})']

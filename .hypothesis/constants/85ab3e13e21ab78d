@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\stats\__init__.py
+# hypothesis_version: 6.151.10
+
+['AbsMax', 'AutoCorr', 'BayesianMean', 'Count', 'Cov', 'EWMean', 'EWVar', 'Entropy', 'IQR', 'KolmogorovSmirnov', 'Kurtosis', 'Link', 'MAD', 'Max', 'Mean', 'Min', 'Mode', 'NUnique', 'PeakToPeak', 'PearsonCorr', 'Quantile', 'RollingAbsMax', 'RollingIQR', 'RollingMax', 'RollingMin', 'RollingMode', 'RollingPeakToPeak', 'RollingQuantile', 'SEM', 'Shift', 'Skew', 'Sum', 'Var', 'base']

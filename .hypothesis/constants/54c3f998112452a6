@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\regularizers.py
+# hypothesis_version: 6.151.10
+
+[0.0, 0.01, 'l', 'l1', 'l1_l2', 'l2', 'regularizer']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\tpu\tpu_embedding_v3.py
+# hypothesis_version: 6.151.10
+
+[256, '/', '/cpu:0', 'CPU', 'Summary recording', 'TPU', '_sequential', '_xxtpuv3internal_', 'accumulators', 'backward', 'dtype', 'forward', 'initial_value', 'linears', 'momenta', 'name', 'outer_graph', 'parameters', 'restore_uid', 'row_pointers', 'sample_count', 'shape', 'shard_info', 'sorted_gains', 'sorted_sample_ids', 'sorted_token_ids', 'velocities']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\utils\object_identity.py
+# hypothesis_version: 6.151.10
+
+['<{} wrapping {!r}>', '__weakref__', '_storage', '_wrapped']

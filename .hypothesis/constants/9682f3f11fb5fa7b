@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\warm_starting_util.py
+# hypothesis_version: 6.151.10
+
+['.*', 'All', 'Unchanged', 'VocabInfo', 'axis', 'backup_initializer', 'new_vocab', 'new_vocab_size', 'num_oov_buckets', 'old_vocab', 'old_vocab_size', 'train.VocabInfo', 'train.warm_start', 'zero-initialized']

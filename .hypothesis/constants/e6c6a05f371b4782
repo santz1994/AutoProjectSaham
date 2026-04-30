@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\framework\tensor_util.py
+# hypothesis_version: 6.151.10
+
+['Cast', 'CheckNumericsV2', 'Concat', 'ConcatV2', 'Const', 'DebugIdentityV2', 'DstT', 'Equal', 'Fill', 'Identity', 'NotEqual', 'Pack', 'Placeholder', 'Range', 'Rank', 'Shape', 'Size', 'Split', 'StopGradient', 'StridedSlice', 'Unpack', '__array__', '__array_interface__', 'axis', 'base_dtype', 'begin_mask', 'edge', 'ellipsis_mask', 'end_mask', 'get_static_value', 'internal_captures', 'is_tensor', 'make_ndarray', 'make_tensor_proto', 'new_axis_mask', 'num_split', 'shrink_axis_mask', 'value']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\distribute\experimental\rpc\kernels\gen_rpc_ops.py
+# hypothesis_version: 6.151.10
+
+[b'DeleteRpcFutureResource', b'RpcCall', b'RpcCheckStatus', b'RpcClient', b'RpcGetValue', b'RpcServer', b'RpcServerRegister', b'RpcServerStart', 'RpcCall', 'RpcCheckStatus', 'RpcClient', 'RpcGetValue', 'RpcServer', 'RpcServerRegister', 'RpcServerStart', 'Tin', 'Tout', 'client', 'deleter', 'error', 'error_code', 'f', 'future', 'input_specs', 'method_specs', 'output_specs', 'raw_ops.RpcCall', 'raw_ops.RpcClient', 'raw_ops.RpcGetValue', 'raw_ops.RpcServer', 'rpc_call', 'rpc_check_status', 'rpc_client', 'rpc_get_value', 'rpc_server', 'rpc_server_register', 'rpc_server_start', 'shared_name']

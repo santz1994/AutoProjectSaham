@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\gen_optional_ops.py
+# hypothesis_version: 6.151.10
+
+[b'OptionalFromValue', b'OptionalGetValue', b'OptionalHasValue', b'OptionalNone', 'OptionalFromValue', 'OptionalGetValue', 'OptionalHasValue', 'OptionalNone', 'Toutput_types', 'output_shapes', 'output_types', 'raw_ops.OptionalNone']

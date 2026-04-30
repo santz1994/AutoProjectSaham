@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\shap\plots\_partial_dependence.py
+# hypothesis_version: 6.151.10
+
+[0.1, 100, 111, '#999999', ', ', '--', '3d', 'E[', 'E[f(x) | ', 'E[f(x)]', ']', 'auto', 'black', 'bottom', 'color', 'f(x) | ', 'left', 'linewidth', 'markersize', 'o', 'percentile', 'percentile(0)', 'percentile(100)', 'plt.Axes', 'right', 'top', 'zorder']

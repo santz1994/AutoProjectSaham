@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\framework\config.py
+# hypothesis_version: 6.151.10
+
+['autoclustering', 'current', 'explicit', 'silent', 'silent_for_int32', 'warn']

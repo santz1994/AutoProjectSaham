@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\pyct\transformer.py
+# hypothesis_version: 6.151.10
+
+['EntityInfo', '_stack', 'future_features', 'name', 'namespace', 'no_root', 'source_code', 'source_file', 'type']

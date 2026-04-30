@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\datasets\cifar10.py
+# hypothesis_version: 6.151.10
+
+[10000, 50000, 'channels_last', 'cifar-10-batches-py', 'test_batch', 'uint8']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\operators\py_builtins.py
+# hypothesis_version: 6.151.10
+
+['__class__', 'abs', 'all', 'any', 'end', 'enumerate', 'file', 'filter', 'float', 'flush', 'int', 'len', 'map', 'next', 'print', 'range', 'sep', 'sorted', 'zip']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\impl\conversion.py
+# hypothesis_version: 6.151.10
+
+['Allowlisted: %s: %s', 'BoundFunctionWrapper', 'FunctionWrapper', 'Not allowed: %s: %s', '__call__', '__code__', '__module__', '__name__', '_lru_cache_wrapper', 'collections', 'copy', 'functools', 'inspect', 'pdb', 're', 'wrapt']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\linalg_grad.py
+# hypothesis_version: 6.151.10
+
+[1e-20, 0.5, 2.0, ',', '->', '.', '...', 'Cholesky', 'Eig', 'Einsum', 'LEFT_RIGHT', 'LogMatrixDeterminant', 'MatrixDeterminant', 'MatrixInverse', 'MatrixSolve', 'MatrixSolveLs', 'MatrixSquareRoot', 'Qr', 'SelfAdjointEigV2', 'Svd', 'TridiagonalMatMul', 'TridiagonalSolve', 'adjoint', 'compute_uv', 'compute_v', 'equation', 'fast', 'full_matrices', 'lower', 'partial_pivoting', 'perturb_singular', '{},{}->{}', '{}->{}']

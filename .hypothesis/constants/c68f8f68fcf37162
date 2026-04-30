@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\rnn\conv_lstm.py
+# hypothesis_version: 6.151.10
+
+[0.0, 1.0, 'activation', 'activity_regularizer', 'bias', 'bias_constraint', 'bias_initializer', 'bias_regularizer', 'cell', 'channels_first', 'channels_last', 'conv_lstm_cell', 'data_format', 'dilation_rate', 'dropout', 'dtype', 'filters', 'glorot_uniform', 'kernel', 'kernel_constraint', 'kernel_initializer', 'kernel_regularizer', 'kernel_size', 'ones', 'orthogonal', 'padding', 'recurrent_activation', 'recurrent_constraint', 'recurrent_dropout', 'recurrent_kernel', 'same', 'seed', 'sigmoid', 'strides', 'tanh', 'unit_forget_bias', 'use_bias', 'valid', 'zeros']

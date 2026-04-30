@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\signal\spectral_ops.py
+# hypothesis_version: 6.151.10
+
+[0.0, 0.5, 1.0, 2.0, 'fft_length', 'frame_length', 'frame_step', 'inverse_mdct', 'inverse_stft', 'mdct', 'mdcts', 'ortho', 'signal.inverse_mdct', 'signal.inverse_stft', 'signal.mdct', 'signal.stft', 'signals', 'stft', 'stfts']

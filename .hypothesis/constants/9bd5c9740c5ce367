@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\utils\image_dataset_utils.py
+# hypothesis_version: 6.151.10
+
+[1000000.0, 256, 1024, '.bmp', '.gif', '.jpeg', '.jpg', '.png', 'I', 'I;16', 'L', 'RGB', 'RGBA', 'area', 'bicubic', 'bilinear', 'binary', 'both', 'categorical', 'channels_first', 'channels_last', 'cpu', 'float32', 'gaussian', 'grain', 'grayscale', 'inferred', 'int', 'lanczos3', 'lanczos5', 'mitchellcubic', 'nearest', 'rgb', 'rgba', 'tensorflow', 'tf', 'training', 'validation']

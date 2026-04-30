@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\shap\plots\_violin.py
+# hypothesis_version: 6.151.10
+
+[0.001, 0.05, 0.2, 0.4, 0.5, 0.7, 0.8, 1.5, 2.0, 100, 200, '#333333', '#777777', '#999999', '#cccccc', '...', '3.10', "Explanation'>", 'FEATURE', 'FEATURE_VALUE', 'FEATURE_VALUE_HIGH', 'FEATURE_VALUE_LOW', 'VALUE', 'auto', 'bar', 'bodies', 'bottom', 'coolwarm', 'face', 'horizontal', 'int', 'layered_violin', 'left', 'major', 'none', 'right', 'symlog', 'top', 'violin', 'x', 'y']

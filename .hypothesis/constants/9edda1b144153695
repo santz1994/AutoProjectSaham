@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\optimizer_v2\ftrl.py
+# hypothesis_version: 6.151.10
+
+[-0.5, 0.0, 0.001, 0.1, 2.0, 'Ftrl', 'accumulator', 'beta', 'decay', 'learning_rate', 'learning_rate_power', 'linear', 'lr_t']

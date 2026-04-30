@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\mixed_precision\loss_scale.py
+# hypothesis_version: 6.151.10
+
+['DynamicLossScale', 'FixedLossScale', 'dynamic', 'loss scale']

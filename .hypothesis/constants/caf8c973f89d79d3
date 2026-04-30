@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\profiler\profiler.py
+# hypothesis_version: 6.151.10
+
+['AdviceProto', 'GraphNodeProto', 'MultiGraphNodeProto', 'OpLogProto', 'ProfileOptionBuilder', 'Profiler', 'advise', 'profile', 'profiler.AdviceProto', 'profiler.OpLogProto', 'write_op_log']

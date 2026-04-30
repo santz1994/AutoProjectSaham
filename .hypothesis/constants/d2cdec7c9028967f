@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\mel_spectrogram.py
+# hypothesis_version: 6.151.10
+
+[0.0, 1e-10, 1.0, 2.0, 10.0, 20.0, 80.0, 125.0, 700.0, 1127.0, 3800.0, 128, 129, 512, 2048, 8000, 16000, 'fft_length', 'float32', 'float64', 'hann', 'mag_exp', 'max_freq', 'min_freq', 'min_power', 'num_mel_bins', 'power_to_db', 'ref_power', 'sampling_rate', 'sequence_length', 'sequence_stride', 'top_db', 'window']

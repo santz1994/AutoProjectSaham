@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\datasets\phishing.py
+# hypothesis_version: 6.151.10
+
+[1250, '1', 'age_of_domain', 'https', 'ip_in_url', 'is_phishing', 'is_popular', 'long_url', 'phishing.csv.gz', 'popup_window']

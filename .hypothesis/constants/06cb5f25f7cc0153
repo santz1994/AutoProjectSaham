@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\backend\tensorflow\numpy.py
+# hypothesis_version: 6.151.10
+
+[-1.0, -0.5, 0.0, 1e-08, 1e-05, 0.08, 0.42, 0.5, 1.0, 2.0, 3.0, 180.0, 512, 'ASCENDING', 'NCHW', 'NHWC', 'NaN', 'VALID', 'a,b->ab', 'ab,b->a', 'ab,bc->ac', 'ab,cb->ac', 'abc,cd->abd', 'abc,cde->abde', 'abc,dc->abd', 'abc,dce->abde', 'abc,dec->abde', 'abcd,abde->abce', 'abcd,abed->abce', 'abcd,acbe->adbe', 'abcd,adbe->acbe', 'abcd,aecd->acbe', 'abcd,aecd->aceb', 'abcd,cde->abe', 'abcd,ced->abe', 'abcd,ecd->abe', 'abcde,aebf->adbcf', 'abcde,afce->acdbf', 'bfloat16', 'bool', 'constant', 'constant_values', 'dtype', 'float', 'float16', 'float32', 'float64', 'full', 'higher', 'ij', 'inf', 'int', 'int16', 'int32', 'int64', 'int8', 'left', 'linear', 'lower', 'midpoint', 'nan', 'nearest', 'newshape', 'numpy', 'right', 'same', 'sum', 'uint', 'uint16', 'uint32', 'uint8', 'valid', 'xy']

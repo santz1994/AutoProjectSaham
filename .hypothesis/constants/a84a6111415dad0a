@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\eager\wrap_function.py
+# hypothesis_version: 6.151.10
+
+[':', ':0', 'Variable', 'collections', 'composite_tensor', 'coo_sparse', 'encoding', 'name', 'pruned', 'wrap_function', 'wrapped_function', 'wrapped_function_']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\rnn\gru.py
+# hypothesis_version: 6.151.10
+
+[0.0, 1.0, 'activation', 'activity_regularizer', 'auto', 'bias', 'bias_constraint', 'bias_initializer', 'bias_regularizer', 'cell', 'dropout', 'dtype', 'glorot_uniform', 'gru_cell', 'implementation', 'keras.layers.GRU', 'keras.layers.GRUCell', 'kernel', 'kernel_constraint', 'kernel_initializer', 'kernel_regularizer', 'orthogonal', 'recurrent_activation', 'recurrent_constraint', 'recurrent_dropout', 'recurrent_kernel', 'reset_after', 'seed', 'sigmoid', 'tanh', 'tensorflow', 'trainable', 'units', 'use_bias', 'zeros']

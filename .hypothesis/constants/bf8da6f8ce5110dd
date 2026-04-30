@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\backend\config.py
+# hypothesis_version: 6.151.10
+
+[1e-07, '.keras', '/tmp', '1', 'KERAS_BACKEND', 'KERAS_HOME', 'KERAS_MAX_EPOCHS', 'KERAS_NNX_ENABLED', 'backend', 'bfloat16', 'channels_first', 'channels_last', 'epsilon', 'flash_attention', 'float16', 'float32', 'float64', 'floatx', 'image_data_format', 'keras.backend.floatx', 'keras.config.backend', 'keras.config.epsilon', 'keras.config.floatx', 'keras.json', 'nnx_enabled', 'tensorflow', 'true', 'w', '~']

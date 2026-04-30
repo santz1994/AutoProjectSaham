@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\distributions\exponential.py
+# hypothesis_version: 6.151.10
+
+[1.0, '2019-01-01', 'Exponential', 'rate', 'softplus_rate']

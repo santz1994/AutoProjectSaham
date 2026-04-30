@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\utils\tf_utils.py
+# hypothesis_version: 6.151.10
+
+['__attrs_attrs__', '_is_legacy_layer', '_keras_history', '_keras_style', '_type_spec', 'dtype', 'graph', 'shape']

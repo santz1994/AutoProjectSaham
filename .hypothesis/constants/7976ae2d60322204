@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\lite\tools\optimize\debugging\python\debugger.py
+# hypothesis_version: 6.151.10
+
+[':', 'NumericVerify', '\\d', 'dtype', 'index', 'inputs', 'max_abs_error', 'mean_error', 'mean_squared_error', 'name', 'num_elements', 'op_name', 'outputs', 'scale', 'scales', 'stddev', 'tensor_idx', 'tensor_name', 'zero_point', 'zero_points']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\drift\datasets\brent_crude_oil.py
+# hypothesis_version: 6.151.10
+
+[169, 170, 172, 180, 217, 219, 227, 228, 229, 230, 246, 271, 279, 286, 287, 288, 368, 375, 379, 381, 382, 389, 409, 444, 483, 8195, '%m/%d/%Y', '12', '13', '6', '8', '9', 'DPB', 'brent_crude_oil.csv', 'day']

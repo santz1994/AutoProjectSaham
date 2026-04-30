@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\lite\python\op_hint.py
+# hypothesis_version: 6.151.10
+
+['\t\t\t%d: %s\n', '\t\t\tAGGREGATE %s\n', '\t\t%d:\n', '\tInputs\n', '\tOutputs\n', '%s-%s-%s-%r-%r-%s', '%s:%d', ':', 'Const', 'Identity', 'InputHint', 'N', 'OpHint', 'OpHintStack', 'OpHintStack-%s', 'OpHintUnstack', 'OpHintUnstack-%s', 'OutputHint', 'Pack', 'StatelessWhile', 'T', 'Unpack', 'While', '^', '_output_quantized', '_output_types', '_tflite_attr_', '_tflite_attr_,', '_tflite_ophint_level', 'body', 'child_input_index', 'child_output_index', 'dtype', 'first', 'initial', 'is_ophint_converted', 'last', 'lite.OpHint', 'names', 'num', 'parent_output_index', 'stack', 'type', 'value']

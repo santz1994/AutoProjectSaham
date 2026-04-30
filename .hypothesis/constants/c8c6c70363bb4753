@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\sb3_contrib\tqc\tqc.py
+# hypothesis_version: 6.151.10
+
+[0.0, 0.0003, 0.005, 0.99, 1.0, 100, 256, 1000000, 'CnnPolicy', 'MlpPolicy', 'MultiInputPolicy', 'SelfTQC', 'TQC', '_', 'actor', 'actor.optimizer', 'auto', 'critic', 'critic.optimizer', 'critic_target', 'ent_coef_optimizer', 'ent_coef_tensor', 'log_ent_coef', 'policy', 'running_', 'tensorboard', 'train/actor_loss', 'train/critic_loss', 'train/ent_coef', 'train/ent_coef_loss', 'train/n_updates']

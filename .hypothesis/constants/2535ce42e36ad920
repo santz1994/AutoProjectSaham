@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\linalg\linear_operator_addition.py
+# hypothesis_version: 6.151.10
+
+['/', 'Add/', '_', '__', 'add_operators', 'diag', 'identity', 'matrix', 'scaled_identity', 'tril']

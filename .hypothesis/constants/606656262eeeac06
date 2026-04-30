@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\optimizer_v2\optimizer_v2.py
+# hypothesis_version: 6.151.10
+
+[0.0, 1.0, '%s/%s', '...', '/', '/gradients', 'RestoredOptimizer', '_hyper', 'apply_state', 'clipnorm', 'clipvalue', 'decay', 'global_clipnorm', 'iter', 'learning_rate', 'lr', 'lr_t', 'name', 'update', 'update_', 'zeros']

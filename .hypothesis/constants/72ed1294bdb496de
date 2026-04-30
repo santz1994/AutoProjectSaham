@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\optree\registry.py
+# hypothesis_version: 6.151.10
+
+['<GLOBAL NAMESPACE>', 'CustomTreeNodeType', 'TREE_PATH_ENTRY_TYPE', '_GetP', '_GetT', '_P', '_T', '__func__', '__tree_flatten__', '__tree_unflatten__', 'register_pytree_node', 'slots', 'tree_flatten', 'tree_unflatten']

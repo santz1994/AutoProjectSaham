@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\ragged\ragged_factory_ops.py
+# hypothesis_version: 6.151.10
+
+['RaggedConstant', 'RaggedPlaceholder', 'flat_values', 'int64', 'ragged.constant', 'ragged.placeholder', 'row_splits_%d', 'values']

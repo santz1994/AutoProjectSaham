@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\layers\advanced_activations.py
+# hypothesis_version: 6.151.10
+
+[-1000000000.0, 0.0, 0.3, 1.0, 'alpha', 'alpha_constraint', 'alpha_initializer', 'alpha_regularizer', 'axis', 'max_value', 'negative_slope', 'shared_axes', 'theta', 'threshold', 'zeros']

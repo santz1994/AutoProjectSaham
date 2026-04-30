@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\proto_exports.py
+# hypothesis_version: 6.151.10
+
+['AttrValue', 'ConfigProto', 'Event', 'GPUOptions', 'GraphOptions', 'HistogramProto', 'LogMessage', 'MetaGraphDef', 'NameAttrList', 'NodeDef', 'OptimizerOptions', 'RunMetadata', 'RunOptions', 'SessionLog', 'Summary', 'SummaryMetadata', 'TensorInfo', 'summary.Event', 'summary.SessionLog', 'summary.Summary']

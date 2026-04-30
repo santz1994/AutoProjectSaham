@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\client\timeline.py
+# hypothesis_version: 6.151.10
+
+[' Compute', ' Tensors', '"', '#', '%s:%d', '(.*) = (.*)\\((.*)\\)', ',', ', ', '/_', '/job', '/memcpy', '/stream:', '/stream:all', ':', ': ', '@@', 'AllocationMaximum', 'Allocators', 'C', 'D', 'DataFlow', 'M', 'Memory', 'N', 'O', 'Op', 'RecvTensor', 'StepStatsAnalysis', 'Tensor', 'X', 'allocator_maximums', 'args', 'cat', 'chrome_trace', 'dur', 'gpu', 'id', 'input%d', 'is_rocm_build', 'kernel', 'name', 'num_bytes', 'op', 'ph', 'pid', 'process_name', 's', 'schedule', 'snapshot', 't', 'tensor_description', 'tensors', 'thread_name', 'tid', 'timestamp', 'traceEvents', 'ts', 'unknown']

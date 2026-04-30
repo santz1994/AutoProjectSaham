@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\eager\context.py
+# hypothesis_version: 6.151.10
+
+[256, 600, 10000, '   Device %d: %s', ',', '.', '/device', '0', '1', ':', 'CPU', 'CollectiveReduce', 'ContextSwitch', 'GPU', 'LogicalDevice', 'PhysicalDevice', 'PluggableDevice', '_context_id', '_ctx', '_data', '_device_name', '_executor_type', '_lock', '_max_items', '_max_tensor_size', '_ones_rank_cache', '_stack', '_value', '_zeros_cache', 'auto_mixed_precision', 'compute_capability', 'config.LogicalDevice', 'config_proto', 'constant_folding', 'debug_stripper', 'device_stack', 'device_type', 'enter_context_fn', 'executing_eagerly', 'executor_type', 'hlo', 'is_building_function', 'layout_optimizer', 'localhost', 'loop_optimization', 'memory_limit', 'min_graph_nodes', 'name', 'remapping', 'server_def is None.', 'shape_optimization', 'utf-8']

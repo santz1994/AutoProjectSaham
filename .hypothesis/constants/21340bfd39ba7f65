@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\absl\app.py
+# hypothesis_version: 6.151.10
+
+['\n%s\n', '\nUSAGE: %s [flags]\n', '\nflags:\n', '%', '%%', '.', '0', '?', 'PYTHONBREAKPOINT', '__main__', 'help', 'helpfull', 'helpshort', 'helpxml', 'only_check_args', 'pdb', 'pdb_post_mortem', 'post_mortem', 'profile_file', 'run_with_pdb', 'run_with_profiling', 'runcall', 'show full help', 'show this help', 'verbosity']

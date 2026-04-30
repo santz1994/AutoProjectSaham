@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\util\compat.py
+# hypothesis_version: 6.151.10
+
+['__fspath__', 'bytes_or_text_types', 'compat.as_bytes', 'compat.as_str', 'compat.as_str_any', 'compat.as_text', 'compat.complex_types', 'compat.path_to_str', 'compat.real_types', 'complex_types', 'integral_types', 'real_types', 'utf-8']

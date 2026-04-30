@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\saving\saved_model\layer_serialization.py
+# hypothesis_version: 6.151.10
+
+['_batch_input_shape', 'activity_regularizer', 'build_input_shape', 'config', 'get_config', 'has_static_table', 'input_spec', 'states', 'vocabulary']

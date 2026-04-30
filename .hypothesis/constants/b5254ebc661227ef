@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\datasets\reuters.py
+# hypothesis_version: 6.151.10
+
+[0.2, 113, 'acq', 'alum', 'bop', 'carcass', 'cocoa', 'coffee', 'copper', 'cotton', 'cpi', 'crude', 'dlr', 'earn', 'gas', 'gnp', 'gold', 'grain', 'heat', 'hog', 'housing', 'interest', 'ipi', 'iron-steel', 'jobs', 'lead', 'lei', 'livestock', 'meal-feed', 'money-fx', 'money-supply', 'nat-gas', 'object', 'oilseed', 'orange', 'pet-chem', 'reserves', 'retail', 'reuters.npz', 'rubber', 'ship', 'silver', 'strategic-metal', 'sugar', 'tin', 'trade', 'veg-oil', 'wheat', 'wpi', 'x', 'y', 'zinc']

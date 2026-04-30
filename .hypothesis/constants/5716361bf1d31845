@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\framework\errors_impl.py
+# hypothesis_version: 6.151.10
+
+['ABORTED', 'ALREADY_EXISTS', 'CANCELLED', 'DATA_LOSS', 'DEADLINE_EXCEEDED', 'FAILED_PRECONDITION', 'INTERNAL', 'INVALID_ARGUMENT', 'NOT_FOUND', 'OK', 'OUT_OF_RANGE', 'OpError', 'PERMISSION_DENIED', 'RESOURCE_EXHAUSTED', 'UNAUTHENTICATED', 'UNAVAILABLE', 'UNIMPLEMENTED', 'UNKNOWN', 'errors.ABORTED', 'errors.AbortedError', 'errors.CANCELLED', 'errors.DATA_LOSS', 'errors.DataLossError', 'errors.INTERNAL', 'errors.InternalError', 'errors.NOT_FOUND', 'errors.NotFoundError', 'errors.OK', 'errors.OUT_OF_RANGE', 'errors.OpError', 'errors.UNAVAILABLE', 'errors.UNIMPLEMENTED', 'errors.UNKNOWN', 'errors.UnknownError']

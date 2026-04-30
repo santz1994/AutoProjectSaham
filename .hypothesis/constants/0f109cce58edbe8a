@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\distribute\distribute_coordinator_utils.py
+# hypothesis_version: 6.151.10
+
+[7200, '://', 'TF_CONFIG', '[local]', '_cluster_resolver', '_std_server_started', 'chief', 'client', 'cluster', 'environment', 'evaluator', 'google', 'grpc', 'index', 'ps', 'rpc_layer', 'server', 'task', 'type', 'worker', '{}']

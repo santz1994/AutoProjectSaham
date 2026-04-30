@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\data\experimental\service\server_lib.py
+# hypothesis_version: 6.151.10
+
+['DispatcherConfig', 'WorkerConfig', 'dispatcher_address', 'fault_tolerant_mode', 'job_gc_timeout_ms', 'localhost:%dts_port%', 'localhost:%port%', 'localhost:{0}', 'port', 'protocol', 'work_dir', 'worker_address', 'worker_addresses', 'worker_timeout_ms', '{0}://localhost:{1}']

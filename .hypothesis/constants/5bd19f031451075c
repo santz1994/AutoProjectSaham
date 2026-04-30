@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\data_flow_ops.py
+# hypothesis_version: 6.151.10
+
+[2147483647, '%s_BarrierClose', '%s_BarrierInsertMany', '%s_BarrierReadySize', '%s_BarrierTakeMany', '%s_Close', '%s_Dequeue', '%s_DequeueMany', '%s_DequeueUpTo', '%s_EnqueueMany', '%s_Is_Closed', '%s_NumAccumulated', '%s_Size', '%s_clear', '%s_enqueue', '%s_get', '%s_get_nokey', '%s_incomplete_size', '%s_peek', '%s_pop', '%s_put', '%s_root', '%s_size', '/', 'CPU', 'Empty', 'Empty indices', 'FIFOQueue', 'MEAN', 'PaddingFIFOQueue', 'PriorityQueue', 'QueueBase', 'RandomShuffleQueue', 'barrier', 'component_%d', 'fifo_queue', 'io.PaddingFIFOQueue', 'io.PriorityQueue', 'io.QueueBase', 'padding_fifo_queue', 'priority_queue', 'queue.FIFOQueue', 'queue.PriorityQueue', 'queue.QueueBase', 'random_shuffle_queue', 'utf-8']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\gen_ctc_ops.py
+# hypothesis_version: 6.151.10
+
+[b'CTCBeamSearchDecoder', b'CTCGreedyDecoder', b'CTCLoss', b'CTCLossV2', 'CTCBeamSearchDecoder', 'CTCGreedyDecoder', 'CTCLoss', 'CTCLossV2', 'T', 'TV_CTCLoss_T', '_atypes.Float32', '_atypes.Float64', 'beam_width', 'blank_index', 'ctc_merge_repeated', 'decoded_indices', 'decoded_shape', 'decoded_values', 'gradient', 'log_probability', 'loss', 'merge_repeated', 'raw_ops.CTCLoss', 'raw_ops.CTCLossV2', 'top_paths']

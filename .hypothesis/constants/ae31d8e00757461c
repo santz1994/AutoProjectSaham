@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\collective_all_reduce_strategy.py
+# hypothesis_version: 6.151.10
+
+[1000, '/device:CPU:0', '/job:%s/task:%d', 'CPU', 'Cluster is ready.', 'CollectiveReduce', 'GPU', 'TPU', 'V1', 'V2', '_check_health_thread', '_std_server_started', 'chief', 'dtype', 'grpc', 'inf', 'initial_value', 'num_gpu_per_worker', 'num_workers', 'port', 'standalone', 'worker']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\saved_model\constants.py
+# hypothesis_version: 6.151.10
+
+['ASSETS_DIRECTORY', 'ASSETS_KEY', 'DEBUG_DIRECTORY', 'LEGACY_INIT_OP_KEY', 'MAIN_OP_KEY', 'VARIABLES_DIRECTORY', 'VARIABLES_FILENAME']

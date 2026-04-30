@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\__init__.py
+# hypothesis_version: 6.151.10
+
+['0', '1', 'TF2_BEHAVIOR', 'TF_USE_LEGACY_KERAS', 'True', '_', '__compiler_version__', '__cxx11_abi_flag__', '__cxx_version__', '__git_version__', '__internal__', '__monolithic_build__', '__operators__', '__path__', '__version__', 'core', 'getsitepackages', 'initializers', 'keras', 'keras.api._v2.keras', 'keras.src.optimizers', 'kernels', 'losses', 'metrics', 'optimizers', 'platlib', 'purelib', 'site-packages', 'tensorflow-plugins', 'true']

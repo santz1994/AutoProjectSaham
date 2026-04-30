@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\sb3_contrib\qrdqn\qrdqn.py
+# hypothesis_version: 6.151.10
+
+[0.0, 5e-05, 0.005, 0.01, 0.99, 1.0, 100, 10000, 1000000, 'CnnPolicy', 'MlpPolicy', 'MultiInputPolicy', 'QRDQN', 'SelfQRDQN', 'auto', 'optimizer_class', 'optimizer_kwargs', 'policy', 'policy.optimizer', 'quantile_net', 'quantile_net_target', 'running_', 'tensorboard', 'train/loss', 'train/n_updates']

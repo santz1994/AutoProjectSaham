@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\convolutional\base_conv_transpose.py
+# hypothesis_version: 6.151.10
+
+['activation', 'activity_regularizer', 'bias', 'bias_constraint', 'bias_initializer', 'bias_regularizer', 'channels_last', 'data_format', 'dilation_rate', 'filters', 'glorot_uniform', 'kernel', 'kernel_constraint', 'kernel_initializer', 'kernel_regularizer', 'kernel_size', 'output_padding', 'padding', 'strides', 'use_bias', 'valid', 'zeros']

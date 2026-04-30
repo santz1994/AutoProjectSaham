@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\tpu\tensor_tracer_report.py
+# hypothesis_version: 6.151.10
+
+[' %d', ' [>>>TT>>>]', '!!!!!!! section-end:', '"%s" %s\n', '%d "%s"', '%d "%s"\n', '%d "%s" %s', '%d %d\n', '%s %d\n', '%s %s', '%s %s\n', '.', '/', 'GraphWrapper', 'NextIteration', '_', 'cache-index-map', 'configuration', 'contains_cycle', 'device:', 'graph', 'num-hosts:', 'num-replicas:', 'number-of-indices:', 'number-of-ops:', 'number-of-tensors:', 'op-list', 'op_to_idx', 'operations', 'reason', 'submode:', 'tensor-list', 'tensor_to_idx', 'tensors', 'trace-mode:', 'version:', 'w', 'wb']

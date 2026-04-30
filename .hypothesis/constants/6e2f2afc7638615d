@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\category_encoding.py
+# hypothesis_version: 6.151.10
+
+['binary', 'count', 'multi_hot', 'num_tokens', 'one_hot', 'output_mode']

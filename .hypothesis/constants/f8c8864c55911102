@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\engine\keras_tensor.py
+# hypothesis_version: 6.151.10
+
+[100, 254, ' inferred_value=%s', ', inferred_value=%s', ", name='%s'", '__add__', '__func__', '__getitem__', '__mul__', '__radd__', '__rmul__', '_keras_history', '_keras_mask', 'experimental_ref', 'name', 'shape=%s dtype=%s', 'type_spec=%s', 'value']

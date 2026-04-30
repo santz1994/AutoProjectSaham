@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\lib\io\file_io.py
+# hypothesis_version: 6.151.10
+
+[512, 1024, 4294967295, '.tmp', '://', 'a', 'a+', 'b', 'gfile.Copy', 'gfile.Exists', 'gfile.Glob', 'gfile.IsDirectory', 'gfile.ListDirectory', 'gfile.MakeDirs', 'gfile.MkDir', 'gfile.Remove', 'gfile.Rename', 'gfile.Stat', 'gfile.Walk', 'io.gfile.copy', 'io.gfile.exists', 'io.gfile.glob', 'io.gfile.isdir', 'io.gfile.join', 'io.gfile.listdir', 'io.gfile.makedirs', 'io.gfile.mkdir', 'io.gfile.remove', 'io.gfile.rename', 'io.gfile.rmtree', 'io.gfile.stat', 'io.gfile.walk', 'position', 'r', 'r+', 'rb', 'utf-8', 'w', 'w+']

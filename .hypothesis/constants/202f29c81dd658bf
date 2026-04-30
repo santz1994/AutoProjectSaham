@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\optim\ada_max.py
+# hypothesis_version: 6.151.10
+
+[1e-08, 0.1, 0.9, 0.999, 'AdaMax']

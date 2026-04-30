@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\hashing.py
+# hypothesis_version: 6.151.10
+
+['count', 'dtype', 'hash', 'int', 'int32', 'int64', 'keras.layers.Hashing', 'mask_value', 'multi_hot', 'num_bins', 'one_hot', 'output_mode', 'salt', 'sparse']

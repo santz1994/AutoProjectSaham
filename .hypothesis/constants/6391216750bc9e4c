@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\values.py
+# hypothesis_version: 6.151.10
+
+['  %d: %r', '  %d: %s', '%s/packed/', '%s:{\n%s\n}', ',\n', ':', 'CPU', 'PerWorkerResource', '__getattribute__', '__init__', '_as_graph_element', '_attribute_sentinel', '_host_to_resources', '_self_', '_strategy', '_value_specs', '_values', '_vars', 'captured_value', 'handle', 'local_resource', 'scatter_add', 'scatter_div', 'scatter_max', 'scatter_min', 'scatter_mul', 'scatter_sub', 'scatter_update']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\framework\meta_graph.py
+# hypothesis_version: 6.151.10
+
+['$unbound_inputs_', '([\\^]|^)(.*)', ',', '.debug', '/', '1.9', '@', 'Enter', 'LegacyRestore', 'LegacyRestoreSlice', 'LegacySave', 'LegacySaveSlice', 'PartitionedCall', 'RefEnter', 'Restore', 'RestoreSlice', 'RestoreV2', 'Save', 'SaveSlice', 'SaveV2', '\\1', '\\2', '^', '_class', '_output_shapes', 'any_list', 'big', 'bytes_list', 'default_value', 'f', 'float_list', 'frame_name', 'int64_list', 'kind', 'little', 'node_list', 'rb', 'stripped_op_list', 'unbound_inputs', 'utf-8', '{name}{ext}']

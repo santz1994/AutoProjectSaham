@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\utils\module_utils.py
+# hypothesis_version: 6.151.10
+
+['_api_export_path', 'ai_edge_litert', 'grain', 'jax', 'optree', 'orbax-checkpoint', 'orbax.checkpoint', 'orbax.checkpoint.v1', 'scipy', 'tensorflow', 'tensorflow.io.gfile', 'tensorflow_io', 'tf2onnx', 'torch_xla', 'tree']

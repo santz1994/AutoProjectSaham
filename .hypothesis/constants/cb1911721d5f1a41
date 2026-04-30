@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\special_math_ops.py
+# hypothesis_version: 6.151.10
+
+[128, ',', '->', '.', '...', '0', 'XlaEinsum', 'a-zA-Z', 'bessel_i0', 'bessel_i0e', 'bessel_i1', 'bessel_i1e', 'bessel_j0', 'bessel_j1', 'bessel_k0', 'bessel_k0e', 'bessel_k1', 'bessel_k1e', 'bessel_y0', 'bessel_y1', 'dawsn', 'einsum', 'equation', 'expint', 'fresnel_cos', 'fresnel_sin', 'greedy', 'lbeta', 'linalg.einsum', 'math.bessel_i0', 'math.bessel_i0e', 'math.bessel_i1', 'math.bessel_i1e', 'math.lbeta', 'math.special.dawsn', 'math.special.expint', 'math.special.spence', 'name', 'optimize', 'shape', 'shaped', 'spence', 'x', '{},{}->{}']

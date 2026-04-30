@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\core\einsum_dense.py
+# hypothesis_version: 6.151.10
+
+['0', '\\.\\.\\.', '_input_reduced_axes', '_int4_pack_axis', '_kernel', 'activation', 'activity_regularizer', 'amax_history_length', 'autocast', 'bfloat16', 'bias', 'bias_axes', 'bias_constraint', 'bias_initializer', 'bias_regularizer', 'dtype', 'equation', 'float32', 'float8', 'float8_e4m3fn', 'float8_e5m2', 'g_idx', 'glorot_uniform', 'gptq', 'he_uniform', 'initializer', 'input', 'inputs_amax_history', 'inputs_scale', 'int4', 'int8', 'is_gptq_calibrated', 'kernel', 'kernel_amax_history', 'kernel_constraint', 'kernel_initializer', 'kernel_regularizer', 'kernel_scale', 'kernel_zero', 'lora_alpha', 'lora_kernel_a', 'lora_kernel_b', 'lora_rank', 'ones', 'output_shape', 'outputs_grad_scale', 'quantization_config', 'quantized_kernel', 'shape', 'torch', 'trainable', 'uint8', 'zero_point', 'zeros']

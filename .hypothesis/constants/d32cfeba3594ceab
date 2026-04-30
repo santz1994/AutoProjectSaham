@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\regularizers\regularizers.py
+# hypothesis_version: 6.151.10
+
+[0.0, 0.01, 0.5, 1.0, 2.0, 'columns', 'factor', 'keras.Regularizer', 'l1', 'l2', 'mode', 'rows']

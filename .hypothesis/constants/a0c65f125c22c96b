@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\cond.py
+# hypothesis_version: 6.151.10
+
+['cond', 'fn1', 'fn2', 'pred_id', 'switch_f', 'switch_t']

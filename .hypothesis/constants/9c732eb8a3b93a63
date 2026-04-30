@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\checkpoint\restore.py
+# hypothesis_version: 6.151.10
+
+['%s_checkpoint_read', '/', '_checkpoint', '_proto_id', 'callback', 'cpu:0', 'original_variable', 'registered_saver', 'skip_restore', 'slot_name', 'slot_variable_id']

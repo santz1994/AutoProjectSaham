@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\lightgbm\engine.py
+# hypothesis_version: 6.151.10
+
+[0.0, 100, ', ', 'CVBooster', '__iter__', 'before_iteration', 'best_iteration', 'boosters', 'cv', 'cvbooster', 'early_stopping_round', 'first_metric_only', 'lambdarank', 'metric', 'none', 'num_iterations', 'objective', 'order', 'r', 'rank_xendcg', 'split', 'train', 'training', 'valid', 'verbosity', 'w', 'xe_ndcg', 'xe_ndcg_mart', 'xendcg', 'xendcg_mart']

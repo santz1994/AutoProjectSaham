@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorboard\compat\proto\cost_graph_pb2.py
+# hypothesis_version: 6.151.10
+
+[b'\x18\x01', 142, 261, 741, 800, 803, 939, 941, 990, 'AggregatedCost', 'CostGraphDef', 'DESCRIPTOR', 'InputInfo', 'Node', 'OutputInfo', '__module__']

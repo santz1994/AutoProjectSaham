@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\scipy\spatial\qhull.py
+# hypothesis_version: 6.151.10
+
+['ConvexHull', 'Delaunay', 'QhullError', 'Voronoi', '_qhull', 'qhull', 'spatial', 'tsearch']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\distributions\gamma.py
+# hypothesis_version: 6.151.10
+
+[1.0, '2019-01-01', 'Gamma', 'concentration', 'distributions.Gamma', 'kl_gamma_gamma', 'nan', 'rate', 'softplus_rate']

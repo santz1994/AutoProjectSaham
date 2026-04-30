@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\trainers\data_adapters\data_adapter_utils.py
+# hypothesis_version: 6.151.10
+
+[1.0, ', ', 'Array', 'RaggedTensor', 'SparseTensor', 'Tensor', '__array__', '__class__', 'cpu', 'int32', 'jax', 'sample_weight', 'scipy.sparse', 'shape', 'tensorflow.python.', 'tocoo', 'torch', 'x', 'y']

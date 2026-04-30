@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\lite\python\lite_constants.py
+# hypothesis_version: 6.151.10
+
+['COMPLEX64', 'FLOAT', 'FLOAT16', 'GRAPHVIZ_DOT', 'INT16', 'INT32', 'INT64', 'INT8', 'JAX', 'KERAS', 'PYTORCH', 'QUANTIZED_UINT8', 'STRING', 'TENSORFLOW', 'TENSORFLOW_GRAPHDEF', 'TFLITE', 'UNSET', 'lite.constants.FLOAT', 'lite.constants.INT16', 'lite.constants.INT32', 'lite.constants.INT64', 'lite.constants.INT8']

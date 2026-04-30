@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\stable_baselines3\common\base_class.py
+# hypothesis_version: 6.151.10
+
+[0.0, 1.0, 100, '.', 'BaseAlgorithm', 'CnnPolicy', 'MlpPolicy', 'SelfBaseAlgorithm', '_custom_logger', '_last_obs', '_logger', '_orig_mod', '_vec_normalize_env', 'action_space', 'auto', 'cuda', 'device', 'env', 'episode', 'is_success', 'n_envs', 'net_arch', 'observation_space', 'param_groups', 'params', 'policy', 'policy.optimizer', 'policy_class', 'policy_kwargs', 'replay_buffer', 'rgb_array', 'rollout_buffer', 'run', 'train/learning_rate', 'verbose']

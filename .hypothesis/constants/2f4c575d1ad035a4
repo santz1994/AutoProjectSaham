@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\data\ops\iterator_ops.py
+# hypothesis_version: 6.151.10
+
+[',', 'ITERATOR', 'Iterator.get_next()', '_STATE', '_element_spec', 'data.Iterator', 'data.IteratorSpec', 'iterators', 'make_initializer', '{}{}']

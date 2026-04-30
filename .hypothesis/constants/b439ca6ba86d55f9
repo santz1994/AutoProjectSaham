@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\tpu\tpu_replication.py
+# hypothesis_version: 6.151.10
+
+['  %s (%s)', '.', '... and %d more', '/handle', ':', 'AudioSummary', 'AudioSummaryV2', 'FakeOp', 'HistogramSummary', 'ImageSummary', 'MergeSummary', 'Placeholder', 'Print', 'ScalarSummary', 'TPUStrategy', 'TPU_REPLICATED_CORE', 'TensorSummary', 'TensorSummaryV2', '__unsupported__', '_cloned', '_tpu_replicate', 'ascii', 'outer_graph']

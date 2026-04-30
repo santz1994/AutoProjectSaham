@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\weights_broadcast_ops.py
+# hypothesis_version: 6.151.10
+
+['assert_broadcastable', 'broadcast_weights', 'has_invalid_dims', 'is_same_rank', 'is_scalar', 'is_scalar=', 'is_valid_shape', 'num_invalid_dims', 'rank', 'shape', 'values', 'values.shape=', 'weights', 'weights.shape=']

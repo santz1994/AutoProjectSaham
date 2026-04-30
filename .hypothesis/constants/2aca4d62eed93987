@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\optimizers\loss_scale_optimizer.py
+# hypothesis_version: 6.151.10
+
+[0.0, 0.5, 0.99, 2.0, 2000, 'clipnorm', 'clipvalue', 'dynamic', 'dynamic_growth_steps', 'dynamic_scale', 'ema_momentum', 'float32', 'global_clipnorm', 'initial_scale', 'inner_optimizer', 'int', 'loss_scale_factor', 'name', 'none', 'step_counter', 'tensorflow', 'use_ema', 'weight_decay']

@@ -1,0 +1,4 @@
+# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\framework\c_api_util.py
+# hypothesis_version: 6.151.10
+
+['_api_def_map', '_obj', '_op_per_name', 'buffer', 'deleter', 'name', 'options', 'results', 'status', 'type_name']
