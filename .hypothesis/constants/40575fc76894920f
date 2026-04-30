@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\compiler\mlir\quantization\stablehlo\quantization_options_pb2.py
-# hypothesis_version: 6.151.10
-
-[b'\xf8\x01\x01', 102, 196, 199, 418, 421, 536, 695, 697, 811, 814, 1200, 1318, 1320, 1427, 1429, 1523, 'DESCRIPTOR', '_QUANTIZATIONMETHOD', '_QUANTIZATIONOPTIONS']

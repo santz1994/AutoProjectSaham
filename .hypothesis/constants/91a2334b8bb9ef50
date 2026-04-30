@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\data\ops\dataset_ops.py
-# hypothesis_version: 6.151.10
-
-[0.5, 1.0, 100, 87654321, ', ', '-', ':0', 'AUTO', 'AUTOTUNE', 'CPU', 'DatasetToTFRecord', 'DatasetV1Adapter', 'DatasetV2', 'FileIdentity', 'GZIP', 'INFINITE', 'IteratorGetNext', 'IteratorGetNextSync', 'MakeIterator', 'NONE', 'ReduceDataset', 'UNKNOWN', '_', '_Retval', '_as_variant_tensor', '_create_resource', '_dataset', '_dataset_shape', '_element_spec', '_iterator', '_numpy', '_variant_tracker', 'allow_stateful', 'assert_not_empty', 'batch_op', 'data.AUTOTUNE', 'data.Dataset', 'data.DatasetSpec', 'data.NumpyIterator', 'dataset_spec.pb', 'file_pattern', 'initial_dist', 'initial_state', 'list_files', 'match_not_empty', 'message', 'metadata', 'output_shapes', 'output_types', 'prefetch_op', 'reduce()', 'repeat_op', 'replicate_on_split', 'shuffle_op', 'target_dist', 'utf-8', 'value']

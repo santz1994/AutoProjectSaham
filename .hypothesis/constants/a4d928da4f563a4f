@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\stateful_random_ops.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1.0, 18446744073709551615, 'CentralStorage', 'StateVar', 'binomial', 'counts', 'int64', 'max', 'mean', 'min', 'name', 'probs', 'random.Generator', 'random_generator', 'shape', 'stateful_normal', 'stateful_uniform', 'stddev', 'truncated_normal']

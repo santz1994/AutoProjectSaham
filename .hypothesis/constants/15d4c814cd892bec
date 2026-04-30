@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\losses\losses.py
-# hypothesis_version: 6.151.10
-
-[-2.0, 0.0, 0.25, 0.4, 0.5, 1.0, 2.0, 80.0, 100.0, '-inf', 'alpha', 'axis', 'beta', 'binary_crossentropy', 'categorical_hinge', 'circle', 'cosine_similarity', 'ctc', 'dice', 'fn', 'from_logits', 'gamma', 'hinge', 'huber_loss', 'ignore_class', 'int', 'int32', 'keras.losses.CTC', 'keras.losses.Circle', 'keras.losses.Dice', 'keras.losses.Hinge', 'keras.losses.Huber', 'keras.losses.LogCosh', 'keras.losses.Poisson', 'keras.losses.Tversky', 'keras.losses.circle', 'keras.losses.ctc', 'keras.losses.dice', 'keras.losses.hinge', 'keras.losses.huber', 'keras.losses.poisson', 'keras.losses.tversky', 'keras.metrics.hinge', 'keras.metrics.huber', 'kl_divergence', 'label_smoothing', 'log_cosh', 'margin', 'mean_absolute_error', 'mean_squared_error', 'poisson', 'q', 'remove_diagonal', 'squared_hinge', 'sum_over_batch_size', 'tversky']

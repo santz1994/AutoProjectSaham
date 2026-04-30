@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\eager\polymorphic_function\concrete_function.py
-# hypothesis_version: 6.151.10
-
-['%s%s_%s', '<arg{}>', 'ConcreteFunction {}', 'PartitionedCall', 'Tout', '_ForwardWrapper', '__backward_', '__forward_', '__inference_', '_func_graph', '_functions', '_inference_args', '_input_tangents', '_s', '_tape_watching', 'captured_value', 'checkpoint', 'concrete', 'f', 'graph', 'output_indices', 'output_tangents', 'outputs', 'shape', 'watch_variable']

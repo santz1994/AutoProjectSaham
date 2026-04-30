@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\layers\convolutional_recurrent.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1.0, ' expects ', ' states, ', ', found shape=', ': expected shape=', 'Layer ', 'State ', '__len__', 'activation', 'activity_regularizer', 'bias', 'bias_constraint', 'bias_initializer', 'bias_regularizer', 'but it received ', 'cell', 'channels_first', 'channels_last', 'constants', 'data_format', 'dilation_rate', 'dropout', 'dtype', 'filters', 'glorot_uniform', 'hard_sigmoid', 'kernel', 'kernel_constraint', 'kernel_initializer', 'kernel_regularizer', 'kernel_size', 'ones', 'orthogonal', 'padding', 'recurrent_activation', 'recurrent_constraint', 'recurrent_dropout', 'recurrent_kernel', 'same', 'strides', 'tanh', 'training', 'unit_forget_bias', 'use_bias', 'valid', 'zeros']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\debug\wrappers\local_cli_wrapper.py
-# hypothesis_version: 6.151.10
-
-[' (feed)', '%s:%d', '--no_debug', '--node_name_filter', '--op_type_filter', '--profile', '--till_filter_pass', '--times', '-f', '-fenn', '-n', '-p', '-t', 'Upcoming run:', 'black_on_white', 'blue_on_white', 'file://', 'has_inf_or_nan', 'help', 'keys', 'li', 'list_inputs', 'list_outputs', 'list_tensors', 'lo', 'lp', 'lt', 'lt -f %s', 'ni', 'no_debug', 'node_info', 'node_name_filter', 'op_type_filter', 'pf', 'print_feed', 'print_tensor', 'profile', 'pt', 'r', 'readline', 'red_on_white', 'ri', 'run', 'run-end: ', 'run-start: ', 'run_info', 'store_true', 'tensor_dtype_filter', 'tfdbg_', 'till_filter_pass', 'times']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\email_validator\syntax.py
-# hypothesis_version: 6.151.10
-
-[126, 65535, '"', '(?!xn)..--', '(["\\\\])', ', ', '-', '-.', '.', '.-', '..', ':', '@', 'C', 'Domain too long', 'IPv6:', 'L', 'M', 'N', 'NFC', 'P', 'S', 'Z', 'Zs', '\\', '\\1', '\\\\(.)', '\\\\\\1', '^[0-9\\.]+$', 'ascii', 'ascii_domain', 'ascii_local_part', 'at least ', 'domain', 'domain_address', 'dot-atom', 'hyphen', 'local_part', 'period', 'quoted', 's', 'smtputf8', 'test', 'utf8']

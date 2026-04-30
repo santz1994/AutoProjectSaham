@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\sb3_contrib\crossq\policies.py
-# hypothesis_version: 6.151.10
-
-[0.0, 0.001, 0.01, 0.5, 0.999, 2.0, 256, 1024, 100000, 'action_space', 'activation_fn', 'batch_norm', 'batch_norm_eps', 'batch_norm_momentum', 'betas', 'clip_mean', 'features_extractor', 'log_std_init', 'n_critics', 'net_arch', 'normalize_images', 'observation_space', 'pi', 'qf', 'renorm_warmup_steps', 'use_expln', 'use_sde']

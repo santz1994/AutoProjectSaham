@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\mixed_precision\policy.py
-# hypothesis_version: 6.151.10
-
-['<Policy "%s">', 'Policy', 'PolicyV1', '_float32_vars', '_infer', 'auto', 'bfloat16', 'dtype policy', 'dynamic', 'float16', 'float32', 'infer_float32_vars', 'loss_scale', 'mixed_bfloat16', 'mixed_bloat16', 'mixed_float16', 'name']

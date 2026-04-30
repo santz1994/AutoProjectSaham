@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\core\util\event_pb2.py
-# hypothesis_version: 6.151.10
-
-[b'\x18\x01', 462, 464, 496, 499, 575, 656, 660, 663, 769, 845, 847, 901, 903, 939, 941, 979, 982, 1164, 1167, 1298, 1300, 1391, 1393, 1500, 'DESCRIPTOR', '_EVENT', '_LOGMESSAGE', '_LOGMESSAGE_LEVEL', '_REQUESTEDEXITCODE', '_SESSIONLOG', '_SOURCEMETADATA', '_TAGGEDRUNMETADATA', '_WATCHDOGCONFIG', '_WORKERHEALTH', '_WORKERSHUTDOWNMODE', 'log_message']

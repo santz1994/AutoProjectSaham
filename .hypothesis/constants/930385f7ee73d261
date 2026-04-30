@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\framework\op_def_library.py
-# hypothesis_version: 6.151.10
-
-['", "', ', ', 'Default in OpDef', 'Unreachable', '_', '_as_name_attr_list', 'add_to_graph', 'allowed_values', 'bool', 'default_value', 'float', 'func', 'int', 'list(', 'list(bool)', 'list(float)', 'list(func)', 'list(int)', 'list(shape)', 'list(string)', 'list(tensor)', 'list(type)', 'shape', 'string', 'tensor', 'text_format.Parse', 'tf.TensorProto', 'tf.TensorShape', 'tf.as_shape', 'tf.convert_to_tensor', 'tf.dtypes.DType', 'tf.dtypes.as_dtype', 'type']

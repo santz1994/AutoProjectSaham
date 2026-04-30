@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\adam.py
-# hypothesis_version: 6.151.10
-
-[1e-08, 0.001, 0.9, 0.999, 'Adam', 'beta1', 'beta1_power', 'beta2', 'beta2_power', 'epsilon', 'learning_rate', 'm', 'train.AdamOptimizer', 'v']

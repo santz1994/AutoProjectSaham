@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\signal\window_ops.py
-# hypothesis_version: 6.151.10
-
-[0.1, 0.46, 0.5, 0.54, 1.0, 2.0, 12.0, 'hamming_window', 'hann_window', 'kaiser_window', 'periodic', 'signal.hann_window', 'signal.kaiser_window', 'signal.vorbis_window', 'vorbis_window', 'window_length']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\_pytest\mark\expression.py
-# hypothesis_version: 6.151.10
-
-[' OR ', '$', '(', ')', 'Expression', 'ParseError', '__builtins__', 'and', 'code', 'current', 'end of input', 'eval', 'expected {}; got {}', 'identifier', 'left parenthesis', 'not', 'or', 'pos', 'right parenthesis', 'tokens', 'type', 'value']

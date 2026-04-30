@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\saving\saving_utils.py
-# hypothesis_version: 6.151.10
-
-['.h5', '.hdf5', '.keras', '_compile_metrics', 'acc', 'accuracy', 'ce', 'class_name', 'config', 'crossentropy', 'loss', 'loss_weights', 'metrics', 'name', 'optimizer', 'optimizer_config', 'sample_weight_mode', 'training_config', 'weighted_metrics']

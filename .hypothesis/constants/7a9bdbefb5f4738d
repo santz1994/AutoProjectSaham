@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\saving\hdf5_format.py
-# hypothesis_version: 6.151.10
-
-[0.5, 64512, ' (named "', ' element(s).', ' elements.', ' expects ', ' has shape {}', ' have ', ' layers.', '") expects ', '"), weight ', '%s%d', ', ', '.', '1', 'Bidirectional', 'C', 'Conv1D', 'Conv2D', 'Conv2DTranspose', 'Conv3D', 'ConvLSTM2D', 'CuDNNGRU', 'CuDNNLSTM', 'F', 'Functional', 'GRU', 'Invalid bias shape: ', 'LSTM', 'Layer #', 'Model', 'Sequential', 'TimeDistributed', 'backend', 'channels_first', 'channels_last', 'decode', 'keras_version', 'layer_names', 'model_config', 'model_weights', 'optimizer_weights', 'r', 'sequential_lib', 'training_config', 'utf-8', 'utf8', 'w', 'weight_names', 'weights']

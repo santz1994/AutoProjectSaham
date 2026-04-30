@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\distributions\distribution.py
-# hypothesis_version: 6.151.10
-
-[1.0, '    %s', ', batch_shape={}', ', event_shape={}', '/', '2019-01-01', 'Distribution', 'NOT_REPARAMETERIZED', '_%s', '__', 'args:', 'batch_shape', 'batch_shape_tensor', 'cdf', 'covariance', 'cross_entropy', 'entropy', 'event_shape', 'event_shape_tensor', 'is_scalar_batch', 'is_scalar_event', 'kl_divergence', 'log_cdf', 'log_prob', 'mean', 'mode', 'prob', 'quantile', 'sample', 'sample_shape', 'self', 'stddev', 'survival_function', 'value', 'variance']

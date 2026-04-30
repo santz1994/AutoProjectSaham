@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\metrics\f_score_metrics.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1e-09, 1.0, 'average', 'beta', 'dtype', 'f1_score', 'false_negatives', 'false_positives', 'fbeta_score', 'intermediate_weights', 'macro', 'micro', 'name', 'threshold', 'true_positives', 'up', 'weighted']

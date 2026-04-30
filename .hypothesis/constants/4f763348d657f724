@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\compiler\mlir\quantization\tensorflow\python\quantize_model.py
-# hypothesis_version: 6.151.10
-
-[0.001, 99.999, 512, 1024, '.tfrecord', '/tmp/dumps', 'FakeQuant', 'debugger_config', 'freeze_all_variables']

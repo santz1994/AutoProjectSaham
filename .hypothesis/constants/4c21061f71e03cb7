@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\quantizers\quantizers.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1e-08, 0.5, -128, -127, 127, 'axis', 'epsilon', 'float32', 'group_size', 'int32', 'int8', 'keras.Quantizer', 'output_dtype', 'per_channel', 'rank', 'symmetric', 'tensorflow', 'uint8', 'value_range', 'weight_bits']

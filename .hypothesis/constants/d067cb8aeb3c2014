@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\image_preprocessing\bounding_boxes\bounding_box.py
-# hypothesis_version: 6.151.10
-
-[0.0, 0.5, 1.0, 2.0, 180.0, 'bnxy,byz->bnxz', 'boxes', 'center_xywh', 'center_yxhw', 'float32', 'labels', 'rel_', 'rel_center_xywh', 'rel_xywh', 'rel_xyxy', 'rel_yxyx', 'xywh', 'xyxy', 'yxyx']

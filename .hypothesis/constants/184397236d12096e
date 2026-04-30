@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\image_preprocessing\aug_mix.py
-# hypothesis_version: 6.151.10
-
-[0.3, 1.0, 255, 'all_ops', 'alpha', 'auto_contrast', 'bilinear', 'chain_depth', 'chain_mixing_weights', 'chain_transforms', 'equalization', 'factor', 'interpolation', 'keras.layers.AugMix', 'layer_name', 'num_chains', 'random_brightness', 'random_contrast', 'random_posterization', 'random_rotation', 'random_sharpness', 'random_shear', 'random_translation', 'seed', 'solarization', 'tensorflow', 'transformation', 'value_range', 'weight_sample']

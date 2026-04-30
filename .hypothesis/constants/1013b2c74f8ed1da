@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\experimental\multi_worker_mirrored_strategy.py
-# hypothesis_version: 6.151.10
-
-[',', 'DTENSOR_CLIENT_ID', 'DTENSOR_JOBS', 'DTENSOR_JOB_NAME', 'DTENSOR_NUM_CLIENTS', 'chief', 'worker']

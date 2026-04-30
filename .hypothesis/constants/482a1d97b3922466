@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\string_ops.py
-# hypothesis_version: 6.151.10
-
-['AsString', 'BYTE', 'DecodeBase64', 'EncodeBase64', 'ReduceJoin', 'RegexReplace', 'StringJoin', 'StringSplit', 'StringToHashBucket', 'axis', 'delimiter', 'input', 'keep_dims', 'keepdims', 'reduce_join', 'reduction_indices', 'regex_replace', 'sep', 'string_join', 'string_tensor', 'string_to_number', 'strings.format', 'strings.join', 'strings.length', 'strings.reduce_join', 'strings.substr', 'strings.to_number', 'substr', '{}']

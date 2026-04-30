@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\opt_einsum\blas.py
-# hypothesis_version: 6.151.10
-
-['DOT', 'DOT/EINSUM', 'GEMM', 'GEMV/EINSUM', 'OUTER/EINSUM', 'TDOT', 'can_blas']

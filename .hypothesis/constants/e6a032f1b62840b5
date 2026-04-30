@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\stable_baselines3\common\callbacks.py
-# hypothesis_version: 6.151.10
-
-[10000, 'best_model', 'done', 'dones', 'eval/mean_ep_length', 'eval/mean_reward', 'eval/success_rate', 'evaluations', 'ignore', 'info', 'is_success', 'pkl', 'replay_buffer', 'replay_buffer_', 'rl_model', 'tensorboard', 'time/total_timesteps', 'total_timesteps', 'vecnormalize_', 'zip']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\security\fuzzing\py\annotation_types.py
-# hypothesis_version: 6.151.10
-
-['BFloat16', 'Bool', 'Complex128', 'Complex64', 'Float16', 'Float32', 'Float64', 'Float8e4m3b11fnuz', 'Float8e4m3fn', 'Float8e4m3fnuz', 'Float8e5m2', 'Float8e5m2fnuz', 'Half', 'Int16', 'Int2', 'Int32', 'Int4', 'Int64', 'Int8', 'QInt16', 'QInt32', 'QInt8', 'QUInt16', 'QUInt8', 'Resource', 'String', 'UInt16', 'UInt2', 'UInt32', 'UInt4', 'UInt64', 'UInt8', 'Variant', 'underlying_dtype']

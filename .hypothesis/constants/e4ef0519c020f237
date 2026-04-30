@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\framework\constant_op.py
-# hypothesis_version: 6.151.10
-
-[b'Fill', b'Identity', b'Reshape', 100, '/device:CPU:0', 'Const', 'T', 'Tshape', 'constant', 'index_type', 'numpy_value', 'shape_as_tensor', 'tensor_value', 'tf.constant', 'value']

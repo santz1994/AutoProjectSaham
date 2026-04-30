@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\client\session.py
-# hypothesis_version: 6.151.10
-
-[30.0, '2023-06-01', 'GetSessionHandle', 'GetSessionHandleV2', 'InteractiveSession', 'Session', 'SessionCloseThread', '__attrs_attrs__', 'graph', 'partial_run', 'partial_run_setup', 'run', 'run_metadata', 'sess_str']

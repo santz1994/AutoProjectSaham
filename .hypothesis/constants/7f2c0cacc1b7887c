@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorboard\compat\tensorflow_stub\dtypes.py
-# hypothesis_version: 6.151.10
-
-[-32768, -128, 100, 127, 255, 32767, 65535, '-0x1.FEp127', '0x1.FEp127', '<dtype: %r>', 'bfloat16', 'bfloat16_ref', 'bool', 'bool_ref', 'complex128', 'complex128_ref', 'complex64', 'complex64_ref', 'double', 'double_ref', 'float', 'float16', 'float16_ref', 'float32', 'float32_ref', 'float64', 'float64_ref', 'float_ref', 'half', 'half_ref', 'int16', 'int16_ref', 'int32', 'int32_ref', 'int64', 'int64_ref', 'int8', 'int8_ref', 'qint16', 'qint16_ref', 'qint32', 'qint32_ref', 'qint8', 'qint8_ref', 'quint16', 'quint16_ref', 'quint8', 'quint8_ref', 'resource', 'resource_ref', 'string', 'string_ref', 'tf.', 'uint16', 'uint16_ref', 'uint32', 'uint32_ref', 'uint64', 'uint64_ref', 'uint8', 'uint8_ref', 'variant', 'variant_ref']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\datasets\water_flow.py
-# hypothesis_version: 6.151.10
-
-[1268, '%Y-%m-%dT%H:%M:%S%z', 'Time', 'Water flow [l/s]', 'water-flow.csv']

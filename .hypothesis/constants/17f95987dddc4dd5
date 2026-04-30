@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\cluster_resolver\tpu\tpu_cluster_resolver.py
-# hypothesis_version: 6.151.10
-
-[120, '%s:%s', '/job:', '/task:0', '0.0.0.0:0', ':', 'DeviceDetails', 'Retrying (%d/%d)...', 'TPU', 'core_id', 'default', 'device_map', 'grpc', 'host_id', 'ipAddress', 'local', 'port', 'total_cores', 'worker']

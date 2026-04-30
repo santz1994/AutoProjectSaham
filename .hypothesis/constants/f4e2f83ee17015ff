@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\layers\convolutional.py
-# hypothesis_version: 6.151.10
-
-['1st entry of padding', '2nd entry of padding', '3rd entry of padding', 'Conv1D', 'Stride ', 'VALID', '__len__', 'activation', 'activity_regularizer', 'bias', 'bias_constraint', 'bias_initializer', 'bias_regularizer', 'bilinear', 'causal', 'channels_first', 'channels_last', 'conv1d', 'cropping', 'data_format', 'depth_multiplier', 'depthwise_constraint', 'depthwise_kernel', 'dilation_rate', 'filters', 'glorot_uniform', 'groups', 'interpolation', 'kernel', 'kernel_constraint', 'kernel_initializer', 'kernel_regularizer', 'kernel_size', 'ndims', 'nearest', 'output_padding', 'padding', 'pointwise_constraint', 'pointwise_kernel', 'size', 'strides', 'use_bias', 'valid', 'zeros']

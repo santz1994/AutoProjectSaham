@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\linalg\linear_operator_adjoint.py
-# hypothesis_version: 6.151.10
-
-['_adjoint', 'is_non_singular', 'is_positive_definite', 'is_self_adjoint', 'is_square', 'operator']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\gen_checkpoint_ops.py
-# hypothesis_version: 6.151.10
-
-[b'GenerateVocabRemapping', b'LoadAndRemapMatrix', 'LoadAndRemapMatrix', 'max_rows_in_memory', 'new_vocab_offset', 'num_cols', 'num_new_vocab', 'num_present', 'num_rows', 'old_vocab_size', 'remapping']

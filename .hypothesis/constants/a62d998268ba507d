@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\export\saved_model.py
-# hypothesis_version: 6.151.10
-
-['_tracked', 'concrete_functions', 'is_static', 'jax', 'jax2tf_kwargs', 'numpy', 'openvino', 'saved_model', 'serve', 'serving_default', 'tensorflow', 'torch']

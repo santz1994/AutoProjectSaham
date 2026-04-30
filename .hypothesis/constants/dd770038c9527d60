@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\stateless_random_ops.py
-# hypothesis_version: 6.151.10
-
-[-2.0, 0.0, 1.0, 2.0, 498247692, 'RandomIndexShuffle', 'StatelessMultinomial', 'alpha', 'auto_select', 'beta', 'counts', 'logits', 'max', 'maxvals', 'mean', 'means', 'min', 'minvals', 'probs', 'random.fold_in', 'random.split', 'stateless_shuffle', 'stddev', 'stddevs']

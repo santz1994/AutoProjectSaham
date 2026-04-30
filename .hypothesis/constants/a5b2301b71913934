@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\input.py
-# hypothesis_version: 6.151.10
-
-[1.0, ', ', 'batch', 'batch_join', 'epochs', 'fraction_of_%d_full', 'input_producer', 'input_tensor', 'limit_epochs', 'matching_filenames', 'shuffle_batch', 'shuffle_batch_join', 'train.batch', 'train.batch_join', 'train.input_producer', 'train.limit_epochs', 'train.maybe_batch', 'train.shuffle_batch']

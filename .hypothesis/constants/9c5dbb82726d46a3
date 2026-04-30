@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\activations\prelu.py
-# hypothesis_version: 6.151.10
-
-['Zeros', 'alpha', 'alpha_constraint', 'alpha_initializer', 'alpha_regularizer', 'keras.layers.PReLU', 'shared_axes']

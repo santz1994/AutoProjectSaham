@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\absl\flags\_argument_parser.py
-# hypothesis_version: 6.151.10
-
-['%s <= %s', '%s >= %s', '%s is not %s', ',', '0', '1', 'EnumClassSerializer', '_ET', '_N', '_T', 'a', 'a %s separated list', 'a negative %s', 'a non-negative %s', 'a non-positive %s', 'a positive %s', 'an', 'bool', 'comma', 'enum class', 'f', 'false', 'float', 'int', 'integer', 'list_separator', 'lower_bound', 'number', 'o', 'string', 'string enum', 't', 'true', 'upper_bound', 'whitespace', 'whitespace or comma', 'x', '|']

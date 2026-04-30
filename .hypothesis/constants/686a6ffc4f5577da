@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\layers\pooling.py
-# hypothesis_version: 6.151.10
-
-['avg', 'channels_first', 'channels_last', 'data_format', 'keepdims', 'max', 'padding', 'pool_size', 'strides', 'valid']

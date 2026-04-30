@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\optimizer_v2\learning_rate_schedule.py
-# hypothesis_version: 6.151.10
-
-[0.0, 0.0001, 0.001, 0.5, 0.55, 1.0, 2.0, 'CosineDecay', 'ExponentialDecay', 'InverseTimeDecay', 'LinearCosineDecay', 'PiecewiseConstant', 'PolynomialDecay', 'SGDRDecay', 'alpha', 'beta', 'boundaries', 'cycle', 'decay', 'decay_rate', 'decay_steps', 'end_learning_rate', 'first_decay_steps', 'initial_variance', 'm_mul', 'name', 'num_periods', 'power', 'staircase', 't_mul', 'values', 'variance_decay']

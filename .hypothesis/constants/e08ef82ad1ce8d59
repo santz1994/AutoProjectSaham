@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\metrics\regression_metrics.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1.0, 'class_aggregation', 'cosine_similarity', 'count', 'down', 'dtype', 'float32', 'logcosh', 'mean_absolute_error', 'mean_squared_error', 'name', 'num_regressors', 'num_samples', 'r2_score', 'residual', 'squared_sum', 'sum', 'uniform_average', 'up']

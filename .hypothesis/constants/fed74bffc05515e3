@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\linalg\linear_operator_util.py
-# hypothesis_version: 6.151.10
-
-['__name__', 'base_dtype', 'dtype', 'matrix', 'name', 'rhs', 'shape', 'x']

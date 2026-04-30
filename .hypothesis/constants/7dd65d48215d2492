@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\saving\saved_model\save_impl.py
-# hypothesis_version: 6.151.10
-
-['__call__', '_unconditional_loss', 'base_layer', 'call', 'eager_losses', 'input_layer', 'inputs', 'keras_losses', 'loss_fn_{}', 'losses', 'metrics', 'result', 'sequential_lib', 'training', 'training_lib', 'update_state', '{}_layer_call_fn']

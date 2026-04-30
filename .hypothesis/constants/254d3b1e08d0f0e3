@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\gen_audio_ops.py
-# hypothesis_version: 6.151.10
-
-[b'AudioSpectrogram', b'DecodeWav', b'EncodeWav', b'Mfcc', 4000, 'AudioSpectrogram', 'DecodeWav', 'EncodeWav', 'Mfcc', 'audio', 'audio.decode_wav', 'audio.encode_wav', 'desired_channels', 'desired_samples', 'magnitude_squared', 'raw_ops.DecodeWav', 'raw_ops.EncodeWav', 'raw_ops.Mfcc', 'sample_rate', 'stride', 'window_size']

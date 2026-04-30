@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorboard\compat\proto\rewriter_config_pb2.py
-# hypothesis_version: 6.151.10
-
-[b'8\x01', 154, 213, 215, 258, 261, 2522, 2651, 2726, 2728, 2828, 2830, 2903, 2905, 2965, 2968, 3127, 'AutoParallelOptions', 'CpuLayout', 'CustomGraphOptimizer', 'DESCRIPTOR', 'MemOptType', 'NumIterationsType', 'ParameterMapEntry', 'RewriterConfig', 'Toggle', '__module__']

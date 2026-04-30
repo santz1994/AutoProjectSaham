@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\eager\imperative_grad.py
-# hypothesis_version: 6.151.10
-
-['VSpace', 'aggregate_fn', 'graph_shape_fn', 'num_elements_fn', 'ones_fn', 'ones_like_fn', 'zeros_fn', 'zeros_like_fn']

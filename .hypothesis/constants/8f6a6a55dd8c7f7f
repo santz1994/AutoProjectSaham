@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\image_preprocessing\random_posterization.py
-# hypothesis_version: 6.151.10
-
-[255, 'factor', 'images', 'seed', 'shift_factor', 'uint8', 'value_range']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\operators\control_flow.py
-# hypothesis_version: 6.151.10
-
-[50000, 100000000, ', ', '<internal has_next>', '<internal iterate>', '<unused dummy>', 'dtype', 'else', 'if statement', 'iterate_names', 'iterations', 'main', 'maximum_iterations', 'ops_before_iteration', 'shape', 'shape_invariants', 'tmp', 'while loop']

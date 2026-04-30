@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorboard\compat\proto\struct_pb2.py
-# hypothesis_version: 6.151.10
-
-[b'8\x01', 177, 942, 944, 955, 957, 1014, 1016, 1074, 1077, 1142, 1217, 1219, 1288, 1290, 1361, 1363, 1478, 1481, 1689, 1692, 1886, 2198, 'DESCRIPTOR', 'DictValue', 'FieldsEntry', 'ListValue', 'NamedTupleValue', 'NoneValue', 'PairValue', 'StructuredValue', 'TensorSpecProto', 'TupleValue', 'TypeSpecClass', 'TypeSpecProto', '__module__']

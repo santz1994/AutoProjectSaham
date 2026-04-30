@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\datasets\bikes.py
-# hypothesis_version: 6.151.10
-
-[182470, 13125015, '%Y-%m-%d %H:%M:%S', 'bikes', 'clouds', 'humidity', 'moment', 'pressure', 'temperature', 'toulouse_bikes.csv', 'wind']

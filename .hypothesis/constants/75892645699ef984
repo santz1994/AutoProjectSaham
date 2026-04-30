@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\ops\image.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1.0, 5.0, 20.0, 'bilinear', 'channels_first', 'channels_last', 'constant', 'reflect', 'valid']

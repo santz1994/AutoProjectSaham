@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\sb3_contrib\ars\ars.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1e-06, 0.02, 0.05, 1.0, 1000000000.0, 100, 'ARS', 'LinearPolicy', 'MlpPolicy', 'SelfARS', 'auto', 'bias', 'cpu', 'episode', 'l', 'policy', 'r', 'rollout/ep_len_mean', 'rollout/ep_rew_mean', 'rollout/return_std', 'tensorboard', 'time/fps', 'time/time_elapsed', 'time/total_timesteps', 'train/delta_std', 'train/iterations', 'train/learning_rate', 'train/step_size', 'weight']

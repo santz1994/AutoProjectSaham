@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\while_v2.py
-# hypothesis_version: 6.151.10
-
-['%s_grad', ':', 'Identity', 'MutexLock', 'Rank', 'Shape', 'Size', 'StatelessWhile', 'T', 'TensorListLength', 'TensorListPopBack', 'TensorListPushBack', 'While', '_', '_body_graph', '_cond_graph', '_rewritten', 'async_noop', 'attrs', 'body', 'body_graph', 'compute_device', 'cond', 'cond_graph', 'cond_init_value', 'dtypes', 'element_dtype', 'grad_counter', 'input_types', 'inputs', 'loop_counter', 'maximum_iterations', 'name', 'op_def', 'op_type', 'output_shapes', 'parallel_iterations', 'skip_input_indices', 'while', 'zero', '{}/accumulator']

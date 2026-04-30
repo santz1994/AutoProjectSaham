@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\converters\call_trees.py
-# hypothesis_version: 6.151.10
-
-['.', 'None', 'ag__.', 'breakpoint', 'dict', 'ipdb.set_trace', 'pdb.set_trace', 'print', 'tuple']

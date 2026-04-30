@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\fsspec\compression.py
-# hypothesis_version: 6.151.10
-
-[999999999, 'b', 'bz2', 'file', 'gz', 'gzip', 'lz4', 'lzma', 'r', 'rb', 'snappy', 'w', 'xz', 'zip', 'zst', 'zstd']

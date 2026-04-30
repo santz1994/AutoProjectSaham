@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\framework\indexed_slices.py
-# hypothesis_version: 6.151.10
-
-[100000000, '%s_%d', ', dense_shape=%s', 'IndexedSlices', 'IndexedSlicesSpec', 'IndexedSlicesValue', '_dense_shape_dtype', '_indices_dtype', '_indices_shape', '_shape', '_values_dtype', 'dense_shape', 'indices', 'values']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorboard\compat\proto\cluster_pb2.py
-# hypothesis_version: 6.151.10
-
-[b'8\x01', 126, 170, 172, 218, 'ClusterDef', 'DESCRIPTOR', 'JobDef', 'TasksEntry', '__module__']

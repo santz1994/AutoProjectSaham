@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\optree\accessors.py
-# hypothesis_version: 6.151.10
-
-['*', 'AutoEntry', 'DataclassEntry', 'FlattenedEntry', 'GetAttrEntry', 'GetItemEntry', 'MappingEntry', 'NamedTupleEntry', 'PyTreeAccessor', 'PyTreeEntry', 'SequenceEntry', 'StructSequenceEntry', 'Unreachable code.', '_KT_co', '_T', '_T_co', '_VT_co', 'optree', 'slots']

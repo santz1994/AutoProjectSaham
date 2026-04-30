@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\saved_model\builder_impl.py
-# hypothesis_version: 6.151.10
-
-['1', 'Const', 'No assets to save.', 'No assets to write.', '_', 'assets_collection', 'assets_list', 'composite_tensor', 'encoding', 'legacy_init_op', 'proto_splitter', 'save_v1_builder', 'saved_model.Builder', 'value']

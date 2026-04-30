@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\fsspec\registry.py
-# hypothesis_version: 6.151.10
-
-['.', '0', '5', ':', 'abfs', 'abstract', 'adl', 'arrow_hdfs', 'async_wrapper', 'asynclocal', 'asyncwrapper', 'az', 'blockcache', 'box', 'boxfs.BoxFileSystem', 'cached', 'class', 'dask', 'data', 'dbfs', 'default', 'dir', 'dropbox', 'dvc', 'err', 'file', 'filecache', 'ftp', 'gcs', 'gcsfs.GCSFileSystem', 'gdrive', 'generic', 'get_filesystem_class', 'gist', 'git', 'github', 'gs', 'hdfs', 'hf', 'http', 'https', 'jlab', 'jupyter', 'lakefs', 'libarchive', 'local', 'memory', 'oci', 'ocifs.OCIFileSystem', 'ocilake', 'oss', 'ossfs.OSSFileSystem', 'protocol', 'pyscript', 'reference', 'registry', 'root', 's3', 's3a', 's3fs', 's3fs.S3FileSystem', 'sftp', 'simplecache', 'smb', 'ssh', 'tar', 'tos', 'tosfs', 'tosfs.TosFileSystem', 'wandb', 'wandbfs.WandbFS', 'webdav', 'webhdfs', 'zip']

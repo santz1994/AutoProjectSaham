@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\saving\trace_saveable_util.py
-# hypothesis_version: 6.151.10
-
-['name', 'restore_function', 'save_function', 'slice_spec', 'tensor']

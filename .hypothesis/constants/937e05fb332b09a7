@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\applications\resnet.py
-# hypothesis_version: 6.151.10
-
-[1.001e-05, 128, 224, 256, 512, 1000, 'SAME', '__doc__', 'avg', 'avg_pool', 'caffe', 'channels_last', 'conv1_bn', 'conv1_conv', 'conv1_pad', 'conv1_relu', 'conv2', 'conv3', 'conv4', 'conv5', 'imagenet', 'max', 'max_pool', 'models', 'pool1_pad', 'pool1_pool', 'post_bn', 'post_relu', 'predictions', 'relu', 'resnet', 'resnet101', 'resnet101v2', 'resnet152', 'resnet152v2', 'resnet50', 'resnet50v2', 'resnext101', 'resnext50', 'softmax']

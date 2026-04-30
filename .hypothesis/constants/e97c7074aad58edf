@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\linalg_ops.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1.0, 2.0, 256000, 'cholesky_solve', 'eig', 'eigvals', 'euclidean', 'eye', 'fro', 'keep_dims', 'keepdims', 'linalg.eig', 'linalg.eigh', 'linalg.eigvals', 'linalg.eigvalsh', 'linalg.eye', 'linalg.lstsq', 'linalg.norm', 'linalg.svd', 'matrix', 'matrix_solve_ls', 'norm', 'self_adjoint_eig', 'self_adjoint_eigvals', 'svd', 'triangular_solve']

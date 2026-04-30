@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\utils\conv_utils.py
-# hypothesis_version: 6.151.10
-
-[' including element ', ' of type', 'Invalid data_format:', 'NCDHW', 'NCHW', 'NCW', 'NDHWC', 'NHWC', 'NWC', 'The `', 'causal', 'channels_first', 'channels_last', 'full', 'same', 'squeeze_batch_dims', 'valid']

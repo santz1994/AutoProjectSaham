@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\gen_nccl_ops.py
-# hypothesis_version: 6.151.10
-
-[b'NcclAllReduce', b'NcclBroadcast', b'NcclReduce', 'NcclAllReduce', 'NcclBroadcast', 'NcclReduce', 'T', 'TV_NcclAllReduce_T', 'TV_NcclBroadcast_T', 'TV_NcclReduce_T', '_atypes.Float32', '_atypes.Float64', '_atypes.Half', '_atypes.Int32', '_atypes.Int64', 'num_devices', 'raw_ops.NcclReduce', 'reduction', 'shape', 'shared_name']

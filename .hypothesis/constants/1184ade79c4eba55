@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\image_preprocessing\random_shear.py
-# hypothesis_version: 6.151.10
-
-[0.0, 0.5, 1.0, 'bilinear', 'boxes', 'channels_first', 'constant', 'data_format', 'fill_mode', 'fill_value', 'images', 'input_shape', 'interpolation', 'nearest', 'reflect', 'rel_xyxy', 'seed', 'shear_factor', 'tensorflow', 'wrap', 'x_factor', 'y_factor']

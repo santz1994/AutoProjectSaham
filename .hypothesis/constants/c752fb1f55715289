@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\experimental\loss_scale.py
-# hypothesis_version: 6.151.10
-
-[2.0, 2000, 'FixedLossScale(%s)', 'current_loss_scale', 'dynamic', 'good_steps', 'increment_period', 'initial_loss_scale', 'loss_scale_value', 'multiplier']

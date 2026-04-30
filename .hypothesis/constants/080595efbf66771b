@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\basic_session_run_hooks.py
-# hypothesis_version: 6.151.10
-
-[0.5, 100, 1000, 1000000, '%s', '%s (%.3f sec)', '%s = %s', '%s: %g', ', ', '/sec', ':', ':0', ':1', 'global_step', 'graph', 'graph.pbtxt', 'hooks', 'model.ckpt', 'step_%d', 'steps_per_run', 'summary', 'timeline-{}.json', 'train.FeedFnHook', 'train.FinalOpsHook', 'train.NanTensorHook', 'train.ProfilerHook', 'train.StopAtStepHook', 'w', '{}_{}']

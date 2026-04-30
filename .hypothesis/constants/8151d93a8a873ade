@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\applications\vgg16.py
-# hypothesis_version: 6.151.10
-
-[128, 224, 256, 512, 1000, 4096, 'avg', 'block1_conv1', 'block1_conv2', 'block1_pool', 'block2_conv1', 'block2_conv2', 'block2_pool', 'block3_conv1', 'block3_conv2', 'block3_conv3', 'block3_pool', 'block4_conv1', 'block4_conv2', 'block4_conv3', 'block4_pool', 'block5_conv1', 'block5_conv2', 'block5_conv3', 'block5_pool', 'caffe', 'fc1', 'fc2', 'flatten', 'imagenet', 'max', 'models', 'predictions', 'relu', 'same', 'softmax', 'vgg16']

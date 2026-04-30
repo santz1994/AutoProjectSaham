@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\platform\build_info.py
-# hypothesis_version: 6.151.10
-
-['is_cuda_build', 'is_rocm_build', 'is_tensorrt_build', 'msvcp_dll_names']

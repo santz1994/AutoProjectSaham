@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\eager\lift_to_graph.py
-# hypothesis_version: 6.151.10
-
-['Const', 'TPUReplicateMetadata', '_ControlMutation', '_InputMutation', '_class', '_tpu_replicate', 'copied_op', 'input_index', 'old_graph_op', 'old_graph_tensor']

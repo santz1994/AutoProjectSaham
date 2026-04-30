@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\applications\nasnet.py
-# hypothesis_version: 6.151.10
-
-[0.001, 0.9997, 224, 331, 1000, 1056, 4032, 'NASNet', 'adjust_block', 'avg', 'block_1', 'block_2', 'block_3', 'block_4', 'block_5', 'channels_first', 'channels_last', 'he_normal', 'imagenet', 'max', 'models', 'nasnet_large', 'nasnet_large.h5', 'nasnet_mobile', 'nasnet_mobile.h5', 'predictions', 'relu', 'same', 'softmax', 'stem_1', 'stem_2', 'stem_bn1', 'stem_conv1', 'tf', 'torch', 'valid']

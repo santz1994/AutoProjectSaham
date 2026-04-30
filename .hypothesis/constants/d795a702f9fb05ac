@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\tpu\tpu_embedding_v2.py
-# hypothesis_version: 6.151.10
-
-['/', 'Identity', 'Placeholder', 'TPU', 'TPUEmbeddingCallback', 'TPUReplicatedInput', '_device_assignment', '_tpu_embedding_layer', '_tpu_input_identity', 'dtype', 'inference', 'initial_value', 'name', 'outer_graph', 'parameters', 'shape', 'shard_info', 'table_{}', 'train', '{}_{}']

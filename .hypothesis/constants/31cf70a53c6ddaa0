@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\data\experimental\ops\distribute.py
-# hypothesis_version: 6.151.10
-
-['SHARD_HINT', 'batch_sizes', 'static_batch_size']

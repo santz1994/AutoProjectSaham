@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\metrics\reduction_metrics.py
-# hypothesis_version: 6.151.10
-
-['__class__', 'count', 'down', 'fn', 'keras.metrics.Mean', 'keras.metrics.Sum', 'mean', 'sum', 'total']

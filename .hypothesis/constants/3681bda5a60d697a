@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\gymnasium\wrappers\common.py
-# hypothesis_version: 6.151.10
-
-[0.0, 100, 'Autoreset', 'OrderEnforcing', 'PassiveEnvChecker', 'TimeLimit', 'action_space', 'episode', 'l', 'observation_space', 'r', 't']

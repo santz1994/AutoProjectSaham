@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\lookup_ops.py
-# hypothesis_version: 6.151.10
-
-['%s_Export', '%s_Lookup', '%s_Size', '%s_lookup_table_find', '%s_table_restore', '-keys', '-values', '/', '2018-12-15', '?', 'HasherSpec', 'MutableHashTable', 'UNK', '_filename', '_initializer', 'asset_filepath', 'default_value', 'deleted_key', 'empty_key', 'fasthash', 'hash_bucket', 'hash_table', 'hash_table_%s', 'hash_table_%s_%s_%s', 'hasher', 'index_to_string', 'init', 'init_all_tables', 'integer', 'key', 'key_value_init', 'keys', 'legacy', 'lookup.TextFileIndex', 'non-integer', 'string_to_index', 'stronghash', 'table', 'table_%d', 'table_init', 'tables_initializer', 'text_file_init', 'values']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\utils\__init__.py
-# hypothesis_version: 6.151.10
-
-['Rolling', 'SortedWindow', 'TimeRolling', 'VectorDict', 'expand_param_grid', 'inspect', 'log_method_calls', 'math', 'norm', 'pretty', 'random']

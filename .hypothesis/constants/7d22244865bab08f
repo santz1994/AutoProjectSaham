@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\sharded_variable.py
-# hypothesis_version: 6.151.10
-
-[256, 'ShardedVariable', '__getitem__', '_variable_specs', 'div', 'embedding_lookup', 'mean', 'mod', 'part_0', 'sharded', '{}/part_{}']

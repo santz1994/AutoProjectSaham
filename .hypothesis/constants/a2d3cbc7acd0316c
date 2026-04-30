@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\optree\typing.py
-# hypothesis_version: 6.151.10
-
-['AutoEntry', 'Children', 'CustomTreeNode', 'DataclassEntry', 'DefaultDict', 'Deque', 'Dict', 'F', 'FlattenFunc', 'FlattenedEntry', 'GetAttrEntry', 'GetItemEntry', 'Iterable', 'KT', 'List', 'MappingEntry', 'MetaData', 'NamedTuple', 'NamedTupleEntry', 'OrderedDict', 'P', 'PyPy', 'PyTree', 'PyTreeAccessor', 'PyTreeDef', 'PyTreeEntry', 'PyTreeKind', 'PyTreeSpec', 'PyTreeTypeVar', 'S', 'Sequence', 'SequenceEntry', 'StructSequence', 'StructSequenceEntry', 'T', 'Tuple', 'U', 'UnflattenFunc', 'VT', '_T_co', '_asdict', '_fields', '_make', 'builtins', 'is_namedtuple', 'is_namedtuple_class', 'is_structseq', 'is_structseq_class', 'n_fields', 'n_sequence_fields', 'n_unnamed_fields', 'namedtuple_fields', 'structseq_fields', 'subclass']

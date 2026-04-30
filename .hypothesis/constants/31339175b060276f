@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\engine\training_utils_v1.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1.0, 200, 300, ' array(s), ', ' arrays: ', ' input samples and ', ' target samples.', ' to have ', ' to have shape ', '...', ': expected ', 'DataFrame', 'Empty training data.', 'Error when checking ', 'If ', 'Output ', 'Provided `', 'ShuffleDataset', '__len__', '__name__', '_is_feature_layer', '` was a list of ', 'a Dataset iterator', 'acc', 'accuracy', 'ce', 'class_weight', 'crossentropy', 'data tensors', 'for inputs ', 'input_%d', 'inputs', 'loss', 'loss_weights', 'metrics', 'metrics_names', 'name', 'output_%d', 'sample_weight', 'sample_weight_mode', 'samplewise', 'shape', 'steps', 'temporal', 'weighted_']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\tpu\tpu_strategy_util.py
-# hypothesis_version: 6.151.10
-
-['address', 'local', 'tpu_hardware_feature', '{}/replica:0/task:0']

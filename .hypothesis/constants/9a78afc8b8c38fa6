@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\platform\benchmark.py
-# hypothesis_version: 6.151.10
-
-[2.0, '%s%s', '%s.%s', '--benchmark_filter=', '-benchmark_filter=', '/', '1', '=', 'None', '__', 'all', 'benchmark', 'extras', 'iters', 'max_value', 'min_value', 'name', 'self', 'test.Benchmark', 'throughput', 'value', 'wall_time', 'wall_time_mean', 'wall_time_stdev', 'wb']

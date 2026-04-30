@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\shap\plots\_scatter.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1e-08, 0.1, 0.2, 0.25, 0.5, 1.0, 2.0, 7.5, 100, 200, 500, '#000000', '#1E88E5', '#333333', '#888888', 'FEATURE', 'INTERACTION_EFFECT', 'MAIN_EFFECT', 'SHAP value', 'VALUE_FOR', '__len__', 'auto', 'bottom', 'dashed', 'dotted', 'ignore', 'left', 'percentile', 'plt.Axes', 'right', 'solid', 'top', 'vertical']

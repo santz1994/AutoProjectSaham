@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\multi_process_runner.py
-# hypothesis_version: 6.151.10
-
-[0.1, 200, '%s-%d exit code: %s', ',', 'CUDA_VISIBLE_DEVICES', 'GPU', 'GRPC_FAIL_FAST', 'Resources', 'SIGKILL', 'TF_CONFIG', 'TF_CONFIG: %r', 'TestEnvironment', '[{}-{}]:', '_ProcessStatusInfo', '__main__', 'barrier', 'bazel', 'chief', 'cluster', 'cluster_spec', 'exc_info', 'executing_eagerly', 'fn is not a callable', 'grpc', 'grpc_fail_fast', 'index', 'is_successful', 'parent_to_sub_queue', 'process_status_queue', 'r', 'return_value', 'rpc_layer', 'run', 'stdout', 'streaming_pipe_w', 'task', 'task_id', 'task_type', 'tearDownModule', 'terminate', 'terminate {} {}', 'type', 'v2_enabled', 'visible_gpus', '{} {}', '{}-{} does not exist']

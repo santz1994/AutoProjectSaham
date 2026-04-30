@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\stable_baselines3\dqn\policies.py
-# hypothesis_version: 6.151.10
-
-['action_space', 'activation_fn', 'net_arch', 'normalize_images', 'observation_space']

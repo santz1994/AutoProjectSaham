@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\base\__init__.py
-# hypothesis_version: 6.151.10
-
-['Base', 'BaseTransformer', 'BinaryDriftDetector', 'Classifier', 'Clusterer', 'DriftDetector', 'Ensemble', 'Estimator', 'MiniBatchClassifier', 'MiniBatchRegressor', 'MiniBatchTransformer', 'MultiLabelClassifier', 'MultiTargetRegressor', 'Regressor', 'Transformer', 'Wrapper', 'WrapperEnsemble', 'tags', 'typing']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\gen_uniform_quant_ops.py
-# hypothesis_version: 6.151.10
-
-[b'UniformDequantize', b'UniformQuantize', b'UniformQuantizedAdd', b'UniformQuantizedClipByValue', b'UniformQuantizedConvolution', b'UniformQuantizedConvolutionHybrid', b'UniformQuantizedDot', b'UniformQuantizedDotHybrid', b'UniformRequantize', 'T', 'Tin', 'Tlhs', 'Tout', 'Trhs', 'UniformDequantize', 'UniformQuantize', 'UniformQuantizedAdd', 'UniformQuantizedDot', 'UniformRequantize', '_atypes.QInt32', '_atypes.QInt8', '_atypes.QUInt8', 'batch_group_count', 'dimension_numbers', 'explicit_padding', 'feature_group_count', 'lhs_dilation', 'padding', 'quantization_axis', 'quantization_max_val', 'quantization_min_val', 'rhs_dilation', 'window_strides']

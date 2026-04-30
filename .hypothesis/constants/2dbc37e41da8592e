@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\layers\legacy_rnn\rnn_cell_impl.py
-# hypothesis_version: 6.151.10
-
-[1.0, ', ', 'Abstract method', 'GPU', 'LSTMStateTuple', 'ZeroState', '_last_zero_state', 'activation', 'bias', 'bias_initializer', 'c', 'candidate/%s', 'cell', 'cell-%d', 'cell_%d', 'cell_clip', 'class_name', 'config', 'forget_bias', 'gates/%s', 'get_initial_state', 'h', 'initializer', 'inputs', 'is not an RNNCell', 'is not callable', 'kernel', 'kernel_initializer', 'nn.rnn_cell.GRUCell', 'nn.rnn_cell.LSTMCell', 'nn.rnn_cell.RNNCell', 'num_proj', 'num_proj_shards', 'num_unit_shards', 'num_units', 'output_size', 'proj_clip', 'projection/%s', 'reuse', 'rnncell_scope', 'state_is_tuple', 'state_size', 'use_peepholes', 'w_f_diag', 'w_i_diag', 'w_o_diag', 'zero_state']

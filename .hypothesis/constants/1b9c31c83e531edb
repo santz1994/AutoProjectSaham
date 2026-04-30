@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\convolutional\base_depthwise_conv.py
-# hypothesis_version: 6.151.10
-
-['activation', 'activity_regularizer', 'bias', 'bias_constraint', 'bias_initializer', 'bias_regularizer', 'channels_last', 'data_format', 'depth_multiplier', 'depthwise_constraint', 'dilation_rate', 'glorot_uniform', 'kernel', 'kernel_size', 'padding', 'strides', 'use_bias', 'valid', 'zeros']

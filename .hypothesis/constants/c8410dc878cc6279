@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\distribute\distributed_training_utils_v1.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1.0, '_keras_initialized', 'batch_size', 'feed_dict', 'fetches', 'metrics', 'output_losses', 'total_loss', 'write_grads']

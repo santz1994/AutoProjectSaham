@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\data\util\structure.py
-# hypothesis_version: 6.151.10
-
-['DatasetSpec', '__attrs_attrs__', '_fields', 'component_%d', 'dtype', 'normalize_element']

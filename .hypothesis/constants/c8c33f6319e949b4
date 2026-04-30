@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\image_preprocessing\cut_mix.py
-# hypothesis_version: 6.151.10
-
-[1e-06, 1.0, 'batch_masks', 'channels_first', 'channels_last', 'factor', 'ij', 'images', 'int32', 'keras.layers.CutMix', 'mix_weight', 'permutation_order', 'seed']

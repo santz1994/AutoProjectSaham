@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\sb3_contrib\trpo\trpo.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1e-08, 0.001, 0.01, 0.1, 0.8, 0.95, 0.99, 1.0, 100, 128, 2048, 'CnnPolicy', 'MlpPolicy', 'MultiInputPolicy', 'SelfTRPO', 'TRPO', 'auto', 'log_std', 'tensorboard', 'train/n_updates', 'train/std', 'train/value_loss', 'value']

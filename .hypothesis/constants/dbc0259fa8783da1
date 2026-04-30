@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\data\ops\readers.py
-# hypothesis_version: 6.151.10
-
-[256, 1024, 'block_length', 'buffer_size', 'compression_type', 'cycle_length', 'data.TFRecordDataset', 'data.TextLineDataset', 'default', 'false', 'filename', 'flat_filenames', 'footer_bytes', 'header_bytes', 'record_bytes', 'true']

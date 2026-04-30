@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\pyct\static_analysis\reaching_definitions.py
-# hypothesis_version: 6.151.10
-
-['%s[%d]', 'NodeState[%s]=%s']

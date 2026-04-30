@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\fsspec\core.py
-# hypothesis_version: 6.151.10
-
-['*', '*.part', '.*[^a-z]+.*', ':', '://', '::', 'b', 'compression', 'data:', 'encoding', 'errors', 'expand', 'file', 'fo', 'fs', 'fsspec', 'infer', 'local_file', 'mode', 'name_function', 'newline', 'num', 'open_expand', 'open_many', 'protocol', 'r', 'rb', 't', 'target_options', 'target_protocol', 'utf8', 'w', 'x']

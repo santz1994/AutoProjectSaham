@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\datasets\smtp.py
-# hypothesis_version: 6.151.10
-
-[95156, 5484982, 'dst_bytes', 'duration', 'service', 'smtp.csv', 'src_bytes']

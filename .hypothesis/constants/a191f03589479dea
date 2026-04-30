@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\resource_variable_ops.py
-# hypothesis_version: 6.151.10
-
-[100, 2022, '%s_%d', '/device:CPU:0', ':0', 'Assert', 'Assign', 'CPU', 'Gather', 'GatherNd', 'Initializer', 'IsInitialized', 'Read', 'ReadVariableOp', 'ResourceGather', 'ResourceGatherNd', 'UnreadVariable', 'VarIsInitializedOp', 'Variable', 'Variable:0', 'VariableShape', '_ReadVariablesOp', '_XlaSharding', '_caching_device', '_class', '_context', '_handle', '_handle_device', '_name', '_unique_id', '_user_specified_name', 'aggregation', 'alias_id', 'caching_device', 'constraint', 'device', 'distribute_strategy', 'dtype', 'graph', 'import_scope', 'initial_value', 'initial_value_name', 'instance', 'loc:@%s', 'name', 'numpy=<unavailable>', 'save_slice_info_def', 'shape', 'synchronization', 'trainable', 'validate_shape', 'variable_def', 'watch_variable']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\layers\legacy_rnn\rnn_cell_wrapper_impl.py
-# hypothesis_version: 6.151.10
-
-[1.0, 2147483647, '%s_%d', 'DropoutWrapperInit', 'ZeroState', '_%s', 'device', 'dropout_fn', 'dropout_fn_module', 'dropout_fn_type', 'function', 'function in wrapper', 'input', 'input_keep_prob', 'input_size', 'lambda', 'output', 'output_keep_prob', 'residual_fn', 'residual_fn_module', 'residual_fn_type', 'seed', 'state', 'state_keep_prob', 'utf-8']

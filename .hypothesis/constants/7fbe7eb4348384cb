@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\sync_replicas_optimizer.py
-# hypothesis_version: 6.151.10
-
-['/grad_accum', 'SetGlobalStep', 'Unknown grad type!', 'no_init_tokens', 'sync_rep_local_step', 'sync_replicas', 'sync_token_q']

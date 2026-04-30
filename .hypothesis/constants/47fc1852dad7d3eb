@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\applications\convnext.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1e-06, 0.224, 0.225, 0.229, 0.406, 0.456, 0.485, 128, 192, 224, 255, 256, 384, 512, 768, 1000, 1024, 1536, 2048, '.h5', 'ConvNeXtBase', 'ConvNeXtLarge', 'ConvNeXtSmall', 'ConvNeXtTiny', 'ConvNeXtXLarge', '_notop.h5', 'avg', 'base', 'channels_first', 'channels_last', 'convnext', 'convnext_', 'convnext_base', 'convnext_large', 'convnext_small', 'convnext_tiny', 'convnext_xlarge', 'default_size', 'depths', 'drop_path_rate', 'gelu', 'head', 'imagenet', 'init_values', 'large', 'linear', 'max', 'models', 'prestem', 'prestem{0}', 'projection_dim', 'projection_dims', 'same', 'small', 'softmax', 'tiny', 'xlarge']

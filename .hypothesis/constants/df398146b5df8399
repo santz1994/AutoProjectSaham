@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\pyct\qual_names.py
-# hypothesis_version: 6.151.10
-
-["'{}'", '.', 'Literal', 'Symbol', '[', ']', '_', '_sub_', 'name', 'value', '{}[{}]']

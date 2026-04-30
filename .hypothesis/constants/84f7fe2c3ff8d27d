@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\image_ops.py
-# hypothesis_version: 6.151.10
-
-[0.0, 'Invalid dtype %s.', 'fill_mode', 'images', 'interpolation', 'transform_matrices', 'transforms']

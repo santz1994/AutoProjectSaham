@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\layer.py
-# hypothesis_version: 6.151.10
-
-['/output', 'Layer', '_called', '_is_quantized', '_lock', '_mask', '_shape', '_tracker', 'activation', 'activations', 'activity_regularizer', 'args', 'attribute', 'built', 'current_call_ctx', 'dtype', 'float', 'float16', 'float8', 'full', 'glorot_uniform', 'gptq', 'input_dim', 'input_shape', 'int4', 'int8', 'jax', 'keras.Layer', 'keras.layers.Layer', 'kwargs', 'larger_than', 'layers', 'list_of_layers', 'mask', 'method', 'metrics', 'none', 'numpy', 'openvino', 'seed_generators', 'shapes_dict', 'tensorflow', 'torch', 'trainable', 'trainable_variables', 'training', 'zeros']

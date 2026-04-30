@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\sb3_contrib\qrdqn\policies.py
-# hypothesis_version: 6.151.10
-
-[200, 'action_space', 'activation_fn', 'n_quantiles', 'net_arch', 'normalize_images', 'observation_space']

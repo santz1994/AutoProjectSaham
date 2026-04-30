@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\engine\training_arrays_v1.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1.0, 'batch', 'begin', 'end', 'samples', 'size', 'steps', 'steps_per_epoch', 'val_', 'validation_steps']

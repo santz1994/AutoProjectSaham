@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\optimizer_v1.py
-# hypothesis_version: 6.151.10
-
-[0.0, 0.001, 0.002, 0.004, 0.01, 0.5, 0.9, 0.95, 0.96, 0.999, 1.0, ')', 'amsgrad', 'beta_1', 'beta_2', 'clipnorm', 'clipvalue', 'constraint', 'decay', 'epsilon', 'global_step', 'int64', 'iterations', 'lr', 'm_schedule', 'momentum', 'nesterov', 'optimizer', 'rho', 'schedule_decay']

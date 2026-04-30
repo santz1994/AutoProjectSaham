@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\lite\python\convert_phase.py
-# hypothesis_version: 6.151.10
-
-['CALIBRATE', 'CONVERT_GRAPHDEF', 'CONVERT_JAX_HLO', 'CONVERT_SAVED_MODEL', 'FREEZE_KERAS_MODEL', 'FREEZE_SAVED_MODEL', 'LOAD_SAVED_MODEL', 'OPTIMIZE_TF_MODEL', 'PREPARE_TF_MODEL', 'QUANTIZE', 'SPARSIFY', 'SubComponentItem', 'UNSPECIFIED', 'VALIDATE_INPUTS', 'component', 'name']

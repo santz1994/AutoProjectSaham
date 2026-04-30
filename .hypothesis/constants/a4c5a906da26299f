@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\pyct\origin_info.py
-# hypothesis_version: 6.151.10
-
-['<no file>:{}:{}', 'Diff:\n', 'LineLocation', 'Location', 'OriginInfo', 'Original nodes', 'Reparsed nodes', 'col_offset', 'comment', 'decorator_list', 'filename', 'function_name', 'lineno', 'loc', 'source_code_line', '{}:{}:{}']

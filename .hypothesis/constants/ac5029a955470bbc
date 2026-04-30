@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\saving\saveable_object_util.py
-# hypothesis_version: 6.151.10
-
-['/cpu:0', '/device:CPU:0', 'AutoReloadVariable', 'CPU', 'ReadVariableOp', 'VarHandleOp', 'Variable', 'VariableV2', '_', '_in_graph_mode', '_obj', '_saveables', 'cpu:0', 'name', 'restore_function', 'save_function', 'slice_spec', 'tensor']

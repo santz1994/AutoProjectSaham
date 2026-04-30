@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\numpy_ops\np_utils.py
-# hypothesis_version: 6.151.10
-
-[200, ' not', ', ', '.\n\n', '1', '>', '>>>', 'False', 'K', 'TF_NP_CHECK_LINK', 'TF_NP_DOC_FORM', 'True', '\\d+(\\.\\d+(\\.\\d+)?)?$', '__doc__', '`', 'casting', 'dev', 'dtype', 'extobj', 'finfo', 'inlined', 'order', 'out', 'promote_types', 'result_type', 'same_kind', 'signature', 'stable', 'subok', 'true', 'where', 'x']

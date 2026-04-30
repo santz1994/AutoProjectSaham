@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\eager\polymorphic_function\polymorphic_function.py
-# hypothesis_version: 6.151.10
-
-['-', '1', 'Assign', 'Initializer', 'IsInitialized', 'Variable', '__code__', '__func__', '__wrapped__', '_autograph', '_call_count', '_calls_per_tracings', '_descriptor_cache', '_detectors', '_function_type', '_key_for_call_stats', '_lock', '_name', '_total_warning_count', 'checkpoint', 'eager', 'experimental_compile', 'false', 'fn_with_cond', 'function', 'hlo', 'hlo_serialized', 'initial_value', 'initialize_variables', 'jit_compile', 'nonXla', 'notTraced', 'python_function', 'stablehlo_serialized', 'tf.function', 'traced', 'true', 'utf-8', 'xla']

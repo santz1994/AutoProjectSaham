@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\image_preprocessing\bounding_boxes\validation.py
-# hypothesis_version: 6.151.10
-
-['boxes', 'float32', 'int32', 'labels']

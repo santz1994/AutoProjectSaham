@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\optimizers\adadelta.py
-# hypothesis_version: 6.151.10
-
-[1e-07, 0.001, 0.95, 0.99, 'accumulated_grad', 'adadelta', 'epsilon', 'rho']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\applications\mobilenet.py
-# hypothesis_version: 6.151.10
-
-[0.001, 0.25, 0.5, 0.75, 1.0, 6.0, 128, 160, 192, 224, 256, 512, 1000, 1024, '1_0', '2_5', '5_0', '7_5', 'avg', 'channels_first', 'channels_last', 'conv1', 'conv1_bn', 'conv1_relu', 'conv_dw_%d', 'conv_dw_%d_bn', 'conv_dw_%d_relu', 'conv_pad_%d', 'conv_preds', 'conv_pw_%d', 'conv_pw_%d_bn', 'conv_pw_%d_relu', 'dropout', 'imagenet', 'max', 'models', 'predictions', 'reshape_2', 'same', 'softmax', 'tf', 'valid']

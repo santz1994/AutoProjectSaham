@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorboard\compat\proto\meta_graph_pb2.py
-# hypothesis_version: 6.151.10
-
-[b'\x10\x01', b'8\x01', 413, 822, 1144, 1198, 1200, 1280, 1282, 1360, 1363, 1674, 1699, 1701, 1727, 1729, 1759, 1761, 1791, 1793, 1839, 1847, 1850, 2097, 2198, 2200, 2309, 2321, 2324, 2532, 2602, 2604, 2675, 2677, 2750, 2752, 2830, 'AnyList', 'AssetFileDef', 'BytesList', 'CollectionDef', 'CollectionDefEntry', 'CompositeTensor', 'CooSparse', 'DESCRIPTOR', 'DefaultsEntry', 'FloatList', 'FunctionAliasesEntry', 'InputsEntry', 'Int64List', 'MetaGraphDef', 'MetaInfoDef', 'NodeList', 'OutputsEntry', 'SignatureDef', 'SignatureDefEntry', 'TensorInfo', '__module__', 'value']

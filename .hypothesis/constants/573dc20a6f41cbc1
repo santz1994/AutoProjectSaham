@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\checkpoint_utils.py
-# hypothesis_version: 6.151.10
-
-[',', '/', '/cpu:0', '/part_', '/part_%d', '/part_0', ':0', 'checkpoints_iterator', 'init_from_checkpoint', 'list_variables', 'load_checkpoint', 'load_variable', 'train.list_variables', 'train.load_variable']

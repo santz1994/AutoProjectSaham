@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\torch\backends\cusparselt\__init__.py
-# hypothesis_version: 6.151.10
-
-[400, 502, 602, 'get_max_alg_id', 'is_available', 'version']

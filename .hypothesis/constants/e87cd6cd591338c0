@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\sb3_contrib\ppo_recurrent\ppo_recurrent.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1e-08, 0.0003, 0.2, 0.5, 0.95, 0.99, 1.5, 100, 128, 'CnnLstmPolicy', 'MlpLstmPolicy', 'MultiInputLstmPolicy', 'RecurrentPPO', 'SelfRecurrentPPO', 'TimeLimit.truncated', '_last_lstm_states', 'auto', 'log_std', 'tensorboard', 'terminal_observation', 'train/approx_kl', 'train/clip_fraction', 'train/clip_range', 'train/clip_range_vf', 'train/entropy_loss', 'train/loss', 'train/n_updates', 'train/std', 'train/value_loss']

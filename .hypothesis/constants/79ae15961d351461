@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\backend\common\variables.py
-# hypothesis_version: 6.151.10
-
-['.', '/', '__iter__', '__name__', '__str__', '_value', 'auto', 'autocast_scope', 'bfloat', 'float', 'int', 'jax', 'jax.numpy', 'mean', 'name', 'none', 'on_read', 'on_write', 'only_first_replica', 'sum', 'tensorflow', 'torch', 'uint']

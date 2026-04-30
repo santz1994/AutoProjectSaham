@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\tree\extremely_fast_decision_tree.py
-# hypothesis_version: 6.151.10
-
-[1e-07, 0.01, 0.05, 0.99, 1.0, 100.0, 200, 1000000, 'delta', 'grace_period', 'info_gain', 'nba', 'tau']

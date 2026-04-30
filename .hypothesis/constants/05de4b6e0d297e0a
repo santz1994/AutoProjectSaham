@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\pyct\pretty_printer.py
-# hypothesis_version: 6.151.10
-
-['%s"%s"', '%s%s', '%s%s%s', '%s%s="%s"', '%s%s=%s', '%s%s=%s%s', '%s%s=(', '%s%s=()', '%s%s=[', '%s%s=[]', '%s)', '%s=<unset>', '%sNone', '%s]', '()', ':', '__', 'b"%s"', 'blue', 'bold', 'dark', 'magenta', 'red', 'u"%s"', '| ']

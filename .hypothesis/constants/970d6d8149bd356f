@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\datasets\restaurants.py
-# hypothesis_version: 6.151.10
-
-[252108, 28881242, '%Y-%m-%d', 'date', 'is_holiday', 'latitude', 'longitude', 'visitors']

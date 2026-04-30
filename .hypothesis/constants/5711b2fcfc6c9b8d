@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\compiler\mlir\lite\converter_flags_pb2.py
-# hypothesis_version: 6.151.10
-
-[b'\x18\x01', 315, 2961, 3043, 3045, 3137, '_CONVERTERFLAGS', '_FILEFORMAT', 'custom_opdefs', 'quantization_options']

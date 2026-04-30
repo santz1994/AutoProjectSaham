@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\applications\densenet.py
-# hypothesis_version: 6.151.10
-
-[1.001e-05, 0.5, 224, 1000, '__doc__', 'avg', 'avg_pool', 'bn', 'channels_first', 'channels_last', 'conv1_bn', 'conv1_conv', 'conv1_relu', 'conv2', 'conv3', 'conv4', 'conv5', 'densenet', 'densenet121', 'densenet169', 'densenet201', 'imagenet', 'max', 'max_pool', 'models', 'pool1', 'pool2', 'pool3', 'pool4', 'predictions', 'relu', 'same', 'softmax', 'torch']

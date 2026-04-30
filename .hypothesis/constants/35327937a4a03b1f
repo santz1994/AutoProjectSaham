@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\supervisor.py
-# hypothesis_version: 6.151.10
-
-[0.0, 120, 600, 7200, '%s/sec', '%s: %g', 'Loop', 'PrepareSession', 'RequestStop', 'ShouldStop', 'StartQueueRunners', 'Stop', 'StopOnException', 'SummaryComputed', 'Variable', 'VariableV2', 'WaitForStop', 'global_step:0', 'graph.pbtxt', 'inf', 'model.ckpt', 'train.Supervisor']

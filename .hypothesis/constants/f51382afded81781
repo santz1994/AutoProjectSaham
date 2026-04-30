@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\reshaping\zero_padding3d.py
-# hypothesis_version: 6.151.10
-
-['1st entry of padding', '2nd entry of padding', '3rd entry of padding', '__len__', 'channels_first', 'data_format', 'padding']

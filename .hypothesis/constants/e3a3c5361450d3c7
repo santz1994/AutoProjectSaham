@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\failure_handling\failure_handling_util.py
-# hypothesis_version: 6.151.10
-
-[143, 200, 3600, 'BLOCK_TILL_EXIT', 'GCE_CPU', 'GCE_GPU', 'GCE_METADATA_IP', 'GCE_TPU', 'GPU', 'Google', 'Metadata-Flavor', 'TPU', 'http://', 'instance/hostname', 'internal_CPU', 'internal_GPU', 'internal_TPU', 'unsupported', 'utf-8']

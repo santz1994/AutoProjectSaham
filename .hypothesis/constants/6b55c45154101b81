@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\discretization.py
-# hypothesis_version: 6.151.10
-
-[0.0, 0.01, 1.0, '0', 'bin_boundaries', 'count', 'dtype', 'epsilon', 'float32', 'int', 'int32', 'multi_hot', 'name', 'num_bins', 'one_hot', 'output_mode', 'sparse']

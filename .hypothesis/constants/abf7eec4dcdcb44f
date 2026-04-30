@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\saved_model\tag_constants.py
-# hypothesis_version: 6.151.10
-
-['GPU', 'SERVING', 'TPU', 'TRAINING', 'eval', 'gpu', 'saved_model.GPU', 'saved_model.SERVING', 'saved_model.TPU', 'saved_model.TRAINING', 'serve', 'tpu', 'train']

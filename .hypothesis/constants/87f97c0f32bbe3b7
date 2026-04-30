@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\trackable\resource.py
-# hypothesis_version: 6.151.10
-
-['_create_resource', '_destroy_resource', '_initialize', '_resources', 'savedmodel']

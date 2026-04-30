@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\fsspec\__init__.py
-# hypothesis_version: 6.151.10
-
-['.', ':', 'AbstractFileSystem', 'Callback', 'FSMap', 'FSTimeoutError', 'available_protocols', 'caching', 'filesystem', 'fsspec.specs', 'get_filesystem_class', 'get_fs_token_paths', 'get_mapper', 'open', 'open_files', 'open_local', 'registry', 'select', 'url_to_fs']

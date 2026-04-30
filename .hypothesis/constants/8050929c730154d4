@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\core\converter.py
-# hypothesis_version: 6.151.10
-
-['({})', ', ', 'ALL', 'ASSERT_STATEMENTS', 'AUTO_CONTROL_DEPS', 'BUILTIN_FUNCTIONS', 'EQUALITY_OPERATORS', 'LISTS', 'NAME_SCOPES', 'ag__.STD', 'ag__.{}']

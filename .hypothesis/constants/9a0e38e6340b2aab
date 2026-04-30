@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\callbacks\reduce_lr_on_plateau.py
-# hypothesis_version: 6.151.10
-
-[0.0, 0.0001, 0.1, 1.0, 'auto', 'learning_rate', 'val_loss']

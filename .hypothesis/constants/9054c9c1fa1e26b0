@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\compiler\mlir\quantization\tensorflow\quantization_options_pb2.py
-# hypothesis_version: 6.151.10
-
-[b'8\x01', 220, 414, 579, 585, 588, 807, 925, 927, 1034, 1037, 1221, 1294, 1300, 1303, 1434, 1515, 1517, 1590, 1593, 2383, 2496, 2563, 2565, 2651, '_OPSET', '_QUANTIZATIONMETHOD', '_QUANTIZATIONOPTIONS']

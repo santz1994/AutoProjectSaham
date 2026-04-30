@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\compiler\xla\jit.py
-# hypothesis_version: 6.151.10
-
-['_XlaCompile', '_XlaScope', '__xla_scope', 'jit_scope_%d']

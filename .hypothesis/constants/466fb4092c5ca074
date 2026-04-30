@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\mixed_precision\device_compatibility_check.py
-# hypothesis_version: 6.151.10
-
-['%s (x%d)', 'GPU', 'OK', 'Unknown GPU', 'WARNING', 'compute_capability', 'device_name', 'mixed_float16']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorboard\compat\proto\tensor_pb2.py
-# hypothesis_version: 6.151.10
-
-[b'\x10\x01', 186, 734, 736, 840, 'DESCRIPTOR', 'TensorProto', '__module__', 'bool_val', 'dcomplex_val', 'double_val', 'float_val', 'half_val', 'int64_val', 'int_val', 'scomplex_val', 'uint32_val', 'uint64_val']

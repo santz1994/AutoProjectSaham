@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\absl\flags\_helpers.py
-# hypothesis_version: 6.151.10
-
-[0.5, '(?<=\\S)\\n(?=\\S)', ',', '--%s', '--%s=%s', '--no%s', '=', 'No module was found', '^[ \t]+$', '__main__', '__name__']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\debug\cli\cli_shared.py
-# hypothesis_version: 6.151.10
-
-[10.0, 1024.0, 1048576.0, 1073741824.0, 1024, 2000, 1048576, 1073741824, '        (None)', '        * ', '  (Empty)', ' (%sB)', '%.2fG', '%.2fM', '%.2fk', '%d', '%d feeds', '%d fetch; ', '%d fetches; ', '.', '0', '0 feeds', '1 feed (%s)', '1 fetch (%s); ', ':', 'B', 'Details:', 'ERROR: ', 'Error type: ', 'Feed dict:', 'Fetch(es):', 'Op name:    %s', 'Saved value to: ', 'black', 'blink', 'blue', 'bold', 'cols', 'cyan', 'exit', 'gray', 'green', 'help', 'help.', 'li -r %s', 'linewidth', 'lt', 'magenta', 'ms', 'name', 'ni -a -d -t %s', 'op', "pf '%s'", 'red', 'run', 'run #%d: ', 'run -f %s', 'run -f <filter_name>', 'run -n', 'run -t <T>', 's', 'threshold', 'us', 'wb', 'white', 'yellow', '{:.10g}{}', '{:.3g}{}']

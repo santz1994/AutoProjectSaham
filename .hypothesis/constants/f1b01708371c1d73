@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\cluster_resolver\cluster_resolver.py
-# hypothesis_version: 6.151.10
-
-['%s://%s', '/job:%s', '/task:%s', 'CPU', 'XLA_CPU', '_task_id', '_task_type', 'rpc_layer', 'task_id', 'task_type']

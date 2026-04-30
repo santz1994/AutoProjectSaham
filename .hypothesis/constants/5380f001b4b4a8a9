@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\image_preprocessing\max_num_bounding_box.py
-# hypothesis_version: 6.151.10
-
-['bounding_boxes', 'boxes', 'labels', 'max_number']

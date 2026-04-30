@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\stable_baselines3\common\vec_env\patch_gym.py
-# hypothesis_version: 6.151.10
-
-['gym.Env', 'gym.Space', 'seed']

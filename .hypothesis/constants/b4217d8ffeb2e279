@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\quantizers\gptq.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1e-12, 1.0, 2.0, 128, 'float32', 'int32', 'uint8']

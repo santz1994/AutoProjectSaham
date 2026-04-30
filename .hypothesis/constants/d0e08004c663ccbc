@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\stable_baselines3\common\vec_env\vec_normalize.py
-# hypothesis_version: 6.151.10
-
-[1e-08, 0.99, 10.0, 'VecNormalize', 'class_attributes', 'norm_obs_keys', 'observation_space', 'rb', 'returns', 'terminal_observation', 'venv', 'wb']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\pyct\parser.py
-# hypothesis_version: 6.151.10
-
-['# coding=utf-8', '(?<!\\w)lambda(?!\\w)', 'Match {}:\n{}\n', '\\\n', '\\s*', '__future__', 'col_offset', 'end_col_offset', 'end_lineno', 'lineno']

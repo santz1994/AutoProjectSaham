@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\saved_model\nested_structure_coder.py
-# hypothesis_version: 6.151.10
-
-['_fields', 'bool_value', 'dict_value', 'float64_value', 'int64_value', 'list_value', 'named_tuple_value', 'none_value', 'string_value', 'tensor_dtype_value', 'tuple_value', 'type_spec_value']

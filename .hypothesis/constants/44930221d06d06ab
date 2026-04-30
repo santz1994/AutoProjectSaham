@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\framework\function.py
-# hypothesis_version: 6.151.10
-
-[1000000, '%x', 'GuaranteeConst', 'Placeholder', 'PlaceholderV2', '_', '_%s', '_XlaCompile', '_XlaScope', '__defun', '_implements', '_noinline', '_reference', 'arg%d', 'b', 'b16', 'c128', 'c64', 'compiled', 'experimental_', 'f16', 'f32', 'f64', 'f8e4m3b11fnuz', 'f8e4m3fn', 'f8e4m3fnuz', 'f8e5m2', 'f8e5m2fnuz', 'func_name', 'function_%s', 'grad_func', 'i16', 'i2', 'i32', 'i4', 'i64', 'i8', 'name', 'noinline', 'out_names', 'python_grad_func', 'qi16', 'qi32', 'qi8', 'qu16', 'qu8', 's', 'u16', 'u2', 'u32', 'u4', 'u64']

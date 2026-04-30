@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\rnn\conv_lstm1d.py
-# hypothesis_version: 6.151.10
-
-[0.0, 'glorot_uniform', 'orthogonal', 'sigmoid', 'tanh', 'valid', 'zeros']

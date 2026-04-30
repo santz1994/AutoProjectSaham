@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\gen_rnn_ops.py
-# hypothesis_version: 6.151.10
-
-[b'BlockLSTM', b'BlockLSTMGrad', b'BlockLSTMGradV2', b'BlockLSTMV2', b'GRUBlockCell', b'GRUBlockCellGrad', b'LSTMBlockCell', b'LSTMBlockCellGrad', 'BlockLSTM', 'BlockLSTMGrad', 'BlockLSTMGradV2', 'BlockLSTMV2', 'GRUBlockCell', 'GRUBlockCellGrad', 'LSTMBlockCell', 'LSTMBlockCellGrad', 'T', 'TV_BlockLSTMGradV2_T', 'TV_BlockLSTMGrad_T', 'TV_BlockLSTMV2_T', 'TV_BlockLSTM_T', 'TV_GRUBlockCell_T', 'TV_LSTMBlockCell_T', '_atypes.Float32', '_atypes.Half', 'b_grad', 'c', 'cell_clip', 'ci', 'co', 'cs', 'cs_prev_grad', 'd_c_bar', 'd_h_prev', 'd_r_bar_u_bar', 'd_x', 'dicfo', 'f', 'forget_bias', 'h', 'h_prev_grad', 'i', 'o', 'r', 'raw_ops.BlockLSTM', 'raw_ops.BlockLSTMV2', 'raw_ops.GRUBlockCell', 'u', 'use_peephole', 'w_grad', 'wcf_grad', 'wci_grad', 'wco_grad', 'x_grad']

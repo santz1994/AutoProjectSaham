@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\operators\data_structures.py
-# hypothesis_version: 6.151.10
-
-['ListPopOpts', 'ListStackOpts', 'element_dtype', 'element_shape', 'original_call']

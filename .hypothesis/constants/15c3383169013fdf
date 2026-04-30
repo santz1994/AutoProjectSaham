@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\opt_einsum\typing.py
-# hypothesis_version: 6.151.10
-
-['ArrayShaped', 'auto', 'auto-hq', 'autograd', 'branch-2', 'branch-all', 'cupy', 'dask', 'dp', 'greedy', 'jax', 'libjax', 'object', 'optimal', 'random-greedy', 'random-greedy-128', 'shape', 'tensorflow', 'theano', 'torch']

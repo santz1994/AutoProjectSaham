@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\ftrl.py
-# hypothesis_version: 6.151.10
-
-[-0.5, 0.0, 1e-36, 0.1, 2.0, 'Ftrl', 'accum', 'beta', 'learning_rate', 'learning_rate_power', 'linear', 'train.FtrlOptimizer']

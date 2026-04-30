@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\datasets\solar_flare.py
-# hypothesis_version: 6.151.10
-
-[1066, 'activity', 'area', 'c-class-flares', 'evolution', 'hist-complex', 'largest-spot-area', 'largest-spot-size', 'm-class-flares', 'solar-flare.csv.zip', 'spot-distribution', 'x-class-flares', 'zurich-class']

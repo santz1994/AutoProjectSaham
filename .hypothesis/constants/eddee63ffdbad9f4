@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\backend\tensorflow\rnn.py
-# hypothesis_version: 6.151.10
-
-['GPU', 'bool', 'cond', 'gru', 'int32', 'is_cuda_build', 'is_rocm_build', 'lstm', 'mask_ta', 'maximum_iterations', 'parallel_iterations', 'swap_memory', 'time']

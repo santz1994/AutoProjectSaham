@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\linalg\linear_operator.py
-# hypothesis_version: 6.151.10
-
-[1.0, 100.0, '/', 'LinearOperator', 'RIGHT_LEFT', '_', '_non_tensor_params', '_ones_diag', '_param_specs', '_zeros_diag', 'add_to_tensor', 'adjoint', 'assert_non_singular', 'assert_self_adjoint', 'batch_shape', 'batch_shape_tensor', 'cholesky', 'cond', 'det', 'diag_part', 'eigvals', 'graph_parents', 'inverse', 'is_non_singular', 'is_positive_definite', 'is_self_adjoint', 'is_square', 'log_abs_det', 'matmul', 'matvec', 'multiplier', 'non_tensor_params', 'param_specs', 'parameters', 'prefer_static_fields', 'rhs', 'shape_tensor', 'solve', 'tensor_rank', 'tensor_rank_tensor', 'tf.linalg', 'to_dense', 'trace', 'value_type', 'x', '{}.{}', '{}Spec']

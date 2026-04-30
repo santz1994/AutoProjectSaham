@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\callbacks.py
-# hypothesis_version: 6.151.10
-
-[b'1', 0.0001, 0.1, 1.0, '"[%s]"', '$', ',', ', ', '.*', '.h5', '.index', '/publish/epoch/end/', ':', 'Epoch %d/%d', 'NA', 'Sequential', '^', '_', '__next__', '_supports_tf_logs', '_vs_iterations', 'a', 'acc', 'auto', 'batch', 'batch_%d', 'batch_size', 'begin', 'channels_last', 'cpu:0', 'data', 'do_validation', 'embeddings_data', 'end', 'epoch', 'epoch_', 'epochs', 'epsilon', 'evaluation_', 'fmeasure', 'function_spec', 'graph_keras_model', 'is a directory', 'iterations', 'keras', 'learning_rate', 'logs', 'loss', 'lr', 'max', 'metrics', 'min', 'next', 'num_steps', 'on_{mode}_batch_end', 'outputs', 'period', 'r', 'sample', 'samples', 'size', 'step', 'steps', 'steps_per_second', 'train', 'val', 'val_', 'val_loss', 'validation', 'verbose', 'w', 'write_grads', '{.*}']

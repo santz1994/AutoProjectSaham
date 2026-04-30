@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\applications\inception_v3.py
-# hypothesis_version: 6.151.10
-
-[128, 160, 192, 299, 320, 384, 448, 1000, 'avg', 'avg_pool', 'channels_first', 'imagenet', 'inception_v3', 'max', 'mixed0', 'mixed1', 'mixed2', 'mixed3', 'mixed4', 'mixed7', 'mixed8', 'mixed{0}', 'models', 'predictions', 'relu', 'same', 'softmax', 'tf', 'valid']

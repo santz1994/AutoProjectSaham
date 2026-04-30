@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\legacy_tf_layers\base.py
-# hypothesis_version: 6.151.10
-
-['_graph', '_infer', '_metrics_lock', '_reuse', '_scope', '_thread_local', 'add_regularizer', 'autocast', 'scope']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorboard\compat\tensorflow_stub\io\gfile.py
-# hypothesis_version: 6.151.10
-
-[1024, '*', '/', '404', '416', ':', '://', '::', '?', 'Body', 'Code', 'CommonPrefixes', 'ContentLength', 'Contents', 'Could not find file', 'Error', 'File already closed', 'InvalidRange', 'Key', 'Not Found: ', 'Prefix', 'Range', 'S3_ENDPOINT', 'a', 'ab', 'append', 'b', 'br', 'bw', 'byte_offset', 'bytes={}-{}', 'list_objects', 'opaque_offset', 'r', 'rb', 's3', 's3://', 'utf-8', 'utf8', 'w', 'w+', 'w+b', 'wb', '{} is not seekable']

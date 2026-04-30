@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\stable_baselines3\common\monitor.py
-# hypothesis_version: 6.151.10
-
-['#', '*', '.', 'Monitor', 'ResultsWriter', 'a', 'env_id', 'episode', 'get_monitor_files', 'l', 'load_results', 'monitor.csv', 'r', 't', 't_start', 'w']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\converters\control_flow.py
-# hypothesis_version: 6.151.10
-
-['None', 'else_body', 'extra_test', 'get_state', 'if_body', 'iterate_names', 'itr', 'loop_body', 'loop_test', 'set_state']

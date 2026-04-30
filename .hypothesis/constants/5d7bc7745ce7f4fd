@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\legacy\backend.py
-# hypothesis_version: 6.151.10
-
-[0.0, 0.001, 0.2, 0.25, 0.5, 1.0, 2.0, 10000000.0, 1000000000.0, 100, '"', '", "', 'NCDHW', 'NCHW', 'NCW', 'NDHWC', 'NHWC', 'NWC', 'SAME', 'VALID', '_in_graph_mode', '_type_spec', 'arange', 'area', 'avg', 'bicubic', 'bilinear', 'bool', 'causal', 'channels_first', 'channels_last', 'cond', 'dtype', 'gaussian', 'int32', 'int64', 'lanczos3', 'lanczos5', 'mask_ta', 'max', 'maximum_iterations', 'mitchellcubic', 'nearest', 'parallel_iterations', 'same', 'swap_memory', 'time', 'tocoo', 'valid']

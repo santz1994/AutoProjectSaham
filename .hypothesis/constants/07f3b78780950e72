@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\summary\summary.py
-# hypothesis_version: 6.151.10
-
-['HistogramSummary', 'Merge', 'TensorSummary', 'description', 'sample_rate', 'summary.audio', 'summary.histogram', 'summary.image', 'summary.merge', 'summary.merge_all', 'summary.scalar', 'summary.text', 'text']

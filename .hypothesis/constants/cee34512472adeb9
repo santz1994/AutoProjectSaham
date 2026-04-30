@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\utils\naming.py
-# hypothesis_version: 6.151.10
-
-['(.)([A-Z][a-z]+)', '([a-z])([A-Z])', '\\1_\\2', '\\W+', '__class__', '__name__', 'name', 'object_name_uids']

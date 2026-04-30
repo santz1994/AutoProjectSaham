@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\rnn_cell_impl.py
-# hypothesis_version: 6.151.10
-
-[', ', 'bias', 'get_initial_state', 'is not callable', 'kernel', 'output_size', 'state_size', 'zero_state']

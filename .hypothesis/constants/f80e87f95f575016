@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\callbacks\tensorboard.py
-# hypothesis_version: 6.151.10
-
-[b'1', 1.0, ',', ':', 'Functional', 'Sequential', '_', 'batch', 'batch_%d', 'channels_last', 'epoch', 'float32', 'function_spec', 'graph_keras_model', 'iterations', 'jax', 'keras', 'learning_rate', 'logs', 'steps_per_second', 'tensorflow', 'train', 'val', 'val_', 'validation', 'w']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\optimizer_v2\nadam.py
-# hypothesis_version: 6.151.10
-
-[1e-07, 0.001, 0.004, 0.5, 0.9, 0.96, 0.999, 1.0, 'Nadam', 'beta_1', 'beta_1_t', 'beta_2', 'beta_2_t', 'decay', 'epsilon', 'learning_rate', 'lr', 'lr_t', 'm', 'm_t_1', 'momentum_cache', 'neg_lr_t', 'one_minus_beta_1_t', 'one_minus_beta_2_t', 'one_minus_m_t', 'ones', 'schedule_decay', 'v']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\lite\profiling\proto\model_runtime_info_pb2.py
-# hypothesis_version: 6.151.10
-
-[b'\n\x10tflite.profilingP\x01', b'\x10\x01', 132, 227, 230, 461, 541, 544, 858, 860, 942, 945, 1146, 1407, 1410, 1586, 'DESCRIPTOR', '_DELEGATENODEDETAILS', '_EDGE', '_EDGE_DATATYPE', '_EDGE_LAYOUTTYPE', '_MODELRUNTIMEDETAILS', '_NODE', '_RUNTIMESUBGRAPH', 'execution_plan', 'inputs', 'intermediates', 'outputs', 'shape', 'temporaries']

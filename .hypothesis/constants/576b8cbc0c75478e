@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\tensor_array_grad.py
-# hypothesis_version: 6.151.10
-
-['/', 'T', 'TensorArray', 'TensorArrayClose', 'TensorArrayCloseV2', 'TensorArrayCloseV3', 'TensorArrayConcat', 'TensorArrayConcatV2', 'TensorArrayConcatV3', 'TensorArrayGather', 'TensorArrayGatherV2', 'TensorArrayGatherV3', 'TensorArrayGrad', 'TensorArrayGradV2', 'TensorArrayGradV3', 'TensorArrayRead', 'TensorArrayReadV2', 'TensorArrayReadV3', 'TensorArrayScatter', 'TensorArrayScatterV2', 'TensorArrayScatterV3', 'TensorArraySize', 'TensorArraySizeV2', 'TensorArraySizeV3', 'TensorArraySplit', 'TensorArraySplitV2', 'TensorArraySplitV3', 'TensorArrayV2', 'TensorArrayV3', 'TensorArrayWrite', 'TensorArrayWriteV2', 'TensorArrayWriteV3', 'dtype', 'flow_out', 'gradients', 'write_barrier']

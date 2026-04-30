@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\ragged\ragged_array_ops.py
-# hypothesis_version: 6.151.10
-
-[956888297470, 'Bitcast', 'D', 'R', 'RaggedCross', 'RaggedExpandDims', 'RaggedFillEmptyRows', 'RaggedMask', 'RaggedOneHot', 'RaggedRank', 'RaggedShape', 'RaggedSplit', 'RaggedTile', 'Reverse', 'S', 'SegmentStack', 'axis[%d]', 'data', 'indices', 'input', 'mask', 'multiples', 'num_partitions', 'partitions', 'ragged.boolean_mask', 'ragged.cross', 'ragged.cross_hashed', 'rank(input)', 'rank(tensor)', 'shape', 'tensor', 'value']

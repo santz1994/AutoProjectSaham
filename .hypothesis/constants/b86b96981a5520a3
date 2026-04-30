@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\optree\dataclasses.py
-# hypothesis_version: 6.151.10
-
-['_T', '_TypeT', '_U', '__main__', '__name__', 'bases', 'compare', 'decorator', 'default', 'default_factory', 'doc', 'eq', 'frozen', 'hash', 'init', 'kw_only', 'match_args', 'metadata', 'module', 'namespace', 'order', 'pytree_node', 'repr', 'slots', 'unsafe_hash', 'weakref_slot']

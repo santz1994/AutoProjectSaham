@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\numpy_ops\np_random.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1.0, 'random.poisson', 'random.rand', 'random.randint', 'random.randn', 'random.random', 'random.seed', 'random.uniform']

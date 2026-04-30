@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\checkpoint\checkpoint.py
-# hypothesis_version: 6.151.10
-
-[1000000, '%s-%d', '%s_checkpoint_read', '(root)', '.', '/cpu:0', '_kwargs', '_node_name_cache', '_object_graph_proto', '_update_uid', 'checkpoint_v1', 'checkpoint_v2', 'cpu:0', 'expect_partial', 'initializer', 'matched_proto_ids', 'model', 'name', 'object_graph_proto', 'partition_info', 'root', 'save_counter', 'train.Checkpoint', 'unused_attributes', '{}*']

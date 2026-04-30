@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\core\function\trace_type\default_types.py
-# hypothesis_version: 6.151.10
-
-['Attrs', 'Dict', 'List', 'Literal', 'NamedTuple', 'Tuple', 'Weakref', '__wrapped__', 'bool_value', 'float_value', 'int_value', 'nan', 'none_value', 'str_value']

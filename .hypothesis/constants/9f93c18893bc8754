@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\stable_baselines3\a2c\a2c.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1e-08, 1e-05, 0.0007, 0.5, 0.99, 1.0, 100, 'A2C', 'CnnPolicy', 'MlpPolicy', 'MultiInputPolicy', 'SelfA2C', 'auto', 'log_std', 'optimizer_class', 'optimizer_kwargs', 'tensorboard', 'train/entropy_loss', 'train/n_updates', 'train/policy_loss', 'train/std', 'train/value_loss']

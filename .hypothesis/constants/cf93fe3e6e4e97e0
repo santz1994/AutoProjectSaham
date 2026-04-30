@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\ops\operation.py
-# hypothesis_version: 6.151.10
-
-['/', 'Operation', '_auto_config', '_object__state', '_pytree__state', '_remat_mode', 'dtype', 'input', 'input_tensors', 'jax', 'keras.Operation', 'kwargs', 'name', 'output', 'output_tensors', 'quantization_mode']

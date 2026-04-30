@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\rnn\rnn.py
-# hypothesis_version: 6.151.10
-
-['call', 'cell', 'get_initial_state', 'go_backwards', 'keras.layers.RNN', 'output_size', 'return_sequences', 'return_state', 'rnn_state', 'state_size', 'stateful', 'torch', 'training', 'unroll', 'zero_output_for_mask']

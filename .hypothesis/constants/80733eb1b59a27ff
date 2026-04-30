@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\one_device_strategy.py
-# hypothesis_version: 6.151.10
-
-['For example:\n  ```', 'OneDeviceStrategy', 'V1', 'V2', 'colocate_with']

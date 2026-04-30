@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\framework\graph_util_impl.py
-# hypothesis_version: 6.151.10
-
-['%s is not in graph', ':', ':0', 'Assign', 'AssignAdd', 'AssignSub', 'Cast', 'CheckNumerics', 'Const', 'DynamicStitch', 'Enter', 'Exit', 'GraphDef', 'Identity', 'Merge', 'NextIteration', 'Queue', 'ScatterAdd', 'ScatterSub', 'ScatterUpdate', 'SrcT', 'StopGradient', 'Switch', 'T', 'TruncatedNormal', 'Variable', 'VariableV2', '^', '^\\^', '_class', 'dtype', 'loc:@', 'utf-8']

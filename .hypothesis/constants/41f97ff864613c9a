@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\image_preprocessing\center_crop.py
-# hypothesis_version: 6.151.10
-
-['boxes', 'channels_first', 'channels_last', 'data_format', 'height', 'images', 'input_shape', 'rel_xyxy', 'width', 'xyxy']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\pyct\error_utils.py
-# hypothesis_version: 6.151.10
-
-['        {}', '  *', '  **', '<source unavailable>', 'FrameInfo', 'cause_message', 'code', 'filename', 'function_name', 'in user code:', 'is_allowlisted', 'is_converted', 'lineno', 'translated_stack']

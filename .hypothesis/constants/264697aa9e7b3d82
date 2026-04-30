@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\debug\lib\dumping_callback.py
-# hypothesis_version: 6.151.10
-
-[b'DebugNumericSummaryV2', 1000, ':', 'Const', 'DebugIdentityV2', 'DebugIdentityV2_%d', 'NO_TENSOR', 'Placeholder', 'circular_buffer_size', 'debug_urls', 'dumping_callback', 'file://%s', 'name', 'op_name', 'outer_graph', 'output_slot', 'tensor_debug_mode', 'tfdbg_context_id', 'tfdbg_identity_%d', 'tfdbg_run_id']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\training.py
-# hypothesis_version: 6.151.10
-
-['train.BytesList', 'train.ClusterDef', 'train.Example', 'train.Feature', 'train.FeatureList', 'train.FeatureLists', 'train.Features', 'train.FloatList', 'train.Int64List', 'train.JobDef', 'train.SaverDef', 'train.ServerDef']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\distributions\util.py
-# hypothesis_version: 6.151.10
-
-[-1.0, 0.25, 0.5, 1.0, 2.0, 2147483647, '\n\n##### `kwargs`:\n\n', '\n%s', '*  `%s`: %s', 'Unrecognized type {}', 'a', 'above', 'assert_integer_form', 'axis', 'b', 'below', 'categorical_param', 'cond', 'count', 'counts', 'diag', 'false_vector', 'fill_triangular', 'get_logits_and_probs', 'grid', 'log_combinations', 'logits', 'logx', 'matrix', 'n', 'ndims', 'pad', 'pick_vector', 'probs', 'rotate_transpose', 'shape', 'shift', 'softplus_inverse', 'tridiag', 'true_vector', 'unnormalized_probs', 'utf-8', 'validate_probs', 'value', 'w', 'x', 'x_shape']

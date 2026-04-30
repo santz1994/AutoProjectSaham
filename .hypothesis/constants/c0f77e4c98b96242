@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\h5py\version.py
-# hypothesis_version: 6.151.10
-
-['%d.%d', '%d.%d.%d', '.dev{0.dev:d}', '.post{0.post:d}', '_H5PY_VERSION_CLS', 'cython_version', 'h5py', 'hdf5', 'hdf5_build_version', 'maxsize', 'numpy', 'numpy_build_version', 'platform', 'python']

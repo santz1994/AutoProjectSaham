@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\metrics\__init__.py
-# hypothesis_version: 6.151.10
-
-['Accuracy', 'AdjustedMutualInfo', 'AdjustedRand', 'BalancedAccuracy', 'ClassificationReport', 'ClusteringReport', 'CohenKappa', 'Completeness', 'ConfusionMatrix', 'CrossEntropy', 'F1', 'FBeta', 'FowlkesMallows', 'GeometricMean', 'Homogeneity', 'Jaccard', 'LogLoss', 'MAE', 'MAPE', 'MCC', 'MSE', 'MacroF1', 'MacroFBeta', 'MacroJaccard', 'MacroPrecision', 'MacroRecall', 'MicroF1', 'MicroFBeta', 'MicroJaccard', 'MicroPrecision', 'MicroRecall', 'MultiFBeta', 'MutualInfo', 'NormalizedMutualInfo', 'Precision', 'R2', 'RMSE', 'RMSLE', 'ROCAUC', 'Rand', 'Recall', 'RollingROCAUC', 'SMAPE', 'Silhouette', 'VBeta', 'WeightedF1', 'WeightedFBeta', 'WeightedJaccard', 'WeightedPrecision', 'WeightedRecall', 'base', 'multioutput']

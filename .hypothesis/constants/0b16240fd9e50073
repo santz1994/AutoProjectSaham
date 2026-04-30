@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\applications\inception_resnet_v2.py
-# hypothesis_version: 6.151.10
-
-[0.1, 0.17, 0.2, 1.0, 128, 160, 192, 224, 256, 288, 299, 320, 384, 1000, 1536, 'avg', 'avg_pool', 'block17', 'block35', 'block8', 'channels_first', 'conv_7b', 'imagenet', 'inception_resnet_v2', 'max', 'mixed_5b', 'mixed_6a', 'mixed_7a', 'models', 'predictions', 'relu', 'same', 'scale', 'softmax', 'tf', 'valid']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\utils\math.py
-# hypothesis_version: 6.151.10
-
-[0.0, 1.0, 'argmax', 'chain_dot', 'clamp', 'dot', 'dotvecmat', 'log_sum_2_exp', 'matmul2d', 'minkowski_distance', 'norm', 'outer', 'prod', 'sherman_morrison', 'sigmoid', 'sign', 'softmax', 'woodbury_matrix']

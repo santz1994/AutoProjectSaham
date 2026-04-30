@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\distribute\multi_process_lib.py
-# hypothesis_version: 6.151.10
-
-['--tpu', '-c', '.py', '/', ':', 'Linux', 'TEST_TARGET', 'absl_forkserver', 'bazel', 'bazel-out', 'org_keras', 'org_tensorflow', 'run', 'true', 'win32']

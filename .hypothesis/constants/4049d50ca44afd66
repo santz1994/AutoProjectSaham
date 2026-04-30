@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\datasets\insects.py
-# hypothesis_version: 6.151.10
-
-[24150, 52848, 57018, 79986, 143323, 355275, 452044, 905145, 7503750, 16419025, 17713574, 24849092, 24849436, 44371501, 110043637, 140004218, 140004225, 140004230, 277777854, 'Variant', 'abrupt_balanced', 'abrupt_imbalanced', 'class', 'gradual_balanced', 'gradual_imbalanced', 'incremental_balanced', 'out-of-control']

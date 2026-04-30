@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\shap\explainers\_linear.py
-# hypothesis_version: 6.151.10
-
-[1e-08, 1e-07, 1e-06, 1000, 'auto', 'clustering', 'coef_', 'cov', 'data', 'expected_values', 'feature_dependence', 'intercept_', 'interventional', 'linear', 'main_effects', 'mask_shapes', "matrix'>", 'mean', 'values']

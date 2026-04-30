@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\rnn_grad.py
-# hypothesis_version: 6.151.10
-
-['BlockLSTM', 'BlockLSTMV2', 'use_peephole']

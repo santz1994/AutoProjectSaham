@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\dtensor\python\dtensor_device.py
-# hypothesis_version: 6.151.10
-
-['CPU', 'TPU', '_layout', '_mesh', 'utf-8', '{}/device:CUSTOM:{}']

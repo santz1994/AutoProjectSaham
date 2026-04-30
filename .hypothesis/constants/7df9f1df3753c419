@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\datasets\higgs.py
-# hypothesis_version: 6.151.10
-
-[11000000, 2816407858, '1', 'is_signal', 'jet 1 b-tag', 'jet 1 eta', 'jet 1 phi', 'jet 1 pt', 'jet 2 b-tag', 'jet 2 eta', 'jet 2 phi', 'jet 2 pt', 'jet 3 b-tag', 'jet 3 eta', 'jet 3 phi', 'jet 3 pt', 'jet 4 b-tag', 'jet 4 eta', 'jet 4 phi', 'jet 4 pt', 'lepton eta', 'lepton pT', 'lepton phi', 'm_bb', 'm_jj', 'm_jjj', 'm_jlv', 'm_lv', 'm_wbb', 'm_wwbb', 'missing energy phi']

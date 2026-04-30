@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\image_preprocessing\random_rotation.py
-# hypothesis_version: 6.151.10
-
-[0.0, 0.5, 360.0, 'angle', 'batch_size', 'bilinear', 'boxes', 'channels_last', 'constant', 'data_format', 'factor', 'fill_mode', 'fill_value', 'image_height', 'image_width', 'images', 'interpolation', 'nearest', 'reflect', 'rotation_matrix', 'seed', 'wrap', 'xyxy']

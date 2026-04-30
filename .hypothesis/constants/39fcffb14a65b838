@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\profiler\internal\flops_registry.py
-# hypothesis_version: 6.151.10
-
-[b'NHWC', 'Add', 'AddN', 'AddV2', 'ArgMax', 'ArgMin', 'AssignAdd', 'AssignSub', 'AvgPool', 'AvgPoolGrad', 'BatchMatMul', 'BatchMatMulV2', 'BatchMatMulV3', 'BiasAdd', 'BiasAddGrad', 'Conv2D', 'Conv2DBackpropFilter', 'Conv2DBackpropInput', 'Dilation2D', 'Equal', 'Greater', 'GreaterEqual', 'L2Loss', 'Less', 'LessEqual', 'Log', 'MatMul', 'MaxPool', 'MaxPoolGrad', 'Maximum', 'Mean', 'Minimum', 'Mul', 'Neg', 'NotEqual', 'Pow', 'RealDiv', 'Reciprocal', 'Rsqrt', 'RsqrtGrad', 'Softmax', 'Square', 'SquaredDifference', 'Sub', 'Sum', 'data_format', 'flops', 'ksize', 'strides', 'transpose_a']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\numba\core\types\__init__.py
-# hypothesis_version: 6.151.10
-
-['.', '...', 'I', 'N', '_undef_var', 'any', 'bitgen', 'bool', 'code', 'complex128', 'complex64', 'ffi', 'ffi_forced_object', 'float16', 'float32', 'float64', 'float_', 'i', 'int%d', 'int16', 'int32', 'int64', 'int8', 'n', 'none', 'pyfunc', 'pyobject', 'rng', 'slice<a:b:c>', 'slice<a:b>', 'str', 'uint%d', 'uint16', 'uint32', 'uint64', 'uint8', 'undefined', 'unicode_type', 'unknown', 'void*']

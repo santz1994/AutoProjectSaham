@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\legacy\preprocessing\text.py
-# hypothesis_version: 6.151.10
-
-['binary', 'char_level', 'class_name', 'config', 'count', 'document_count', 'filters', 'freq', 'index_docs', 'index_word', 'lower', 'md5', 'nb_words', 'num_words', 'oov_token', 'split', 'tfidf', 'word_counts', 'word_docs', 'word_index']

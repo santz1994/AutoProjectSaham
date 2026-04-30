@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\__init__.py
-# hypothesis_version: 6.151.10
-
-['AutoGraphError', 'ConversionOptions', 'Feature', 'StackTraceMapper', 'convert', 'converted_call', 'do_not_convert', 'operators', 'set_element_type', 'set_loop_options', 'stack', 'tensor_list', 'to_code', 'to_graph', 'utils']

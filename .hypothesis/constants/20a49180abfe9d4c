@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\shap\plots\_benchmark.py
-# hypothesis_version: 6.151.10
-
-[-0.03, 0.1, 0.7, 0.8, '--', 'Fraction kept', 'Fraction removed', 'Model output', 'Seconds per. sample', '__iter__', 'bold', 'bottom', 'center', 'compute time', 'explanation error', 'keep absolute', 'keep negative', 'keep positive', 'left', 'major', 'none', 'offset points', 'remove absolute', 'remove negative', 'remove positive', 'right', 'top', 'w', 'x']

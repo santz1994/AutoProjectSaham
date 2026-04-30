@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\optim\losses.py
-# hypothesis_version: 6.151.10
-
-[-18.0, 0.0, 1e-15, 0.1, 0.5, 1.0, 18.0, 'Absolute', 'BinaryFocalLoss', 'BinaryLoss', 'Cauchy', 'CrossEntropy', 'Hinge', 'Huber', 'Log', 'MultiClassLoss', 'Poisson', 'Quantile', 'RegressionLoss', 'Squared']

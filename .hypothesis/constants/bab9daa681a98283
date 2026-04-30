@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\ragged\dynamic_ragged_shape.py
-# hypothesis_version: 6.151.10
-
-[' is not uniform', "'", ', ', ', target_shape:', '...', '>=', 'Cannot broadcast', "Dtypes don't match", 'DynamicRaggedShape', 'Illegal dtype: ', 'Index ', 'Index is too big: ', '[', '[]', ']', 'inner_axis', 'inner_dim_sizes', 'outer_axis', 'rank', 'rank(self)', '{src_shape:', '}']

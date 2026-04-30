@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\cond_v2.py
-# hypothesis_version: 6.151.10
-
-['Case', 'CollectiveAllToAllV2', 'CollectiveGatherV2', 'GlobalIterId', 'If', 'MutexLock', 'OptionalFromValue', 'StatelessCase', 'StatelessIf', 'Tout', '_branch_graph_{}', '_false_graph', '_rewritten', '_true_graph', 'branch {}', 'branch_index', 'branches', 'branches[0]', 'branches[{}]', 'branch{}', 'case', 'cond', 'else_branch', 'false', 'false_fn', 'fast_cond', 'gradient', 'indexed_case', 'is_stateless', 'output_shapes', 'should never happen', 'switch_case', 'tf.cond', 'tf.switch_case', 'then_branch', 'true', 'true_fn']

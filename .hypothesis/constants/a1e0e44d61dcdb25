@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\models.py
-# hypothesis_version: 6.151.10
-
-['_feed_input_names', '_feed_input_shapes', '_feed_inputs', '_layers', '_output_loss_metrics', '_training_endpoints', 'input_wrapper_for_', 'inputs', 'layers', 'metrics', 'optimizer', 'outputs', 'predict_function', 'submodules', 'target_tensors', 'test_function', 'total_loss', 'train_function', 'weighted_metrics']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\layers\preprocessing\image_preprocessing\random_translation.py
-# hypothesis_version: 6.151.10
-
-[-1.0, 0.0, 1.0, 'bilinear', 'boxes', 'channels_first', 'constant', 'data_format', 'fill_mode', 'fill_value', 'float32', 'height_factor', 'images', 'input_shape', 'interpolation', 'nearest', 'reflect', 'seed', 'tensorflow', 'translations', 'width_factor', 'wrap', 'xyxy']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\control_flow_grad.py
-# hypothesis_version: 6.151.10
-
-['Enter', 'Exit', 'LoopCond', 'Merge', 'NextIteration', 'RefEnter', 'RefExit', 'RefMerge', 'RefNextIteration', 'RefSwitch', 'Switch', 'b_exit', 'b_switch', 'cond_grad', 'cond_resource_grad', 'is_constant']

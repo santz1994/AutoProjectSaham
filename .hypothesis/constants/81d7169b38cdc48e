@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorboard\compat\proto\graph_debug_info_pb2.py
-# hypothesis_version: 6.151.10
-
-[b'\x10\x01', b'8\x01', 363, 451, 453, 552, 554, 644, 646, 735, 737, 822, 824, 876, 'DESCRIPTOR', 'FileLineCol', 'FramesByIdEntry', 'GraphDebugInfo', 'NameToTraceIdEntry', 'StackTrace', 'TracesByIdEntry', 'TracesEntry', '__module__', 'frame_id']

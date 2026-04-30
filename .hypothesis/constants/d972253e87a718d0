@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\debug\cli\command_parser.py
-# hypothesis_version: 6.151.10
-
-[1000.0, 1000000.0, 1024, 1048576, 1073741824, '"', "'", '(', ')', ',', '-', '--all', '--number', '--numeric_summary', '--ranges', '--write_path', '-a', '-n', '-r', '-s', '-w', ':', '<', '<=', '=', '>', '>=', 'B', 'G', 'M', '[', '\\[[^\\]]*\\]', '\\s+', ']', '^\\[(\\d|,|\\s|:)+\\]$', 'inf', 'k', 'ms', 'number', 'print_all', 'ranges', 's', 'store_true', 'tensor_name', 'us']

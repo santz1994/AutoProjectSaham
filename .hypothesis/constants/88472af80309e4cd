@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\absl\command_name.py
-# hypothesis_version: 6.151.10
-
-['/proc/self/comm', 'ascii', 'libc.so.6', 'replace', 'wb']

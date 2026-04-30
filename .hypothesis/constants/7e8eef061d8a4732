@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\framework\function_def_to_graph.py
-# hypothesis_version: 6.151.10
-
-['Placeholder', '^', '_', '_input_shapes', '_output_shapes', 'dtype', 'func', 'grad_func_name', 'list', 'list(func)', 'outer_graph', 'shape', 'value', '{}:0', '{}:{}', '{}:{}:{}']

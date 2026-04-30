@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\debug\lib\debug_data.py
-# hypothesis_version: 6.151.10
-
-['%s:%d', '%s:%s', '*', ',', '-', '/', '/+', ':', 'CoreMetadata', 'Enter', 'Merge', 'NextIteration', 'Windows', '_', '_merge_node_names', '_tfdbg_', 'core_metadata_', 'device:', 'device_', 'executor_step_index', 'feed_keys_info_', 'fetches_info_', 'global_step', 'graph_', 'hash', 'input_names', 'output_names', 'rb', 'session_run_index', 'target_nodes']

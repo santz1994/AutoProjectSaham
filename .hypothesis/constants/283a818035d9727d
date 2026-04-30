@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\engine\functional.py
-# hypothesis_version: 6.151.10
-
-[10000, ' at layer "', ' tensor inputs.', '" is used ', ': model has ', 'Input tensors to a ', 'Model', 'Output tensors of a ', 'The name "', 'The tensor ', '_%s_%s', '_0_0', '__call__', '_ib-', '_keras_history', '_keras_mask', '_layer_call_argspecs', '_manual_input_spec', '_output_mask_cache', '_output_shape_cache', '_output_tensor_cache', 'call', 'dtype', 'inbound_nodes', 'input_layers', 'layer-%d', 'layers', 'mask', 'name', 'output_layers', 'skip_init', 'training', '{}_{}']

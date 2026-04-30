@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\initializers\__init__.py
-# hypothesis_version: 6.151.10
-
-['ALL_OBJECTS', 'Constant', 'ConstantV2', 'GlorotNormal', 'GlorotNormalV2', 'GlorotUniform', 'GlorotUniformV2', 'HeNormal', 'HeNormalV2', 'HeUniform', 'HeUniformV2', 'Identity', 'IdentityV2', 'LecunNormal', 'LecunNormalV2', 'LecunUniform', 'LecunUniformV2', 'Ones', 'OnesV2', 'Orthogonal', 'OrthogonalV2', 'RandomNormal', 'RandomNormalV2', 'RandomUniform', 'RandomUniformV2', 'TruncatedNormal', 'TruncatedNormalV2', 'VarianceScaling', 'VarianceScalingV2', 'Zeros', 'ZerosV2', 'glorot_normalV2', 'glorot_uniformV2', 'he_normalV2', 'he_uniformV2', 'initializer', 'lecun_normalV2', 'lecun_uniformV2', 'normal', 'one', 'ones', 'random_normal', 'random_uniform', 'uniform', 'zero', 'zeros']

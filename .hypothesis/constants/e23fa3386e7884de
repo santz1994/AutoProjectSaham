@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\keras\mixed_precision\loss_scale_optimizer.py
-# hypothesis_version: 6.151.10
-
-[1.0, 2000, ', initial_scale=%s', '_hyper', '_optimizer', 'base_optimizer', 'current_loss_scale', 'dynamic', 'dynamic_growth_steps', 'good_steps', 'initial_scale', 'inner_optimizer', 'iterations', 'learning_rate', 'loss_scale', 'lr', 'optimizer', 'value', 'zeros']

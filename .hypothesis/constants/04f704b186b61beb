@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\saved_model\load.py
-# hypothesis_version: 6.151.10
-
-['.', '2', '@', 'CPU', '__call__', '_create_resource', 'asset', 'big', 'captured_tensor', 'constant', 'function', 'function_aliases', 'kind', 'little', 'load_v2', 'object_graph_def', 'optimizer', 'resource', 'root', 'saved_model.load', 'saved_model.load_v2', 'user_object', 'variable', '{}.{}']

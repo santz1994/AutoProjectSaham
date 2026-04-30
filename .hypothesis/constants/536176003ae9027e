@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\keras\src\backend\tensorflow\core.py
-# hypothesis_version: 6.151.10
-
-['VARIABLE_VALUE', 'auto', 'bool', 'int32', 'int64', 'mean', 'name_scope_stack', 'none', 'on_read', 'on_write', 'only_first_replica', 'scratch_graph', 'sum']

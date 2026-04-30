@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\autograph\core\config.py
-# hypothesis_version: 6.151.10
-
-['PIL', 'absl.logging', 'cProfile', 'collections', 'copy', 'inspect', 'ipdb', 'keras', 'linecache', 'matplotlib', 'mock', 'numpy', 'pandas', 'pathlib', 'pdb', 'posixpath', 'pstats', 're', 'tensorflow', 'tf_keras', 'threading', 'urllib']

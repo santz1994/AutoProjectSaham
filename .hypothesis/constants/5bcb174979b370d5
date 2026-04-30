@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorboard\compat\proto\function_pb2.py
-# hypothesis_version: 6.151.10
-
-[b'8\x01', 180, 351, 354, 749, 816, 819, 957, 959, 1040, 1042, 1100, 1102, 1144, 1146, 1195, 1201, 1203, 1262, 1264, 1335, 'ArgAttrEntry', 'ArgAttrs', 'AttrEntry', 'ControlRetEntry', 'DESCRIPTOR', 'FunctionDef', 'FunctionDefLibrary', 'GradientDef', 'RegisteredGradient', 'RetEntry', '__module__']

@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\opt_einsum\__init__.py
-# hypothesis_version: 6.151.10
-
-['BranchBound', 'DynamicProgramming', 'RandomGreedy', '__version__', 'blas', 'contract', 'contract_expression', 'contract_path', 'get_symbol', 'helpers', 'path_random', 'paths', 'random-greedy', 'random-greedy-128', 'shared_intermediates']

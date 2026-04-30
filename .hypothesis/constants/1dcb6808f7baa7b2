@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\ops\gen_candidate_sampling_ops.py
-# hypothesis_version: 6.151.10
-
-[b'AllCandidateSampler', b'ComputeAccidentalHits', b'FixedUnigramCandidateSampler', b'LearnedUnigramCandidateSampler', b'LogUniformCandidateSampler', b'ThreadUnsafeUnigramCandidateSampler', b'UniformCandidateSampler', 'AllCandidateSampler', 'distortion', 'ids', 'indices', 'num_reserved_ids', 'num_sampled', 'num_shards', 'num_true', 'range_max', 'sampled_candidates', 'seed', 'seed2', 'shard', 'true_expected_count', 'unigrams', 'unique', 'vocab_file', 'weights']

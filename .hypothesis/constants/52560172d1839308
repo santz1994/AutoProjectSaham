@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\tensorflow\python\training\session_run_hook.py
-# hypothesis_version: 6.151.10
-
-['SessionRunArgs', 'SessionRunValues', 'feed_dict', 'fetches', 'options', 'results', 'run_metadata', 'train.SessionRunArgs', 'train.SessionRunHook']

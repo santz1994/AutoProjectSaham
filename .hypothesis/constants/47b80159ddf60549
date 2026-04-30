@@ -1,4 +1,0 @@
-# file: C:\Users\IT\AppData\Roaming\Python\Python313\site-packages\river\preprocessing\scale.py
-# hypothesis_version: 6.151.10
-
-[0.0, 0.25, 0.3, 0.5, 0.75, 'Binarizer', 'MaxAbsScaler', 'MinMaxScaler', 'Normalizer', 'RobustScaler', 'StandardScaler', 'ij,ij->j']
