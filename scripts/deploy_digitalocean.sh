@@ -210,7 +210,10 @@ info "Step 8/8: Building and starting containers..."
 
 cd "$APP_DIR"
 docker compose -f docker-compose.digitalocean.yml down 2>/dev/null || true
-docker compose -f docker-compose.digitalocean.yml up -d --build
+# Always use --no-cache for first build or when Dockerfile changes
+# (avoids stale cached layers missing system packages like git)
+docker compose -f docker-compose.digitalocean.yml build --no-cache api
+docker compose -f docker-compose.digitalocean.yml up -d
 
 echo ""
 echo "═══════════════════════════════════════════════════════"
