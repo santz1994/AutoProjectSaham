@@ -1,11 +1,17 @@
 import os
 import sys
+import types
 import unittest
 
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
+
+# Stub ccxt so hf_connector's _import_ccxt() doesn't raise
+if "ccxt" not in sys.modules:
+    _ccxt_stub = types.ModuleType("ccxt")
+    sys.modules["ccxt"] = _ccxt_stub
 
 
 class _FakeExchange:

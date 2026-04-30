@@ -15,13 +15,17 @@ def run_etl(
 ):
     data = {}
 
-    # Stocks / IDX
+    # Stocks / IDX (corporate_actions archived in Wave 4 — IDX out of scope)
     try:
         from .data_connectors.idx_connector import fetch_idx
-        from .corporate_actions import (
-            apply_corporate_actions_by_symbol,
-            load_corporate_actions,
-        )
+        try:
+            from .corporate_actions import (
+                apply_corporate_actions_by_symbol,
+                load_corporate_actions,
+            )
+        except ImportError:
+            apply_corporate_actions_by_symbol = None
+            load_corporate_actions = None
 
         stocks = fetch_idx(symbols, start_date=start_date, end_date=end_date)
         data["stocks"] = stocks
@@ -31,7 +35,7 @@ def run_etl(
             if corporate_actions_path is not None
             else os.getenv("AUTOSAHAM_CORPORATE_ACTIONS_FILE", "").strip()
         )
-        if configured_actions:
+        if configured_actions and load_corporate_actions and apply_corporate_actions_by_symbol:
             actions_by_symbol = load_corporate_actions(path=configured_actions)
             if actions_by_symbol:
                 data["stocks"] = apply_corporate_actions_by_symbol(

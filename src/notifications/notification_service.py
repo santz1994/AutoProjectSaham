@@ -12,7 +12,7 @@ from collections import deque
 import uuid
 
 import pytz
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +96,8 @@ class AlertRule(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(JAKARTA_TZ))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(JAKARTA_TZ))
     
-    @validator('active_hours_start', 'active_hours_end')
+    @field_validator('active_hours_start', 'active_hours_end')
+    @classmethod
     def validate_time_format(cls, v):
         """Validate HHmm time format"""
         try:
@@ -186,10 +187,11 @@ class Notification(BaseModel):
     read: bool = False
     read_at: Optional[datetime] = None
     
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat()
         }
+    )
 
 
 class NotificationLog(BaseModel):

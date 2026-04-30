@@ -15,12 +15,47 @@ import apiService from '../utils/apiService';
 /**
  * Get XAI explanation for a symbol's latest RL decision.
  * @param {string} symbol  – e.g. "BTC/USDT"
- * @returns {Promise<{feature_importances: Array, narrative: string, action: string, risk_level: string, timestamp: string}>}
+ * @returns {Promise<{feature_contributions: Array, narrative: string, action: string, risk_assessment: string, timestamp: string}>}
  */
 export async function getXaiExplanation(symbol) {
   const safe = encodeURIComponent(String(symbol || '').trim());
   if (!safe) throw new Error('symbol is required');
   return apiService.request(`/api/xai/explain/${safe}`);
+}
+
+/**
+ * Get XAI feature importance for the XaiPanel.
+ * Calls POST /api/xai/explain with default values to get the latest explanation.
+ * @returns {Promise<{feature_importance: Array, narrative: string, risk_assessment: string, stats: object}>}
+ */
+export async function getXaiFeatureImportance() {
+  try {
+    const result = await apiService.request('/api/xai/explain', {
+      method: 'POST',
+      body: JSON.stringify({
+        symbol: 'BTC/USDT',
+        action: 'BUY',
+      }),
+    });
+    // Normalize backend field names to what XaiPanel expects
+    return {
+      feature_importance: result.feature_contributions || [],
+      narrative: result.narrative || '',
+      risk_assessment: result.risk_assessment || 'unknown',
+      stats: result.stats || {},
+      confidence_score: result.confidence_score || 0,
+    };
+  } catch (err) {
+    // If service unavailable, return empty state
+    console.warn('XAI feature importance unavailable:', err.message);
+    return {
+      feature_importance: [],
+      narrative: '',
+      risk_assessment: 'unavailable',
+      stats: {},
+      confidence_score: 0,
+    };
+  }
 }
 
 /**

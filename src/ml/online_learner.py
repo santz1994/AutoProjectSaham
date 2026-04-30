@@ -1,4 +1,4 @@
-"""
+Jad"""
 Online Learning Pipeline
 
 Incremental model updates without full retraining using River library.
@@ -62,11 +62,9 @@ class OnlineLearner:
                 "River not installed. Install with: pip install river"
             )
         
-        self.model = ensemble.AdaptiveRandomForestClassifier(
+        self.model = ensemble.SRPClassifier(
             n_models=n_models,
-            max_features=max_features,
-            grace_period=grace_period,
-            split_confidence=split_confidence
+            subspace_size=max_features if max_features else 0.6
         )
         
         # Metrics
@@ -240,8 +238,9 @@ class ConceptDriftDetector:
         if self.total_samples < self.grace_period:
             return False
         
-        # Update ADWIN
-        drift_detected = self.adwin.update(error)
+        # Update ADWIN — .update() returns None; check .drift_detected property
+        self.adwin.update(error)
+        drift_detected = self.adwin.drift_detected
         
         if drift_detected:
             self.drift_points.append({

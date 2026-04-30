@@ -169,7 +169,7 @@ export default function XaiPanel({ autoRefreshMs = 30000 }) {
         getXaiHistory(),
       ]);
       setData(importance);
-      setHistory(hist.history || []);
+      setHistory(hist.explanations || []);
     } catch (err) {
       setError(err.message);
     } finally {

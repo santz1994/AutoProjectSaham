@@ -64,10 +64,12 @@ def test_online_pipeline():
             X = {'f1': float(i % 10), 'f2': float(i % 5)}
             y = 1 if i % 3 == 0 else 0
             
-            result = pipeline.update(X, y)
+            result = pipeline.train_step(X, y)
         
         status = pipeline.get_status()
-        print(f"✅ Pipeline: {status['samples_processed']} samples, {status['drift_count']} drifts")
+        perf = status.get('performance', {})
+        drift_info = status.get('drift_info', {})
+        print(f"✅ Pipeline: {perf.get('n_samples', 0)} samples, {drift_info.get('drift_count', 0)} drifts")
         
     except ImportError:
         pytest.skip("River not available")

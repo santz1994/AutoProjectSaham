@@ -233,16 +233,21 @@ def fractional_differentiation(
         raise ValueError("d must be between 0 and 1 for fractional differentiation")
     
     # Compute weights
-    weights = [1.0]
+    weights_list = [1.0]
     k = 1
-    while True:
-        weight = -weights[-1] * (d - k + 1) / k
+    max_weight_len = len(series)  # Cap weights to series length
+    while len(weights_list) < max_weight_len:
+        weight = -weights_list[-1] * (d - k + 1) / k
         if abs(weight) < threshold:
             break
-        weights.append(weight)
+        weights_list.append(weight)
         k += 1
     
-    weights = np.array(weights[::-1])  # Reverse for convolution
+    weights = np.array(weights_list[::-1])  # Reverse for convolution
+    
+    # Ensure weights don't exceed series length
+    if len(weights) > len(series):
+        weights = weights[-len(series):]
     
     # Apply weights via convolution
     result = np.convolve(series, weights, mode='valid')
@@ -306,9 +311,9 @@ def get_sample_weights_by_return(
     else:
         weights = returns
     
-    # Avoid division by zero
+    # Avoid division by zero — return uniform weights
     if weights.sum() == 0:
-        return np.ones_like(weights) / len(weights)
+        return np.ones_like(weights)
     
     # Normalize
     weights = weights / weights.sum()

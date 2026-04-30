@@ -440,9 +440,10 @@ class TestAnomalyRiskManager:
         mgr = AnomalyRiskManager()
         mgr.fit(features)
         
-        # Run multiple detections
+        # Run multiple detections (use non-overlapping single rows from end)
         for i in range(5):
-            mgr.detect_anomalies(features.iloc[-5+i:-4+i])
+            idx = len(features) - 5 + i
+            mgr.detect_anomalies(features.iloc[idx:idx+1])
         
         # Initial history should be empty
         assert mgr.anomaly_history is not None

@@ -213,7 +213,9 @@ class AutoencoderDetector:
             raise ValueError("Detector not fitted")
         
         scores = self.score_samples(X)
-        return np.where(scores > self.reconstruction_threshold, 1, -1)
+        # score_samples returns -errors; threshold is on positive errors
+        # So normal = score > -threshold (i.e., low positive error → high negative score)
+        return np.where(scores > -self.reconstruction_threshold, 1, -1)
     
     def score_samples(self, X: pd.DataFrame) -> np.ndarray:
         """

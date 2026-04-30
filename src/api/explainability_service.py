@@ -142,8 +142,17 @@ class SHAPExplainer:
         """Initialize appropriate SHAP explainer."""
         try:
             if self.explainer_type == ExplainerType.TREE:
-                # Use TreeExplainer for tree-based models
-                self.explainer = shap.TreeExplainer(self.model)
+                try:
+                    # Use TreeExplainer for tree-based models
+                    self.explainer = shap.TreeExplainer(self.model)
+                except Exception:
+                    # Fall back to KernelExplainer for non-tree models (e.g. LogisticRegression)
+                    logger.warning("TreeExplainer not supported for this model, falling back to KernelExplainer")
+                    self.explainer_type = ExplainerType.KERNEL
+                    self.explainer = shap.KernelExplainer(
+                        self.model.predict,
+                        shap.sample(self.training_data, min(100, len(self.training_data)))
+                    )
             
             elif self.explainer_type == ExplainerType.KERNEL:
                 # Use KernelExplainer (model-agnostic)
@@ -237,9 +246,11 @@ class SHAPExplainer:
             else:
                 shap_vals = shap_values
             
-            base_value = float(self.explainer.expected_value)
-            if isinstance(base_value, list):
-                base_value = float(base_value[1])
+            ev = self.explainer.expected_value
+            if isinstance(ev, (list, np.ndarray)):
+                base_value = float(ev[1] if len(ev) > 1 else ev[0])
+            else:
+                base_value = float(ev)
             
             # Get feature contributions
             shap_row = shap_vals[prediction_index]
@@ -247,9 +258,11 @@ class SHAPExplainer:
             
             for feature_idx, feature_name in enumerate(self.feature_names):
                 if feature_idx < len(shap_row):
+                    raw_shap = np.asarray(shap_row[feature_idx]).flatten()
+                    shap_val = float(raw_shap[0]) if raw_shap.size > 0 else 0.0
                     feature_contribs.append({
                         "feature": feature_name,
-                        "shap_value": float(shap_row[feature_idx]),
+                        "shap_value": shap_val,
                         "feature_value": float(X.iloc[prediction_index, feature_idx]),
                     })
             
@@ -296,8 +309,8 @@ class SHAPExplainer:
             else:
                 shap_vals = shap_values
             
-            # Mean absolute SHAP value
-            mean_abs_shap = np.mean(np.abs(shap_vals), axis=0)
+            # Mean absolute SHAP value - flatten to ensure 1D
+            mean_abs_shap = np.mean(np.abs(shap_vals), axis=0).flatten()
             
             # Normalize to percentages
             total = np.sum(mean_abs_shap)
@@ -309,8 +322,8 @@ class SHAPExplainer:
                 if idx < len(mean_abs_shap):
                     importances.append(FeatureImportance(
                         feature_name=feature_name,
-                        importance_value=float(mean_abs_shap[idx]),
-                        importance_percent=float(importance_percent[idx]),
+                        importance_value=float(np.asarray(mean_abs_shap[idx]).item()),
+                        importance_percent=float(np.asarray(importance_percent[idx]).item()),
                         contribution_direction="neutral",  # Store direction in explain_prediction
                         rank=0,  # Will be set below
                     ))

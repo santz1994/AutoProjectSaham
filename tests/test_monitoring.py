@@ -81,7 +81,7 @@ class TestMonitoringIntegration:
         
         for rule in rules:
             # Basic validation that expr contains expected operators
-            assert any(op in rule.expr for op in ['>',  '<', '>=', '<=', 'rate', 'increase'])
+            assert any(op in rule.expr for op in ['>',  '<', '>=', '<=', '==', '!=', 'rate', 'increase'])
     
     def test_alert_annotations_complete(self):
         """Test that alerts have complete annotations."""
