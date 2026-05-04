@@ -95,6 +95,24 @@ services:
       retries: 3
       start_period: 30s
 
+  # ─── Frontend (React SPA via Nginx) ───────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "127.0.0.1:3000:80"
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   # ─── Nginx Reverse Proxy ─────────────────────────────
   nginx:
     image: nginx:alpine
@@ -108,6 +126,7 @@ services:
       - certbot_www:/var/www/certbot:ro
     depends_on:
       - api
+      - frontend
     deploy:
       resources:
         limits:
