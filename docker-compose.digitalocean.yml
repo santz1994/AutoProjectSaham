@@ -11,38 +11,6 @@
 version: "3.9"
 
 services:
-  # ─── PostgreSQL (ultra-light) ────────────────────────
-  postgres:
-    image: postgres:16-alpine
-    restart: always
-    environment:
-      POSTGRES_DB: autosaham
-      POSTGRES_USER: ${POSTGRES_USER:-autosaham}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_now}
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-    ports:
-      - "127.0.0.1:5432:5432"
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-    shm_size: 64m
-    command: >
-      postgres
-        -c shared_buffers=64MB
-        -c effective_cache_size=128MB
-        -c work_mem=4MB
-        -c maintenance_work_mem=32MB
-        -c max_connections=30
-        -c wal_buffers=2MB
-        -c checkpoint_completion_target=0.9
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-autosaham}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # ─── Redis (minimal) ────────────────────────────────
   redis:
     image: redis:7-alpine
@@ -75,8 +43,6 @@ services:
       API_PORT: 8000
       WEB_CONCURRENCY: 1
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     volumes:
@@ -142,7 +108,6 @@ services:
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
 volumes:
-  pg_data:
   model_data:
   log_data:
   user_data:
