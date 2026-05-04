@@ -1,0 +1,107 @@
+/* Ghost Machine Control Panel Styles */
+.ghost-machine-panel {
+  background: var(--bg-secondary, #1a1a2e);
+  border-radius: 12px;
+  padding: 24px;
+  color: var(--text-primary, #fff);
+}
+
+.ghost-machine-panel h2 {
+  margin: 0 0 16px;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ghost-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.ghost-stat-card {
+  background: var(--bg-tertiary, #16213e);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+}
+
+.ghost-stat-card .stat-label {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.ghost-stat-card .stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.ghost-stat-card .stat-value.running {
+  color: #2ed573;
+}
+
+.ghost-stat-card .stat-value.stopped {
+  color: #ff4757;
+}
+
+.ghost-controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.ghost-controls button {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.ghost-start-btn {
+  background: #2ed573;
+  color: #fff;
+}
+
+.ghost-start-btn:hover {
+  background: #26bf66;
+  box-shadow: 0 0 15px rgba(46, 213, 115, 0.4);
+}
+
+.ghost-stop-btn {
+  background: #ff4757;
+  color: #fff;
+}
+
+.ghost-stop-btn:hover {
+  background: #e8404f;
+  box-shadow: 0 0 15px rgba(255, 71, 87, 0.4);
+}
+
+.ghost-cycle-btn {
+  background: var(--accent-primary, #00d4ff);
+  color: #111;
+}
+
+.ghost-cycle-btn:hover {
+  background: #00bfe6;
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+}
+
+.ghost-machine-panel button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ghost-refresh-info {
+  font-size: 0.75rem;
+  opacity: 0.5;
+  text-align: center;
+}

@@ -1,0 +1,125 @@
+/* Autonomy Control Panel Styles */
+.autonomy-panel {
+  background: var(--bg-secondary, #1a1a2e);
+  border-radius: 12px;
+  padding: 24px;
+  color: var(--text-primary, #fff);
+}
+
+.autonomy-panel h2 {
+  margin: 0 0 16px;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.autonomy-level-selector {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.autonomy-level-btn {
+  flex: 1;
+  padding: 16px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.3s;
+  background: var(--bg-tertiary, #16213e);
+  color: var(--text-primary, #fff);
+}
+
+.autonomy-level-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.autonomy-level-btn.active {
+  border-color: var(--accent-primary, #00d4ff);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+}
+
+.autonomy-level-btn .level-icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.autonomy-level-btn .level-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+
+.autonomy-level-btn .level-desc {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.kill-switch-btn {
+  width: 100%;
+  padding: 14px;
+  border: 2px solid #ff4757;
+  background: transparent;
+  color: #ff4757;
+  font-weight: 700;
+  font-size: 1rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.kill-switch-btn:hover {
+  background: #ff4757;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(255, 71, 87, 0.4);
+}
+
+.kill-switch-btn.active {
+  background: #ff4757;
+  color: #fff;
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 71, 87, 0.4); }
+  50% { box-shadow: 0 0 25px rgba(255, 71, 87, 0.8); }
+}
+
+.pending-orders-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.pending-order-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--bg-tertiary, #16213e);
+  margin-bottom: 8px;
+}
+
+.pending-order-item .approve-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  background: #2ed573;
+  color: #fff;
+  margin-left: 6px;
+}
+
+.pending-order-item .reject-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  background: #ff4757;
+  color: #fff;
+}

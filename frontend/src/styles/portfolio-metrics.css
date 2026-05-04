@@ -1,0 +1,116 @@
+/* Portfolio Metrics Panel Styles */
+.portfolio-metrics-panel {
+  background: var(--bg-secondary, #1a1a2e);
+  border-radius: 12px;
+  padding: 24px;
+  color: var(--text-primary, #fff);
+}
+
+.portfolio-metrics-panel h2 {
+  margin: 0 0 16px;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.portfolio-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.portfolio-metric-card {
+  background: var(--bg-tertiary, #16213e);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  transition: transform 0.2s;
+}
+
+.portfolio-metric-card:hover {
+  transform: translateY(-2px);
+}
+
+.portfolio-metric-card .metric-icon {
+  font-size: 1.5rem;
+  margin-bottom: 8px;
+}
+
+.portfolio-metric-card .metric-label {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.portfolio-metric-card .metric-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.portfolio-metric-card .metric-value.positive {
+  color: #2ed573;
+}
+
+.portfolio-metric-card .metric-value.negative {
+  color: #ff4757;
+}
+
+.portfolio-metric-card .metric-change {
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.portfolio-metric-card .metric-change.up {
+  color: #2ed573;
+}
+
+.portfolio-metric-card .metric-change.down {
+  color: #ff4757;
+}
+
+.positions-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+
+.positions-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.6;
+  border-bottom: 1px solid var(--border-color, #2a2a4a);
+}
+
+.positions-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color, #2a2a4a);
+  font-size: 0.9rem;
+}
+
+.positions-table tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.positions-table .pnl-positive {
+  color: #2ed573;
+  font-weight: 600;
+}
+
+.positions-table .pnl-negative {
+  color: #ff4757;
+  font-weight: 600;
+}
+
+.portfolio-refresh-info {
+  font-size: 0.75rem;
+  opacity: 0.5;
+  text-align: center;
+  margin-top: 12px;
+}
