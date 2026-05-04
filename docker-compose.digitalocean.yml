@@ -82,6 +82,7 @@ services:
     volumes:
       - model_data:/app/models
       - log_data:/app/logs
+      - user_data:/app/data
     ports:
       - "8000:8000"
     deploy:
@@ -144,5 +145,6 @@ volumes:
   pg_data:
   model_data:
   log_data:
+  user_data:
   certbot_certs:
   certbot_www:
