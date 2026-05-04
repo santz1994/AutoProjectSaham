@@ -28,6 +28,11 @@ const getTextColor = (intensity) => {
   return intensity > 0.4 ? '#ffffff' : '#1a1a2e';
 };
 
+const isHeatmapShape = (payload) => {
+  if (!payload || typeof payload !== 'object') return false;
+  return DAYS.every((day) => payload[day] && typeof payload[day] === 'object');
+};
+
 export default function PerformanceHeatmap({ theme = 'dark' }) {
   const [heatmapData, setHeatmapData] = useState(null);
   const [metric, setMetric] = useState('pnl');
@@ -61,8 +66,9 @@ export default function PerformanceHeatmap({ theme = 'dark' }) {
       setLoading(true);
       try {
         const response = await apiService.getPerformanceHeatmap?.();
-        if (response && response.data) {
-          setHeatmapData(response.data);
+        const candidate = response?.data ?? response?.heatmap ?? response;
+        if (isHeatmapShape(candidate)) {
+          setHeatmapData(candidate);
         } else {
           setHeatmapData(generateMockData());
         }
@@ -107,8 +113,8 @@ export default function PerformanceHeatmap({ theme = 'dark' }) {
       }
     });
   });
-  const minVal = Math.min(...allValues);
-  const maxVal = Math.max(...allValues);
+  const minVal = allValues.length ? Math.min(...allValues) : 0;
+  const maxVal = allValues.length ? Math.max(...allValues) : 0;
 
   const metricLabels = {
     pnl: 'P&L ($)',

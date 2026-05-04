@@ -231,7 +231,11 @@ export default function RiskAnalytics({ theme = 'dark' }) {
       setLoading(true);
       try {
         const response = await apiService.getRiskAnalytics?.();
-        if (response && response.metrics) {
+        const hasArrays = Array.isArray(response?.returns)
+          && Array.isArray(response?.histogram)
+          && Array.isArray(response?.equityCurve)
+          && Array.isArray(response?.drawdowns);
+        if (response && response.metrics && hasArrays) {
           setRiskData(response);
         } else {
           setRiskData(generateMockData());
@@ -255,7 +259,7 @@ export default function RiskAnalytics({ theme = 'dark' }) {
   }
 
   const { metrics, histogram, equityCurve, drawdowns } = riskData;
-  const maxHistCount = Math.max(...histogram.map((b) => b.count));
+  const maxHistCount = histogram.length ? Math.max(...histogram.map((b) => b.count)) : 0;
 
   const tabs = [
     { key: 'overview', label: '📋 Overview' },
@@ -322,14 +326,25 @@ export default function RiskAnalytics({ theme = 'dark' }) {
             ))}
           </div>
           <div className="distribution-stats">
-            <span>Mean: {(riskData.returns.reduce((a, b) => a + b, 0) / riskData.returns.length * 100).toFixed(3)}%</span>
-            <span>Std Dev: {(Math.sqrt(riskData.returns.reduce((a, b) => a + b ** 2, 0) / riskData.returns.length) * 100).toFixed(3)}%</span>
-            <span>Skew: {(() => {
-              const mean = riskData.returns.reduce((a, b) => a + b, 0) / riskData.returns.length;
-              const std = Math.sqrt(riskData.returns.reduce((a, b) => a + (b - mean) ** 2, 0) / riskData.returns.length);
-              const skew = riskData.returns.reduce((a, b) => a + ((b - mean) / std) ** 3, 0) / riskData.returns.length;
-              return skew.toFixed(3);
-            })()}</span>
+            {(() => {
+              const returns = Array.isArray(riskData.returns) ? riskData.returns : [];
+              const count = returns.length;
+              const mean = count ? returns.reduce((a, b) => a + b, 0) / count : 0;
+              const variance = count
+                ? returns.reduce((a, b) => a + (b - mean) ** 2, 0) / count
+                : 0;
+              const std = Math.sqrt(variance);
+              const skew = count && std > 0
+                ? returns.reduce((a, b) => a + ((b - mean) / std) ** 3, 0) / count
+                : 0;
+              return (
+                <>
+                  <span>Mean: {(mean * 100).toFixed(3)}%</span>
+                  <span>Std Dev: {(std * 100).toFixed(3)}%</span>
+                  <span>Skew: {skew.toFixed(3)}</span>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}

@@ -61,6 +61,7 @@ class SetLevelRequest(BaseModel):
 
 class KillSwitchRequest(BaseModel):
     reason: str = "Manual activation via API"
+    active: Optional[bool] = None
 
 
 class RejectRequest(BaseModel):
@@ -99,15 +100,27 @@ async def autonomy_status():
     try:
         svc = _get_autonomy_service()
         state = svc.get_state()
+        stats = {
+            "orders_submitted": getattr(state, "total_orders_drafted", 0),
+            "orders_approved": getattr(state, "total_orders_approved", 0),
+            "orders_rejected": getattr(state, "total_orders_rejected", 0),
+            "orders_executed": getattr(state, "total_auto_executed", 0),
+            "orders_expired": getattr(state, "total_orders_expired", 0),
+            "pending_orders": getattr(state, "pending_orders_count", 0),
+        }
+        signals_processed = getattr(state, "total_signals_processed", None)
+        if signals_processed is None:
+            signals_processed = stats["orders_submitted"] + stats["orders_executed"]
         return JSONResponse({
             "level": state.level.value,
             "level_name": state.level.name,
             "kill_switch_active": state.kill_switch_active,
             "pending_orders_count": state.pending_orders_count,
-            "total_signals_processed": state.total_signals_processed,
-            "total_orders_approved": state.total_orders_approved,
-            "total_orders_rejected": state.total_orders_rejected,
-            "last_level_change": state.last_level_change,
+            "total_signals_processed": signals_processed,
+            "total_orders_approved": getattr(state, "total_orders_approved", 0),
+            "total_orders_rejected": getattr(state, "total_orders_rejected", 0),
+            "last_level_change": getattr(state, "last_level_change_at", None),
+            "stats": stats,
         })
     except HTTPException:
         raise
@@ -142,7 +155,10 @@ async def activate_kill_switch(req: KillSwitchRequest):
     """Activate the emergency kill-switch: halt all trading immediately."""
     try:
         svc = _get_autonomy_service()
-        result = svc.activate_kill_switch(reason=req.reason)
+        if req.active is False:
+            result = svc.deactivate_kill_switch()
+        else:
+            result = svc.activate_kill_switch(reason=req.reason)
         return JSONResponse(result)
     except HTTPException:
         raise

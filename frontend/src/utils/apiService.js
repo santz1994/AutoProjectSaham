@@ -88,6 +88,20 @@ class ApiService {
     }
   }
 
+  async get(endpoint) {
+    return this.request(endpoint);
+  }
+
+  async post(endpoint, payload) {
+    const body = payload === undefined
+      ? undefined
+      : (typeof payload === 'string' ? payload : JSON.stringify(payload));
+    return this.request(endpoint, {
+      method: 'POST',
+      ...(body !== undefined ? { body } : {}),
+    });
+  }
+
   isNotFoundError(error) {
     const message = String(error?.message || '');
     return message.includes('404') || message.includes('Not Found');

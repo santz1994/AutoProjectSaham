@@ -1967,33 +1967,64 @@ if FASTAPI_AVAILABLE:
             winning = [p for p in pnl_values if p > 0]
             losing = [p for p in pnl_values if p < 0]
 
-            # Sharpe Ratio (annualized from trade-level)
-            if n_trades > 1:
-                import statistics
-                mean_ret = statistics.mean(pnl_values)
-                std_ret = statistics.stdev(pnl_values) if n_trades > 2 else abs(mean_ret) or 1.0
-                sharpe = round((mean_ret / std_ret) * (252 ** 0.5), 3) if std_ret > 0 else 0.0
-            else:
-                sharpe = 0.0
-
-            # Max drawdown
-            cumulative = []
-            running = 0.0
-            for p in pnl_values:
-                running += p
-                cumulative.append(running)
-            peak = 0.0
-            max_dd = 0.0
-            for c in cumulative:
-                if c > peak:
-                    peak = c
-                dd = peak - c
-                if dd > max_dd:
-                    max_dd = dd
-
-            # Volatility
             import math
-            volatility = round(math.sqrt(sum((p - (total_pnl / max(n_trades, 1))) ** 2 for p in pnl_values) / max(n_trades - 1, 1)), 4) if n_trades > 1 else 0.0
+
+            scale = max(1.0, max((abs(p) for p in pnl_values), default=0.0))
+            returns = [p / scale for p in pnl_values] if pnl_values else []
+            mean_ret = sum(returns) / len(returns) if returns else 0.0
+            if len(returns) > 1:
+                variance = sum((r - mean_ret) ** 2 for r in returns) / (len(returns) - 1)
+                std_ret = math.sqrt(variance)
+            else:
+                std_ret = 0.0
+
+            downside = [r for r in returns if r < 0]
+            downside_dev = math.sqrt(sum(r ** 2 for r in downside) / len(downside)) if downside else 0.0
+            annual_factor = math.sqrt(max(len(returns), 1))
+            sharpe_ratio = (mean_ret / std_ret) * annual_factor if std_ret > 0 else 0.0
+            sortino_ratio = (mean_ret / downside_dev) * annual_factor if downside_dev > 0 else 0.0
+
+            starting_equity = float(os.getenv("PAPER_STARTING_CASH", "10000"))
+            equity = starting_equity
+            equity_curve = [round(equity, 2)]
+            for r in returns:
+                equity *= (1.0 + r)
+                equity_curve.append(round(equity, 2))
+
+            drawdowns = []
+            peak = equity_curve[0] if equity_curve else starting_equity
+            max_dd_amount = 0.0
+            for value in equity_curve:
+                if value > peak:
+                    peak = value
+                dd_amount = peak - value
+                if dd_amount > max_dd_amount:
+                    max_dd_amount = dd_amount
+                drawdown = (value - peak) / peak if peak else 0.0
+                drawdowns.append(round(drawdown, 6))
+            min_drawdown = min(drawdowns) if drawdowns else 0.0
+            calmar_ratio = (mean_ret * annual_factor) / abs(min_drawdown) if min_drawdown < 0 else 0.0
+
+            max_consec_wins = 0
+            max_consec_losses = 0
+            cur_wins = 0
+            cur_losses = 0
+            for r in returns:
+                if r > 0:
+                    cur_wins += 1
+                    cur_losses = 0
+                elif r < 0:
+                    cur_losses += 1
+                    cur_wins = 0
+                else:
+                    cur_wins = 0
+                    cur_losses = 0
+                if cur_wins > max_consec_wins:
+                    max_consec_wins = cur_wins
+                if cur_losses > max_consec_losses:
+                    max_consec_losses = cur_losses
+
+            volatility = round(std_ret, 4)
 
             # Risk distribution by asset class
             asset_exposure = {}
@@ -2008,24 +2039,69 @@ if FASTAPI_AVAILABLE:
                 for k, v in asset_exposure.items()
             ]
 
+            win_rate_fraction = (len(winning) / n_trades) if n_trades > 0 else 0.0
+            avg_win = (sum(winning) / len(winning)) if winning else 0.0
+            avg_loss = (sum(losing) / len(losing)) if losing else 0.0
+            profit_factor = abs(sum(winning) / sum(losing)) if losing else 0.0
+
+            histogram = []
+            if returns:
+                bin_count = 30
+                min_ret = min(returns)
+                max_ret = max(returns)
+                if min_ret == max_ret:
+                    histogram = [{
+                        "label": f"{min_ret * 100:.1f}",
+                        "count": len(returns),
+                    }]
+                else:
+                    bin_width = (max_ret - min_ret) / bin_count
+                    for idx in range(bin_count):
+                        bin_start = min_ret + idx * bin_width
+                        bin_end = bin_start + bin_width
+                        if idx == bin_count - 1:
+                            count = sum(1 for r in returns if r >= bin_start and r <= bin_end)
+                        else:
+                            count = sum(1 for r in returns if r >= bin_start and r < bin_end)
+                        histogram.append({
+                            "label": f"{((bin_start + bin_end) / 2) * 100:.1f}",
+                            "count": count,
+                        })
+
             # Value at Risk (simple: 2 std deviations)
-            var_95 = round(2.0 * volatility * (n_trades ** 0.5), 2) if n_trades > 1 else 0.0
+            var_95 = round(2.0 * volatility * (len(returns) ** 0.5), 4) if len(returns) > 1 else 0.0
 
             return {
                 "metrics": {
                     "total_pnl": round(total_pnl, 2),
                     "total_trades": n_trades,
-                    "win_rate": round(len(winning) / max(n_trades, 1) * 100, 1),
-                    "avg_win": round(sum(winning) / max(len(winning), 1), 2),
-                    "avg_loss": round(sum(losing) / max(len(losing), 1), 2),
-                    "profit_factor": round(abs(sum(winning) / min(sum(losing), -0.01)), 2) if losing else 0.0,
+                    "win_rate": round(win_rate_fraction * 100, 1),
+                    "avg_win": round(avg_win, 2),
+                    "avg_loss": round(avg_loss, 2),
+                    "profit_factor": round(profit_factor, 2),
+                    "sharpeRatio": round(sharpe_ratio, 3),
+                    "maxDrawdown": round(min_drawdown, 4),
+                    "sortinoRatio": round(sortino_ratio, 3),
+                    "calmarRatio": round(calmar_ratio, 3),
+                    "winRate": round(win_rate_fraction, 4),
+                    "profitFactor": round(profit_factor, 2),
+                    "avgWin": round(avg_win, 2),
+                    "avgLoss": round(avg_loss, 2),
+                    "totalTrades": n_trades,
+                    "consecutiveWins": max_consec_wins,
+                    "consecutiveLosses": max_consec_losses,
+                    "avgHoldingTime": None,
                 },
                 "riskDistribution": risk_distribution,
                 "valueAtRisk": var_95,
-                "maxDrawdown": round(max_dd, 2),
-                "sharpeRatio": sharpe,
+                "maxDrawdown": round(min_drawdown, 4),
+                "sharpeRatio": round(sharpe_ratio, 3),
                 "volatility": volatility,
                 "beta": 0.0,  # Requires benchmark comparison
+                "returns": returns,
+                "histogram": histogram,
+                "equityCurve": equity_curve,
+                "drawdowns": drawdowns,
                 "source": "live",
             }
         except Exception as e:
@@ -2051,50 +2127,97 @@ if FASTAPI_AVAILABLE:
             except Exception:
                 pass
 
-            # Group PnL by symbol and day-of-week / hour
-            from collections import defaultdict
             import datetime as _dt
 
-            by_symbol_dow = defaultdict(lambda: defaultdict(list))  # symbol -> dow -> [pnl]
-            by_symbol_hour = defaultdict(lambda: defaultdict(list))
+            days_order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            heatmap = {
+                day: {
+                    hour: {
+                        "pnl": 0.0,
+                        "trades": 0,
+                        "wins": 0,
+                        "winRate": 0.0,
+                        "volume": 0.0,
+                    }
+                    for hour in range(24)
+                }
+                for day in days_order
+            }
+
+            def _coerce_float(value: Any) -> float:
+                try:
+                    parsed = float(value)
+                except Exception:
+                    return 0.0
+                if parsed != parsed or parsed in (float("inf"), float("-inf")):
+                    return 0.0
+                return parsed
+
+            def _parse_timestamp(value: Any) -> Optional[_dt.datetime]:
+                raw = str(value or "").strip()
+                if not raw:
+                    return None
+                if raw.isdigit():
+                    try:
+                        ts = float(raw)
+                        if ts > 1e12:
+                            ts /= 1000.0
+                        return _dt.datetime.fromtimestamp(ts, _dt.timezone.utc)
+                    except Exception:
+                        return None
+                try:
+                    parsed = _dt.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                except Exception:
+                    return None
+                if parsed.tzinfo is None:
+                    return parsed.replace(tzinfo=_dt.timezone.utc)
+                return parsed.astimezone(_dt.timezone.utc)
 
             for t in trades:
-                pnl = t.get("pnl", 0)
-                if not isinstance(pnl, (int, float)):
+                pnl = _coerce_float(t.get("pnl", 0))
+                ts = _parse_timestamp(t.get("timestamp"))
+                if ts is None:
                     continue
-                symbol = t.get("symbol", "UNKNOWN")
-                ts = t.get("timestamp", "")
-                try:
-                    dt = _dt.datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
-                    dow = dt.strftime("%a")  # Mon, Tue, ...
-                    hour = dt.hour
-                    by_symbol_dow[symbol][dow].append(pnl)
-                    by_symbol_hour[symbol][hour].append(pnl)
-                except (ValueError, TypeError):
-                    pass
+                day = ts.strftime("%a")
+                if day not in heatmap:
+                    continue
+                hour = int(ts.hour)
+                cell = heatmap[day][hour]
+                cell["pnl"] += pnl
+                cell["trades"] += 1
+                if pnl > 0:
+                    cell["wins"] += 1
 
-            # Build heatmap grid
-            days_order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-            heatmap_rows = []
-            for symbol in sorted(by_symbol_dow.keys()):
-                row = {"symbol": symbol}
-                for dow in days_order:
-                    vals = by_symbol_dow[symbol].get(dow, [])
-                    row[dow.lower()] = round(sum(vals), 2) if vals else 0.0
-                row["total"] = round(sum(sum(v) for v in by_symbol_dow[symbol].values()), 2)
-                heatmap_rows.append(row)
+                quantity = _coerce_float(
+                    t.get("quantity")
+                    or t.get("qty")
+                    or t.get("size")
+                    or 0
+                )
+                price = _coerce_float(
+                    t.get("price")
+                    or t.get("entry_price")
+                    or t.get("exit_price")
+                    or 0
+                )
+                volume = _coerce_float(t.get("notional") or 0)
+                if volume <= 0 and quantity and price:
+                    volume = abs(quantity * price)
+                if volume <= 0:
+                    volume = abs(pnl)
+                cell["volume"] += volume
 
-            # Hourly breakdown
-            hourly = {}
-            for symbol in sorted(by_symbol_hour.keys()):
-                hourly[symbol] = {
-                    str(h): round(sum(by_symbol_hour[symbol].get(h, [])), 2)
-                    for h in range(24)
-                }
+            for day in days_order:
+                for hour in range(24):
+                    cell = heatmap[day][hour]
+                    trades_count = cell["trades"]
+                    wins = cell.pop("wins", 0)
+                    cell["winRate"] = round((wins / trades_count) * 100, 1) if trades_count else 0.0
+                    cell["pnl"] = round(cell["pnl"], 2)
+                    cell["volume"] = round(cell["volume"], 2)
 
             return {
-                "data": heatmap_rows,
-                "hourly": hourly,
+                "data": heatmap,
                 "source": "live",
             }
         except Exception as e:
