@@ -927,9 +927,13 @@ def _parse_iso_datetime(value: Optional[str]) -> Optional[datetime]:
         candidate = candidate[:-1] + "+00:00"
 
     try:
-        return datetime.fromisoformat(candidate)
+        parsed = datetime.fromisoformat(candidate)
     except Exception:
         return None
+
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _format_runtime_uptime(total_seconds: int) -> str:
