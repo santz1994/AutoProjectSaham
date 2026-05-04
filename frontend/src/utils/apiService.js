@@ -482,6 +482,44 @@ class ApiService {
     }
   }
 
+  // ============ Risk Analytics API (Phase 8) ============
+  async getRiskAnalytics() {
+    try {
+      return await this.request('/api/risk/analytics');
+    } catch (error) {
+      if (this.isNotFoundError(error)) {
+        // Return safe defaults when backend endpoint not yet available
+        return {
+          metrics: {},
+          riskDistribution: [],
+          valueAtRisk: 0,
+          maxDrawdown: 0,
+          sharpeRatio: 0,
+          volatility: 0,
+          beta: 0,
+          source: 'fallback',
+        };
+      }
+      throw error;
+    }
+  }
+
+  // ============ Performance Heatmap API (Phase 8) ============
+  async getPerformanceHeatmap() {
+    try {
+      return await this.request('/api/performance/heatmap');
+    } catch (error) {
+      if (this.isNotFoundError(error)) {
+        // Return safe defaults when backend endpoint not yet available
+        return {
+          data: [],
+          source: 'fallback',
+        };
+      }
+      throw error;
+    }
+  }
+
   // ============ Performance Reports API ============
   async getPerformanceReport(period = 'today') {
     return this.request(`/api/reports/performance?period=${period}`);

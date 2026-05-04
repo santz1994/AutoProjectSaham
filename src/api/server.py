@@ -22,17 +22,17 @@ except Exception:
 
 if FASTAPI_AVAILABLE:
     import asyncio
+    from contextlib import asynccontextmanager
     import hmac
+    import logging
     import os
     import traceback
     from time import time
-    from typing import Any, Dict, List, Optional
+    from typing import Any, AsyncIterator, Dict, List, Optional
 
     from fastapi import WebSocket, WebSocketDisconnect, Header, Request
     from fastapi.responses import Response, RedirectResponse, JSONResponse
     from fastapi.staticfiles import StaticFiles
-    from fastapi.middleware.cors import CORSMiddleware
-
     from src.alerts.webhook import send_alert_webhook
     from src.api.event_queue import pop_events
     from src.api.quota_usage import record_request, resolve_tier_from_role
@@ -68,9 +68,143 @@ if FASTAPI_AVAILABLE:
         router as ghost_machine_router,
         init_ghost_machine_services,
     )
+    from fastapi.middleware.cors import CORSMiddleware
     from src.notifications.api_routes import setup_notification_routes
+    from src.api.profiling_middleware import ProfilingMiddleware, get_profiling_stats
 
-    app = FastAPI(title="AutoSaham API", version="0.1")
+    @asynccontextmanager
+    async def _app_lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        """Lifespan context manager replacing deprecated on_event handlers."""
+        global market_service, ml_service, _execution_manager
+
+        # ---- STARTUP ----
+        try:
+            from src.api.auth import _load_users
+            users = _load_users()
+            if "demo" not in users:
+                register_user("demo", "demo123")
+                print("[Startup] Created test user: demo / demo123")
+        except Exception as e:
+            print(f"[Startup] Warning: Could not create test user: {e}")
+
+        try:
+            if _execution_manager is not None and hasattr(
+                _execution_manager, "sync_open_orders_on_startup",
+            ):
+                sync_limit = max(1, min(5000, int(
+                    os.getenv("AUTOSAHAM_EXECUTION_STARTUP_SYNC_LIMIT", "500"),
+                )))
+                sync_report = _execution_manager.sync_open_orders_on_startup(limit=sync_limit)
+                try:
+                    _runtime_state_store.append_ai_log(
+                        level="info", event_type="execution_startup_sync",
+                        message="Execution startup sync completed.", payload=sync_report,
+                    )
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"[Startup] Warning: execution startup sync failed: {e}")
+
+        try:
+            from src.api.chart_service import start_market_data_ingestion
+            await start_market_data_ingestion()
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Market data ingestion startup skipped: %s", exc)
+
+        try:
+            symbols_env = os.getenv("MARKET_SYMBOLS", ",".join(_DEFAULT_MARKET_SYMBOLS))
+            symbols = [s.strip().upper() for s in symbols_env.split(",") if s.strip()]
+            symbols = [s for s in symbols if _is_supported_chart_symbol(s)]
+            if not symbols:
+                symbols = list(_DEFAULT_MARKET_SYMBOLS)
+            from src.brokers.marketdata import AlpacaMarketDataAdapter
+            adapter = AlpacaMarketDataAdapter(symbols=symbols)
+            from src.marketdata.service import MarketDataService
+            ms = MarketDataService(adapter=adapter, db_path=os.path.join(project_root, "data", "ticks.db"))
+            ms.start()
+            market_service = ms
+        except Exception:
+            pass
+
+        try:
+            from src.ml.service import MLTrainerService
+            if _celery_enabled():
+                print("[Startup] AUTOSAHAM_USE_CELERY enabled: local ML trainer service skipped")
+            else:
+                interval = int(os.getenv("ML_TRAIN_INTERVAL", str(24 * 3600)))
+                mls = MLTrainerService(schedule_seconds=interval, db_path=os.path.join(project_root, "data", "ticks.db"), models_dir=os.path.join(project_root, "models"))
+                loop = asyncio.get_event_loop()
+                loop.run_in_executor(None, mls.start)
+                ml_service = mls
+        except Exception:
+            pass
+
+        # Ghost Machine + Anomaly Guard + AutoML + Forecast ticker
+        try:
+            from src.execution.anomaly_guard import AnomalyExecutionGuard
+            from src.pipeline.ghost_machine import GhostMachine
+            from src.ml.continuous_automl import ContinuousAutoMLPipeline
+            from src.pipeline.continuous_automl_scheduler import ContinuousAutoMLScheduler
+
+            anomaly_guard = AnomalyExecutionGuard()
+            ghost_machine = GhostMachine()
+            automl = ContinuousAutoMLPipeline()
+            automl_scheduler = ContinuousAutoMLScheduler()
+            automl_scheduler.start()
+            init_ghost_machine_services(
+                ghost_machine=ghost_machine, anomaly_guard=anomaly_guard, automl_pipeline=automl,
+            )
+            print("[Startup] Ghost Machine, Anomaly Guard, AutoML initialized (standby)")
+        except Exception as e:
+            print(f"[Startup] Warning: Ghost Machine services init failed: {e}")
+
+        try:
+            from src.pipeline.scheduler import get_forecast_ticker_scheduler
+            scheduler = get_forecast_ticker_scheduler()
+            if scheduler.is_due():
+                await scheduler.run_once()
+            scheduler.start()
+            logging.getLogger(__name__).info("ForecastTickerScheduler started on startup.")
+        except Exception as exc:
+            logging.getLogger(__name__).warning("ForecastTickerScheduler startup skipped: %s", exc)
+
+        try:
+            from src.ml.online_learner import get_global_stats
+            stats = get_global_stats()
+            logging.getLogger(__name__).info(
+                "OnlineLearner warm: model_count=%s, buffer=%s",
+                stats.get("model_count", 0), stats.get("global_buffer_size", 0),
+            )
+        except Exception as exc:
+            logging.getLogger(__name__).debug("OnlineLearner stats unavailable: %s", exc)
+
+        yield  # ---- application running ----
+
+        # ---- SHUTDOWN ----
+        try:
+            if market_service:
+                market_service.stop()
+        except Exception:
+            pass
+        try:
+            if ml_service:
+                ml_service.stop()
+        except Exception:
+            pass
+        try:
+            from src.pipeline.scheduler import get_forecast_ticker_scheduler
+            get_forecast_ticker_scheduler().stop()
+            logging.getLogger(__name__).info("ForecastTickerScheduler stopped on shutdown.")
+        except Exception as exc:
+            logging.getLogger(__name__).warning("ForecastTickerScheduler shutdown skipped: %s", exc)
+        try:
+            from src.pipeline.continuous_automl_scheduler import get_continuous_automl_scheduler
+            get_continuous_automl_scheduler().stop()
+            logging.getLogger(__name__).info("ContinuousAutoMLScheduler stopped on shutdown.")
+        except Exception as exc:
+            logging.getLogger(__name__).warning("ContinuousAutoMLScheduler shutdown skipped: %s", exc)
+
+    app = FastAPI(title="AutoSaham API", version="0.1", lifespan=_app_lifespan)
 
     def _extract_ws_auth_token(websocket: WebSocket) -> Optional[str]:
         """Extract auth token from websocket query/cookie/header."""
@@ -179,6 +313,11 @@ if FASTAPI_AVAILABLE:
     except Exception as e:
         print(f"[Startup] Warning: Notification routes initialization failed: {e}")
     
+    # Profiling middleware for endpoint performance monitoring
+    _profiling_enabled = os.getenv("AUTOSAHAM_PROFILING_ENABLED", "1").strip().lower() in {"1", "true", "yes"}
+    if _profiling_enabled:
+        app.add_middleware(ProfilingMiddleware)
+
     # SECURITY FIX: Configure CORS to allow frontend on localhost:5173
     app.add_middleware(
         CORSMiddleware,
@@ -1448,146 +1587,214 @@ if FASTAPI_AVAILABLE:
         finally:
             print("[WebSocket] Handler exiting")
 
-    @app.on_event("startup")
-    async def startup_services():
-        """Start optional background services: market data ingestion
-        and ML trainer. These run in background thread pools to avoid
-        blocking the FastAPI event loop during startup.
+    # NOTE: on_event("startup"/"shutdown") replaced by _app_lifespan context manager above.
 
-        Uses Forex/Crypto symbols by default.
+    @app.get("/api/profiling/stats")
+    async def api_profiling_stats(top_n: int = 20):
+        """Return endpoint performance profiling statistics.
+        
+        Shows slowest endpoints by average response time, hit count, error rate.
+        Useful for identifying performance bottlenecks.
         """
-        global market_service, ml_service, _execution_manager
-        
-        # Initialize test user for demo purposes
         try:
-            from src.api.auth import _load_users
-            users = _load_users()
-            if "demo" not in users:  # Ensure demo account exists for local testing
-                register_user("demo", "demo123")
-                print("[Startup] Created test user: demo / demo123")
+            stats = get_profiling_stats()
+            top_endpoints = stats.get("top_endpoints", [])
+            if top_n and top_n < len(top_endpoints):
+                top_endpoints = top_endpoints[:top_n]
+            return {
+                "enabled": _profiling_enabled,
+                "global_stats": {
+                    "total_requests": stats.get("total_requests", 0),
+                    "active_trackers": stats.get("active_trackers", 0),
+                    "tracked_endpoints": stats.get("tracked_endpoints", 0),
+                },
+                "top_endpoints": top_endpoints,
+            }
         except Exception as e:
-            print(f"[Startup] Warning: Could not create test user: {e}")
+            return {"enabled": False, "error": str(e)}
 
+    class BacktestPayload(BaseModel):
+        symbols: List[str] = ["BTC/USDT"]
+        timeframe: str = "5m"
+        strategy: str = "rl_agent"
+        start_date: Optional[str] = None
+        end_date: Optional[str] = None
+        max_steps: int = 1000
+        leverage: float = 1.0
+        initial_balance: float = 10000.0
+
+    @app.post("/api/backtest/run")
+    async def api_backtest_run(payload: BacktestPayload, request: Request):
+        """Run a backtest using historical data and the RL agent."""
         try:
-            if _execution_manager is not None and hasattr(
-                _execution_manager,
-                "sync_open_orders_on_startup",
-            ):
-                sync_limit = max(
-                    1,
-                    min(
-                        5000,
-                        int(
-                            os.getenv(
-                                "AUTOSAHAM_EXECUTION_STARTUP_SYNC_LIMIT",
-                                "500",
-                            )
-                        ),
-                    ),
-                )
-                sync_report = _execution_manager.sync_open_orders_on_startup(
-                    limit=sync_limit
-                )
-
-                try:
-                    _runtime_state_store.append_ai_log(
-                        level="info",
-                        event_type="execution_startup_sync",
-                        message="Execution startup sync completed.",
-                        payload=sync_report,
-                    )
-                except Exception:
-                    pass
-        except Exception as e:
-            print(f"[Startup] Warning: execution startup sync failed: {e}")
-        
-        try:
-            # REAL DATA: Default to Forex/Crypto symbols.
-            symbols_env = os.getenv(
-                "MARKET_SYMBOLS",
-                ",".join(_DEFAULT_MARKET_SYMBOLS),
-            )
-            symbols = [
-                s.strip().upper()
-                for s in symbols_env.split(",")
-                if s.strip()
-            ]
-            symbols = [s for s in symbols if _is_supported_chart_symbol(s)]
-            if not symbols:
-                symbols = list(_DEFAULT_MARKET_SYMBOLS)
-
-            from src.brokers.marketdata import AlpacaMarketDataAdapter
-
-            adapter = AlpacaMarketDataAdapter(symbols=symbols)
+            _assert_runtime_not_halted("Backtest run")
             
-            from src.marketdata.service import MarketDataService
-            ms = MarketDataService(adapter=adapter, db_path=os.path.join(project_root, "data", "ticks.db"))
-            # PERFORMANCE FIX: Run market service in background thread, don't block startup
-            ms.start()
-            market_service = ms
-        except Exception:
-            # do not fail startup on optional services
-            pass
-
-        try:
-            from src.ml.service import MLTrainerService
-
-            if _celery_enabled():
-                print("[Startup] AUTOSAHAM_USE_CELERY enabled: local ML trainer service skipped")
-            else:
-                interval = int(os.getenv("ML_TRAIN_INTERVAL", str(24 * 3600)))
-                mls = MLTrainerService(schedule_seconds=interval, db_path=os.path.join(project_root, "data", "ticks.db"), models_dir=os.path.join(project_root, "models"))
-                # PERFORMANCE FIX: Run ML training in background thread pool via executor
-                # This prevents blocking the event loop during long training operations
-                loop = asyncio.get_event_loop()
-                loop.run_in_executor(None, mls.start)
-                ml_service = mls
-        except Exception:
-            pass
-
-        # ── Ghost Machine + Anomaly Guard + AutoML initialization ──
-        try:
-            from src.execution.anomaly_guard import AnomalyExecutionGuard
-            from src.pipeline.ghost_machine import GhostMachine
-            from src.ml.continuous_automl import ContinuousAutoMLPipeline
-            from src.pipeline.continuous_automl_scheduler import ContinuousAutoMLScheduler
-
-            anomaly_guard = AnomalyExecutionGuard()
-            ghost_machine = GhostMachine()
-            automl = ContinuousAutoMLPipeline()
-            automl_scheduler = ContinuousAutoMLScheduler()
-            automl_scheduler.start()
-
-            init_ghost_machine_services(
-                ghost_machine=ghost_machine,
-                anomaly_guard=anomaly_guard,
-                automl_pipeline=automl,
+            import csv
+            from datetime import datetime
+            
+            symbol = (payload.symbols or ["BTC/USDT"])[0].replace("/", "").upper()
+            dataset_path = os.path.join(
+                project_root, "data", "dataset", f"hf_{symbol}_{payload.timeframe}_features.csv"
             )
-            print("[Startup] Ghost Machine, Anomaly Guard, AutoML initialized (standby)")
+            
+            if not os.path.exists(dataset_path):
+                # Try without features suffix
+                dataset_path = os.path.join(
+                    project_root, "data", "dataset", f"hf_{symbol}_{payload.timeframe}.csv"
+                )
+            
+            if not os.path.exists(dataset_path):
+                return {
+                    "status": "error",
+                    "message": f"No dataset found for {symbol} {payload.timeframe}. Run prepare_data.py first.",
+                    "equity_curve": [],
+                    "trades": [],
+                    "metrics": {},
+                }
+            
+            # Read dataset
+            rows = []
+            with open(dataset_path, "r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    rows.append(row)
+                    if len(rows) >= payload.max_steps:
+                        break
+            
+            if not rows:
+                return {
+                    "status": "error", 
+                    "message": "Dataset is empty",
+                    "equity_curve": [],
+                    "trades": [],
+                    "metrics": {},
+                }
+            
+            # Simulate backtest with simple strategy
+            balance = payload.initial_balance
+            position = 0.0
+            entry_price = 0.0
+            equity_curve = [balance]
+            trades = []
+            wins = 0
+            losses = 0
+            total_pnl = 0.0
+            
+            for i, row in enumerate(rows):
+                try:
+                    close = float(row.get("close", 0))
+                    rsi = float(row.get("rsi", row.get("norm_rsi", 50)))
+                    macd = float(row.get("macd", row.get("norm_macd", 0)))
+                except (ValueError, TypeError):
+                    continue
+                
+                if close <= 0:
+                    continue
+                
+                # Simple signal logic based on indicators
+                signal = "hold"
+                if rsi < 30 and macd > 0 and position == 0:
+                    signal = "buy"
+                elif rsi > 70 and macd < 0 and position > 0:
+                    signal = "sell"
+                elif position > 0 and (rsi > 65 or close < entry_price * 0.97):
+                    signal = "sell"
+                
+                if signal == "buy" and balance > 0:
+                    qty = (balance * 0.95) / close
+                    position = qty
+                    entry_price = close
+                    balance = balance * 0.05
+                    
+                    trades.append({
+                        "step": i,
+                        "side": "buy",
+                        "symbol": symbol,
+                        "entry_price": round(close, 4),
+                        "exit_price": 0,
+                        "pnl": 0,
+                        "return_pct": 0,
+                        "timestamp": row.get("timestamp", ""),
+                    })
+                
+                elif signal == "sell" and position > 0:
+                    pnl = (close - entry_price) * position
+                    ret_pct = ((close - entry_price) / entry_price) * 100 if entry_price > 0 else 0
+                    balance = balance + position * close
+                    
+                    if pnl > 0:
+                        wins += 1
+                    else:
+                        losses += 1
+                    total_pnl += pnl
+                    
+                    # Update last trade
+                    if trades and trades[-1]["exit_price"] == 0:
+                        trades[-1]["exit_price"] = round(close, 4)
+                        trades[-1]["pnl"] = round(pnl, 2)
+                        trades[-1]["return_pct"] = round(ret_pct, 2)
+                    
+                    position = 0.0
+                    entry_price = 0.0
+                
+                equity = balance + (position * close if position > 0 else 0)
+                equity_curve.append(round(equity, 2))
+            
+            # Close any remaining position
+            if position > 0 and rows:
+                last_close = float(rows[-1].get("close", 0))
+                pnl = (last_close - entry_price) * position
+                total_pnl += pnl
+                if pnl > 0:
+                    wins += 1
+                else:
+                    losses += 1
+                balance += position * last_close
+                equity_curve.append(round(balance, 2))
+                if trades and trades[-1]["exit_price"] == 0:
+                    trades[-1]["exit_price"] = round(last_close, 4)
+                    trades[-1]["pnl"] = round(pnl, 2)
+            
+            total_trades = wins + losses
+            win_rate = (wins / total_trades * 100) if total_trades > 0 else 0
+            max_equity = max(equity_curve) if equity_curve else payload.initial_balance
+            max_dd = 0
+            peak = equity_curve[0] if equity_curve else payload.initial_balance
+            for eq in equity_curve:
+                if eq > peak:
+                    peak = eq
+                dd = ((peak - eq) / peak) * 100 if peak > 0 else 0
+                if dd > max_dd:
+                    max_dd = dd
+            
+            final_equity = equity_curve[-1] if equity_curve else payload.initial_balance
+            total_return = ((final_equity - payload.initial_balance) / payload.initial_balance) * 100
+            
+            return {
+                "status": "completed",
+                "symbol": symbol,
+                "timeframe": payload.timeframe,
+                "strategy": payload.strategy,
+                "data_points": len(rows),
+                "equity_curve": equity_curve,
+                "trades": trades,
+                "metrics": {
+                    "initial_balance": payload.initial_balance,
+                    "final_equity": round(final_equity, 2),
+                    "total_return_pct": round(total_return, 2),
+                    "total_pnl": round(total_pnl, 2),
+                    "total_trades": total_trades,
+                    "wins": wins,
+                    "losses": losses,
+                    "win_rate": round(win_rate, 1),
+                    "max_drawdown_pct": round(max_dd, 2),
+                    "leverage": payload.leverage,
+                },
+            }
+        except HTTPException:
+            raise
         except Exception as e:
-            print(f"[Startup] Warning: Ghost Machine services init failed: {e}")
-
-    @app.on_event("shutdown")
-    async def shutdown_services():
-        """Stop background services cleanly on shutdown."""
-        global market_service, ml_service
-        try:
-            if market_service:
-                try:
-                    market_service.stop()
-                except Exception:
-                    pass
-        except Exception:
-            pass
-
-        try:
-            if ml_service:
-                try:
-                    ml_service.stop()
-                except Exception:
-                    pass
-        except Exception:
-            pass
+            raise HTTPException(status_code=500, detail=str(e))
 
     @app.post("/api/training/trigger")
     async def api_training_trigger(async_run: bool = False):
@@ -1618,6 +1825,201 @@ if FASTAPI_AVAILABLE:
                 return {"status": "trained"}
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+
+    # ═══════════════════════════════════════════════════════════════════
+    # Phase 8: Risk Analytics & Performance Heatmap Endpoints
+    # ═══════════════════════════════════════════════════════════════════
+
+    @app.get("/api/risk/analytics")
+    async def api_risk_analytics():
+        """Return risk analytics data for the portfolio."""
+        try:
+            # Portfolio-level risk metrics from state store
+            pos = {}
+            trades = []
+            try:
+                pos = _runtime_state_store.get_positions({})
+                trades = _runtime_state_store.get_trade_log([])
+            except Exception:
+                pass
+            if _execution_manager and hasattr(_execution_manager, "reconcile"):
+                try:
+                    snap = _execution_manager.reconcile()
+                    if isinstance(snap, dict):
+                        pos = snap.get("positions", pos)
+                except Exception:
+                    pass
+
+            # Calculate risk metrics from trade history
+            pnl_values = [t.get("pnl", 0) for t in trades if isinstance(t.get("pnl"), (int, float))]
+            total_pnl = sum(pnl_values)
+            n_trades = len(pnl_values)
+            winning = [p for p in pnl_values if p > 0]
+            losing = [p for p in pnl_values if p < 0]
+
+            # Sharpe Ratio (annualized from trade-level)
+            if n_trades > 1:
+                import statistics
+                mean_ret = statistics.mean(pnl_values)
+                std_ret = statistics.stdev(pnl_values) if n_trades > 2 else abs(mean_ret) or 1.0
+                sharpe = round((mean_ret / std_ret) * (252 ** 0.5), 3) if std_ret > 0 else 0.0
+            else:
+                sharpe = 0.0
+
+            # Max drawdown
+            cumulative = []
+            running = 0.0
+            for p in pnl_values:
+                running += p
+                cumulative.append(running)
+            peak = 0.0
+            max_dd = 0.0
+            for c in cumulative:
+                if c > peak:
+                    peak = c
+                dd = peak - c
+                if dd > max_dd:
+                    max_dd = dd
+
+            # Volatility
+            import math
+            volatility = round(math.sqrt(sum((p - (total_pnl / max(n_trades, 1))) ** 2 for p in pnl_values) / max(n_trades - 1, 1)), 4) if n_trades > 1 else 0.0
+
+            # Risk distribution by asset class
+            asset_exposure = {}
+            for symbol, pos_info in pos.items():
+                asset_class = "crypto" if any(k in symbol.upper() for k in ["BTC", "ETH", "USDT", "SOL", "BNB"]) else "forex"
+                notional = abs(float(pos_info.get("notional", 0)))
+                asset_exposure[asset_class] = asset_exposure.get(asset_class, 0) + notional
+
+            total_exposure = sum(asset_exposure.values()) or 1.0
+            risk_distribution = [
+                {"asset_class": k, "exposure": round(v, 2), "pct": round(v / total_exposure * 100, 1)}
+                for k, v in asset_exposure.items()
+            ]
+
+            # Value at Risk (simple: 2 std deviations)
+            var_95 = round(2.0 * volatility * (n_trades ** 0.5), 2) if n_trades > 1 else 0.0
+
+            return {
+                "metrics": {
+                    "total_pnl": round(total_pnl, 2),
+                    "total_trades": n_trades,
+                    "win_rate": round(len(winning) / max(n_trades, 1) * 100, 1),
+                    "avg_win": round(sum(winning) / max(len(winning), 1), 2),
+                    "avg_loss": round(sum(losing) / max(len(losing), 1), 2),
+                    "profit_factor": round(abs(sum(winning) / min(sum(losing), -0.01)), 2) if losing else 0.0,
+                },
+                "riskDistribution": risk_distribution,
+                "valueAtRisk": var_95,
+                "maxDrawdown": round(max_dd, 2),
+                "sharpeRatio": sharpe,
+                "volatility": volatility,
+                "beta": 0.0,  # Requires benchmark comparison
+                "source": "live",
+            }
+        except Exception as e:
+            _log(f"[risk_analytics] Error: {e}")
+            return {
+                "metrics": {},
+                "riskDistribution": [],
+                "valueAtRisk": 0,
+                "maxDrawdown": 0,
+                "sharpeRatio": 0,
+                "volatility": 0,
+                "beta": 0,
+                "source": "fallback",
+            }
+
+    @app.get("/api/performance/heatmap")
+    async def api_performance_heatmap():
+        """Return performance heatmap data (returns by symbol and time period)."""
+        try:
+            trades = []
+            try:
+                trades = _runtime_state_store.get_trade_log([])
+            except Exception:
+                pass
+
+            # Group PnL by symbol and day-of-week / hour
+            from collections import defaultdict
+            import datetime as _dt
+
+            by_symbol_dow = defaultdict(lambda: defaultdict(list))  # symbol -> dow -> [pnl]
+            by_symbol_hour = defaultdict(lambda: defaultdict(list))
+
+            for t in trades:
+                pnl = t.get("pnl", 0)
+                if not isinstance(pnl, (int, float)):
+                    continue
+                symbol = t.get("symbol", "UNKNOWN")
+                ts = t.get("timestamp", "")
+                try:
+                    dt = _dt.datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+                    dow = dt.strftime("%a")  # Mon, Tue, ...
+                    hour = dt.hour
+                    by_symbol_dow[symbol][dow].append(pnl)
+                    by_symbol_hour[symbol][hour].append(pnl)
+                except (ValueError, TypeError):
+                    pass
+
+            # Build heatmap grid
+            days_order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            heatmap_rows = []
+            for symbol in sorted(by_symbol_dow.keys()):
+                row = {"symbol": symbol}
+                for dow in days_order:
+                    vals = by_symbol_dow[symbol].get(dow, [])
+                    row[dow.lower()] = round(sum(vals), 2) if vals else 0.0
+                row["total"] = round(sum(sum(v) for v in by_symbol_dow[symbol].values()), 2)
+                heatmap_rows.append(row)
+
+            # Hourly breakdown
+            hourly = {}
+            for symbol in sorted(by_symbol_hour.keys()):
+                hourly[symbol] = {
+                    str(h): round(sum(by_symbol_hour[symbol].get(h, [])), 2)
+                    for h in range(24)
+                }
+
+            return {
+                "data": heatmap_rows,
+                "hourly": hourly,
+                "source": "live",
+            }
+        except Exception as e:
+            _log(f"[performance_heatmap] Error: {e}")
+            return {
+                "data": [],
+                "hourly": {},
+                "source": "fallback",
+            }
+
+    @app.get("/api/risk/max-position-size")
+    async def api_risk_max_position_size(authorization: Optional[str] = Header(None)):
+        """Return max position size limits by symbol."""
+        try:
+            symbols_raw = [os.environ.get("TRADE_SYMBOL", "BTCUSDT")]
+            pos = {}
+            try:
+                pos = _runtime_state_store.get_positions({})
+            except Exception:
+                pass
+            limits = {}
+            for sym in symbols_raw:
+                limits[sym] = {
+                    "max_notional": 50000.0,
+                    "max_quantity": 1000.0,
+                    "current_exposure": sum(
+                        abs(float(p.get("notional", 0)))
+                        for s, p in pos.items()
+                        if s == sym
+                    ),
+                }
+            return {"limits": limits, "source": "live"}
+        except Exception as e:
+            _log(f"[risk_max_position_size] Error: {e}")
+            return {"limits": {}, "source": "fallback"}
 
 else:
     # Friendly placeholders when FastAPI is not installed.

@@ -26,6 +26,7 @@ class EndToEndIntegration(unittest.TestCase):
                          "hf_BTCUSDT_5m.csv dataset not found")
     def test_backtest_with_live_constraints(self):
         """Run backtester against the BTCUSDT dataset with live constraints."""
+        out_json = os.path.join(ROOT, "data", "backtest_result.json")
         cmd = [
             sys.executable,
             os.path.join(ROOT, "scripts", "backtest_live_constraints.py"),
@@ -33,11 +34,11 @@ class EndToEndIntegration(unittest.TestCase):
             "--symbol", "BTCUSDT",
             "--initial-cash", "10000",
             "--max-drawdown-pct", "0.20",
+            "--report-out", out_json,
         ]
         r = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT, timeout=120)
         self.assertEqual(r.returncode, 0, f"Backtest failed:\n{r.stderr}")
         # Check that output JSON was created
-        out_json = os.path.join(ROOT, "data", "backtest_result.json")
         self.assertTrue(os.path.exists(out_json),
                         "backtest_result.json not created")
 

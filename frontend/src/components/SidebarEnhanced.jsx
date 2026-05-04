@@ -20,6 +20,8 @@ const menuItems = [
   { id: 'backtest', label: 'Backtest', icon: '🧪', desc: 'Strategy Backtesting', shortcut: 'B' },
   { id: 'heatmap', label: 'Performance Heatmap', icon: '🗺️', desc: 'Symbol Performance Grid', shortcut: 'H' },
   { id: 'risk-analytics', label: 'Risk Analytics', icon: '📉', desc: 'Return Distribution & Risk', shortcut: 'R' },
+  { id: 'symbol-selector', label: 'Symbol Selector', icon: '🪙', desc: 'Multi-Asset Universe', shortcut: 'S' },
+  { id: 'news-sentiment', label: 'News Sentiment', icon: '📰', desc: 'Market Intelligence', shortcut: 'N' },
   { id: 'profile', label: 'Profile', icon: '👤', desc: 'Identity & Account', shortcut: '9' },
   { id: 'settings', label: 'Settings', icon: '⚙️', desc: 'Configuration', shortcut: '0' },
 ];

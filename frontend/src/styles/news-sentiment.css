@@ -1,0 +1,130 @@
+/* NewsSentiment — LLM-powered news sentiment panel */
+.news-sentiment {
+  padding: 16px;
+  border-radius: 12px;
+  max-height: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.news-sentiment.dark { background: #1a1a2e; color: #e0e0e0; }
+.news-sentiment.light { background: #ffffff; color: #1a1a2e; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+.news-sentiment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.news-sentiment-header h3 { margin: 0; font-size: 16px; }
+.sentiment-aggregate {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 18px;
+}
+.sentiment-icon { font-size: 20px; }
+
+.news-update-time {
+  font-size: 11px;
+  color: #888;
+  text-align: right;
+}
+
+.news-loading, .news-error {
+  padding: 20px;
+  text-align: center;
+  font-size: 13px;
+  color: #888;
+}
+.news-error { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.retry-btn {
+  padding: 6px 16px;
+  border: 1px solid rgba(99,102,241,0.3);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  color: #6366f1;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.news-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.news-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border-left: 3px solid;
+  transition: all 0.15s;
+}
+.news-item.bullish { border-left-color: #00C853; background: rgba(0,200,83,0.05); }
+.news-item.bearish { border-left-color: #FF1744; background: rgba(255,23,68,0.05); }
+.news-item.neutral { border-left-color: #FFD600; background: rgba(255,214,0,0.05); }
+.news-item:hover { transform: translateX(2px); }
+
+.news-item-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.news-source {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6366f1;
+}
+.news-time {
+  font-size: 11px;
+  color: #888;
+}
+
+.news-title {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.news-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.news-sentiment-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(128,128,128,0.2);
+  overflow: hidden;
+}
+.sentiment-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.news-sentiment-value {
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 40px;
+  text-align: right;
+}
+
+.news-entities {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.entity-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(99,102,241,0.1);
+  color: #6366f1;
+  font-weight: 500;
+}

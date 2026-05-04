@@ -67,7 +67,7 @@ ssh root@YOUR_DROPLET_IP
 ### Step 3: One-Click Deploy
 ```bash
 # Clone and deploy in one command
-git clone https://github.com/santz1994/AutoProjectSaham.git /opt/autosaham
+git clone -b master https://github.com/santz1994/AutoProjectSaham.git /opt/autosaham
 cd /opt/autosaham
 bash scripts/deploy_digitalocean.sh
 ```

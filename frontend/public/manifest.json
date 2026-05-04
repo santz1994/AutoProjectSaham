@@ -1,13 +1,13 @@
 {
-  "name": "AutoSaham - Autonomous Trading Toolkit for IDX",
+  "name": "AutoSaham - Autonomous Crypto/Forex RL Trading Bot",
   "short_name": "AutoSaham",
-  "description": "Autonomous trading toolkit with ML models and real-time charts for Indonesia Stock Exchange (IDX/BEI)",
+  "description": "Fully autonomous AI-driven trading bot for Crypto & Forex markets using Deep Reinforcement Learning. Target: $100 → $10,000 with 90% winrate.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "dir": "ltr",
-  "lang": "id-ID",
+  "lang": "en-US",
   "theme_color": "#131722",
   "background_color": "#ffffff",
   "prefer_related_applications": false,
@@ -88,22 +88,22 @@
     {
       "name": "View Charts",
       "short_name": "Charts",
-      "description": "View TradingView charts with real-time IDX data",
+      "description": "View real-time Crypto/Forex charts with AI signal overlays",
       "url": "/charts",
       "icons": [{ "src": "icons/shortcut-charts.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "Model Predictions",
-      "short_name": "Predictions",
-      "description": "View AI model predictions and explainability",
-      "url": "/predictions",
+      "name": "AI Monitor",
+      "short_name": "AI Monitor",
+      "description": "View AI predictions, SHAP explainability, and autonomy controls",
+      "url": "/ai-monitor",
       "icons": [{ "src": "icons/shortcut-predictions.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "Trading Status",
-      "short_name": "Status",
-      "description": "Check trading portfolio and execution status",
-      "url": "/status",
+      "name": "Ghost Machine",
+      "short_name": "Ghost Machine",
+      "description": "Control autonomous trading engine (start/stop/cycle)",
+      "url": "/ghost-machine",
       "icons": [{ "src": "icons/shortcut-status.png", "sizes": "192x192", "type": "image/png" }]
     }
   ],

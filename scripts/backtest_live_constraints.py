@@ -43,7 +43,17 @@ def main() -> None:
 
     df = pd.read_csv(args.dataset_csv)
     if args.signal_col not in df.columns:
-        raise RuntimeError(f"Signal column not found: {args.signal_col}")
+        # Auto-generate synthetic momentum signals from close price
+        price_col_auto = next((c for c in ["close", "last_price", "entry_price"] if c in df.columns), None)
+        if price_col_auto:
+            print(f"Signal column '{args.signal_col}' not found — generating synthetic signals from {price_col_auto}")
+            work_tmp = df[price_col_auto].astype(float)
+            sma_fast = work_tmp.rolling(window=10, min_periods=1).mean()
+            sma_slow = work_tmp.rolling(window=30, min_periods=1).mean()
+            synthetic = (sma_fast > sma_slow).astype(int) * 2 - 1  # +1 / -1
+            df[args.signal_col] = synthetic.values
+        else:
+            raise RuntimeError(f"Signal column not found: {args.signal_col}")
 
     work = df.copy()
     if "symbol" in work.columns:

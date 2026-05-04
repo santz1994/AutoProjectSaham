@@ -131,7 +131,7 @@ export default function BacktestPanel({ theme = 'dark' }) {
   useEffect(() => {
     (async () => {
       try {
-        const data = await apiService.request('/api/v1/backtest/history');
+        const data = await apiService.request('/api/backtest/run');
         setHistory(data.results || data.history || []);
       } catch {
         // Endpoint may not exist yet
@@ -151,11 +151,11 @@ export default function BacktestPanel({ theme = 'dark' }) {
         strategy,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
-        initial_capital: Number(initialCapital),
-        max_leverage: Number(maxLeverage),
+        initial_balance: Number(initialCapital),
+        leverage: Number(maxLeverage),
       };
 
-      const data = await apiService.request('/api/v1/backtest/run', {
+      const data = await apiService.request('/api/backtest/run', {
         method: 'POST',
         body: JSON.stringify(payload),
       });

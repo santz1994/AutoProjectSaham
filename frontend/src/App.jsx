@@ -21,6 +21,8 @@ import PortfolioMetrics from './components/PortfolioMetrics'
 import BacktestPanel from './components/BacktestPanel'
 import PerformanceHeatmap from './components/PerformanceHeatmap'
 import RiskAnalytics from './components/RiskAnalytics'
+import SymbolSelector from './components/SymbolSelector'
+import NewsSentiment from './components/NewsSentiment'
 import Login from './components/Login'
 import Register from './components/Register'
 import ForgotPassword from './components/ForgotPassword'
@@ -49,6 +51,8 @@ import './styles/portfolio-metrics.css'
 import './styles/backtest-panel.css'
 import './styles/performance-heatmap.css'
 import './styles/risk-analytics.css'
+import './styles/symbol-selector.css'
+import './styles/news-sentiment.css'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -390,6 +394,10 @@ export default function App() {
         return <ErrorBoundary><PerformanceHeatmap theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
       case 'risk-analytics':
         return <ErrorBoundary><RiskAnalytics theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
+      case 'symbol-selector':
+        return <ErrorBoundary><SymbolSelector theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
+      case 'news-sentiment':
+        return <ErrorBoundary><NewsSentiment theme={darkMode ? 'dark' : 'light'} /></ErrorBoundary>
       case 'settings':
         return (
           <ErrorBoundary>
