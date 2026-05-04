@@ -28,7 +28,7 @@ import Register from './components/Register'
 import ForgotPassword from './components/ForgotPassword'
 import PWAInstallButton from './components/PWAInstallButton'
 // Hooks and Utilities
-import startMarketFeed from './hooks/useMarketFeed'
+import startMarketFeed from './hooks/useMarketFeed.ts'
 import useResponsive from './hooks/useResponsive'
 import apiService from './utils/apiService'
 import AuthService from './utils/authService'
