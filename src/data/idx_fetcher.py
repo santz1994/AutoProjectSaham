@@ -10,7 +10,7 @@ Version: 1.0.0
 import heapq
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, List, Tuple
 import yfinance as yf
 import pandas as pd
@@ -150,7 +150,7 @@ async def fetch_candlesticks(
             "candles": candles,
             "metadata": {
                 "total": len(candles),
-                "fetched_at": datetime.utcnow().isoformat() + "Z",
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
                 "exchange": "FOREX" if symbol.upper().endswith('=X') else "CRYPTO" if "-USD" in symbol.upper() else "GLOBAL",
                 "currency": currency,
                 "source": "yfinance"
