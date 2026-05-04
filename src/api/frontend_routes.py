@@ -13,7 +13,7 @@ from functools import partial
 from threading import Lock
 from fastapi import APIRouter, HTTPException, Request
 from typing import Optional, List, Dict, Any, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from src.api.auth import get_session_context, get_user_from_token
 from src.api.config.frontend_constants import (
@@ -1039,7 +1039,7 @@ def _resolve_runtime_bot_status() -> BotStatus:
         "strategy_backtest",
     }
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     parsed_timestamps = [
         _parse_iso_datetime(item.get("timestamp"))
         for item in logs
