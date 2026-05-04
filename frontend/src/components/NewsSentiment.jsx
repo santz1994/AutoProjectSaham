@@ -5,6 +5,7 @@
  * Shows headline + sentiment score (-1.0 to +1.0) with visual indicators.
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import apiService from '../utils/apiService';
 
 const SENTIMENT_COLORS = {
   bullish: '#00C853',
@@ -24,6 +25,15 @@ function getSentimentType(score) {
   return 'neutral';
 }
 
+function formatTimestamp(value) {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return String(value);
+  }
+  return parsed.toLocaleTimeString();
+}
+
 export default function NewsSentiment({ symbol = 'BTC/USDT', darkMode = false }) {
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,11 +44,26 @@ export default function NewsSentiment({ symbol = 'BTC/USDT', darkMode = false })
   const fetchSentiment = useCallback(async () => {
     try {
       setLoading(true);
-      const resp = await fetch(`/api/v1/news/sentiment?symbol=${encodeURIComponent(symbol)}`);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
-      setNews(data.articles || []);
-      setAggregateScore(data.aggregate_score || 0);
+      const data = await apiService.request(
+        `/api/market/news?symbol=${encodeURIComponent(symbol)}&limit=8`
+      );
+
+      const items = Array.isArray(data) ? data : (data?.news || []);
+      const mapped = items.map((item) => ({
+        title: item.headline || item.title || 'Untitled',
+        source: item.source || 'Market News',
+        sentiment: typeof item.score === 'number' ? item.score : 0,
+        time: formatTimestamp(item.timestamp),
+        entities: Array.isArray(item.entities) ? item.entities : [],
+        url: item.url || '',
+      }));
+
+      const aggregate = mapped.length
+        ? mapped.reduce((sum, item) => sum + (Number(item.sentiment) || 0), 0) / mapped.length
+        : 0;
+
+      setNews(mapped);
+      setAggregateScore(aggregate);
       setLastUpdate(new Date());
       setError(null);
     } catch (err) {

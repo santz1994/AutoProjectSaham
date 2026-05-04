@@ -1623,6 +1623,37 @@ if FASTAPI_AVAILABLE:
         leverage: float = 1.0
         initial_balance: float = 10000.0
 
+    _BACKTEST_HISTORY_PATH = os.path.join(project_root, "data", "backtest_history.json")
+
+    def _load_backtest_history() -> List[Dict[str, Any]]:
+        try:
+            import json
+
+            if not os.path.exists(_BACKTEST_HISTORY_PATH):
+                return []
+            with open(_BACKTEST_HISTORY_PATH, "r", encoding="utf-8") as handle:
+                payload = json.load(handle)
+            if isinstance(payload, list):
+                return payload
+        except Exception:
+            return []
+        return []
+
+    def _save_backtest_history(history: List[Dict[str, Any]]) -> None:
+        try:
+            import json
+
+            os.makedirs(os.path.dirname(_BACKTEST_HISTORY_PATH), exist_ok=True)
+            with open(_BACKTEST_HISTORY_PATH, "w", encoding="utf-8") as handle:
+                json.dump(history, handle)
+        except Exception:
+            pass
+
+    @app.get("/api/backtest/run")
+    async def api_backtest_history():
+        history = _load_backtest_history()
+        return {"history": history, "results": history}
+
     @app.post("/api/backtest/run")
     async def api_backtest_run(payload: BacktestPayload, request: Request):
         """Run a backtest using historical data and the RL agent."""
@@ -1630,7 +1661,7 @@ if FASTAPI_AVAILABLE:
             _assert_runtime_not_halted("Backtest run")
             
             import csv
-            from datetime import datetime
+            from datetime import datetime, timedelta, timezone
             
             symbol = (payload.symbols or ["BTC/USDT"])[0].replace("/", "").upper()
             dataset_path = os.path.join(
@@ -1644,31 +1675,75 @@ if FASTAPI_AVAILABLE:
                 )
             
             if not os.path.exists(dataset_path):
-                return {
-                    "status": "error",
-                    "message": f"No dataset found for {symbol} {payload.timeframe}. Run prepare_data.py first.",
-                    "equity_curve": [],
-                    "trades": [],
-                    "metrics": {},
-                }
+                raise HTTPException(
+                    status_code=404,
+                    detail=(
+                        f"No dataset found for {symbol} {payload.timeframe}. "
+                        "Run prepare_data.py first."
+                    ),
+                )
+
+            def _parse_range_datetime(value: Optional[str]) -> Optional[datetime]:
+                raw = str(value or "").strip()
+                if not raw:
+                    return None
+                candidate = raw.replace("Z", "+00:00")
+                try:
+                    parsed = datetime.fromisoformat(candidate)
+                except Exception:
+                    try:
+                        parsed = datetime.strptime(candidate, "%Y-%m-%d")
+                    except Exception:
+                        return None
+                if parsed.tzinfo is None:
+                    return parsed.replace(tzinfo=timezone.utc)
+                return parsed.astimezone(timezone.utc)
+
+            def _parse_row_datetime(value: Optional[str]) -> Optional[datetime]:
+                raw = str(value or "").strip()
+                if not raw:
+                    return None
+                if raw.isdigit():
+                    try:
+                        ts = float(raw)
+                        if ts > 1e12:
+                            ts /= 1000.0
+                        return datetime.fromtimestamp(ts, timezone.utc)
+                    except Exception:
+                        return None
+                candidate = raw.replace("Z", "+00:00")
+                try:
+                    parsed = datetime.fromisoformat(candidate)
+                except Exception:
+                    return None
+                if parsed.tzinfo is None:
+                    return parsed.replace(tzinfo=timezone.utc)
+                return parsed.astimezone(timezone.utc)
+
+            start_dt = _parse_range_datetime(payload.start_date)
+            end_dt = _parse_range_datetime(payload.end_date)
+            if end_dt and end_dt.time() == datetime.min.time():
+                end_dt = end_dt + timedelta(days=1) - timedelta(microseconds=1)
             
             # Read dataset
             rows = []
             with open(dataset_path, "r", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
+                    if start_dt or end_dt:
+                        row_dt = _parse_row_datetime(row.get("datetime") or row.get("timestamp"))
+                        if row_dt is None:
+                            continue
+                        if start_dt and row_dt < start_dt:
+                            continue
+                        if end_dt and row_dt > end_dt:
+                            continue
                     rows.append(row)
                     if len(rows) >= payload.max_steps:
                         break
             
             if not rows:
-                return {
-                    "status": "error", 
-                    "message": "Dataset is empty",
-                    "equity_curve": [],
-                    "trades": [],
-                    "metrics": {},
-                }
+                raise HTTPException(status_code=400, detail="Dataset is empty")
             
             # Simulate backtest with simple strategy
             balance = payload.initial_balance
@@ -1768,11 +1843,36 @@ if FASTAPI_AVAILABLE:
                     max_dd = dd
             
             final_equity = equity_curve[-1] if equity_curve else payload.initial_balance
-            total_return = ((final_equity - payload.initial_balance) / payload.initial_balance) * 100
-            
-            return {
+            total_return_pct = ((final_equity - payload.initial_balance) / payload.initial_balance) * 100
+
+            returns = []
+            for idx in range(1, len(equity_curve)):
+                prev = float(equity_curve[idx - 1])
+                if prev <= 0:
+                    continue
+                returns.append((float(equity_curve[idx]) - prev) / prev)
+
+            sharpe_ratio = 0.0
+            if len(returns) > 1:
+                mean_ret = sum(returns) / len(returns)
+                variance = sum((r - mean_ret) ** 2 for r in returns) / (len(returns) - 1)
+                std_ret = variance ** 0.5
+                if std_ret > 0:
+                    sharpe_ratio = (mean_ret / std_ret) * (len(returns) ** 0.5)
+
+            pnl_values = [t.get("pnl", 0) for t in trades if isinstance(t.get("pnl"), (int, float))]
+            gross_profit = sum(p for p in pnl_values if p > 0)
+            gross_loss = sum(p for p in pnl_values if p < 0)
+            profit_factor = None
+            if gross_loss < 0:
+                profit_factor = gross_profit / abs(gross_loss)
+
+            avg_trade_pnl = (total_pnl / total_trades) if total_trades > 0 else 0.0
+
+            response_payload = {
                 "status": "completed",
                 "symbol": symbol,
+                "symbols": payload.symbols or [symbol],
                 "timeframe": payload.timeframe,
                 "strategy": payload.strategy,
                 "data_points": len(rows),
@@ -1781,16 +1881,26 @@ if FASTAPI_AVAILABLE:
                 "metrics": {
                     "initial_balance": payload.initial_balance,
                     "final_equity": round(final_equity, 2),
-                    "total_return_pct": round(total_return, 2),
+                    "final_value": round(final_equity, 2),
+                    "total_return_pct": round(total_return_pct, 2),
+                    "total_return": round(total_return_pct, 2),
                     "total_pnl": round(total_pnl, 2),
                     "total_trades": total_trades,
                     "wins": wins,
                     "losses": losses,
                     "win_rate": round(win_rate, 1),
                     "max_drawdown_pct": round(max_dd, 2),
+                    "max_drawdown": round(max_dd, 2),
                     "leverage": payload.leverage,
+                    "avg_trade_pnl": round(avg_trade_pnl, 2),
+                    "profit_factor": round(profit_factor, 3) if profit_factor is not None else None,
+                    "sharpe_ratio": round(float(sharpe_ratio), 3),
                 },
             }
+            history = _load_backtest_history()
+            history.insert(0, response_payload)
+            _save_backtest_history(history[:10])
+            return response_payload
         except HTTPException:
             raise
         except Exception as e:

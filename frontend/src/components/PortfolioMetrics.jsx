@@ -129,17 +129,27 @@ export default function PortfolioMetrics({ theme = 'dark' }) {
 
   const load = useCallback(async () => {
     try {
-      // Try dedicated portfolio-metrics endpoint first, fallback to /portfolio
-      let data;
-      try {
-        data = await apiService.request('/api/v1/portfolio/metrics');
-      } catch {
-        data = await apiService.getPortfolio();
-      }
+      const data = await apiService.getPortfolio();
 
-      const netWorth = data.net_worth ?? data.total_value ?? data.balance ?? 0;
-      const dailyPnl = data.daily_pnl ?? data.pnl_today ?? 0;
-      const dailyPnlPct = data.daily_pnl_pct ?? data.pnl_today_pct ?? 0;
+      const netWorth =
+        data.totalValue ??
+        data.total_value ??
+        data.net_worth ??
+        data.balance ??
+        data.cash ??
+        0;
+      const dailyPnl =
+        data.daily_pnl ??
+        data.pnl_today ??
+        data.totalP_L ??
+        data.total_p_l ??
+        0;
+      const dailyPnlPct =
+        data.daily_pnl_pct ??
+        data.pnl_today_pct ??
+        data.percentP_L ??
+        data.percent_p_l ??
+        0;
       const winRate = data.win_rate ?? data.stats?.win_rate ?? 0;
       const leverage = data.current_leverage ?? data.max_leverage ?? 1;
       const openCount = data.open_positions_count ?? data.positions?.length ?? 0;
