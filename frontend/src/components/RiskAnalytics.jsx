@@ -48,8 +48,10 @@ function getMetricStatus(key, value) {
 }
 
 function HistogramBar({ count, maxCount, binLabel, theme }) {
-  const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
-  const isPositive = parseFloat(binLabel) >= 0;
+  const safeCount = Number.isFinite(count) ? count : 0;
+  const safeMax = Number.isFinite(maxCount) && maxCount > 0 ? maxCount : 0;
+  const height = safeMax > 0 ? (safeCount / safeMax) * 100 : 0;
+  const isPositive = Number(binLabel) >= 0;
 
   return (
     <div className="histogram-bar-wrapper" title={`${binLabel}%: ${count} trades`}>
@@ -65,17 +67,22 @@ function HistogramBar({ count, maxCount, binLabel, theme }) {
 }
 
 function EquityCurveChart({ equity, theme }) {
-  if (!equity || equity.length === 0) return null;
+  if (!equity || equity.length < 2) return null;
 
-  const maxVal = Math.max(...equity);
-  const minVal = Math.min(...equity);
+  const numericEquity = equity.map((val) => {
+    const parsed = Number(val);
+    return Number.isFinite(parsed) ? parsed : 0;
+  });
+  const maxVal = Math.max(...numericEquity);
+  const minVal = Math.min(...numericEquity);
   const range = maxVal - minVal || 1;
   const svgWidth = 600;
   const svgHeight = 200;
   const padding = 20;
 
-  const points = equity.map((val, i) => {
-    const x = padding + (i / (equity.length - 1)) * (svgWidth - 2 * padding);
+  const denom = Math.max(1, numericEquity.length - 1);
+  const points = numericEquity.map((val, i) => {
+    const x = padding + (i / denom) * (svgWidth - 2 * padding);
     const y = svgHeight - padding - ((val - minVal) / range) * (svgHeight - 2 * padding);
     return `${x},${y}`;
   }).join(' ');
@@ -117,14 +124,21 @@ function EquityCurveChart({ equity, theme }) {
 function DrawdownChart({ drawdowns, theme }) {
   if (!drawdowns || drawdowns.length === 0) return null;
 
-  const maxDD = Math.min(...drawdowns);
+  const numericDrawdowns = drawdowns.map((val) => {
+    const parsed = Number(val);
+    return Number.isFinite(parsed) ? parsed : 0;
+  });
+  const maxDD = Math.min(...numericDrawdowns);
+  const scaleDenom = maxDD < 0 ? maxDD : -1;
   const svgWidth = 600;
   const svgHeight = 120;
   const padding = 20;
 
-  const points = drawdowns.map((val, i) => {
-    const x = padding + (i / (drawdowns.length - 1)) * (svgWidth - 2 * padding);
-    const y = padding + (val / maxDD) * (svgHeight - 2 * padding);
+  const denom = Math.max(1, numericDrawdowns.length - 1);
+  const points = numericDrawdowns.map((val, i) => {
+    const safeVal = Math.min(0, val);
+    const x = padding + (i / denom) * (svgWidth - 2 * padding);
+    const y = padding + (safeVal / scaleDenom) * (svgHeight - 2 * padding);
     return `${x},${y}`;
   }).join(' ');
 
@@ -259,7 +273,9 @@ export default function RiskAnalytics({ theme = 'dark' }) {
   }
 
   const { metrics, histogram, equityCurve, drawdowns } = riskData;
-  const maxHistCount = histogram.length ? Math.max(...histogram.map((b) => b.count)) : 0;
+  const maxHistCount = histogram.length
+    ? Math.max(...histogram.map((b) => Number(b.count || 0)))
+    : 0;
 
   const tabs = [
     { key: 'overview', label: '📋 Overview' },

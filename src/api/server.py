@@ -1664,24 +1664,74 @@ if FASTAPI_AVAILABLE:
             from datetime import datetime, timedelta, timezone
             
             symbol = (payload.symbols or ["BTC/USDT"])[0].replace("/", "").upper()
-            dataset_path = os.path.join(
-                project_root, "data", "dataset", f"hf_{symbol}_{payload.timeframe}_features.csv"
+            dataset_dir = os.path.join(project_root, "data", "dataset")
+
+            def _extract_timeframe(filename: str, prefix: str) -> Optional[str]:
+                if not filename.startswith(prefix):
+                    return None
+                suffix = filename[len(prefix):]
+                if suffix.endswith("_features.csv"):
+                    return suffix[:-len("_features.csv")]
+                if suffix.endswith(".csv"):
+                    return suffix[:-len(".csv")]
+                return None
+
+            def _resolve_dataset_path(symbol_value: str, timeframe_value: str):
+                prefix = f"hf_{symbol_value}_"
+                candidates = [
+                    (timeframe_value, f"{prefix}{timeframe_value}_features.csv"),
+                    (timeframe_value, f"{prefix}{timeframe_value}.csv"),
+                ]
+
+                for tf, name in candidates:
+                    path = os.path.join(dataset_dir, name)
+                    if os.path.exists(path):
+                        return path, tf, None
+
+                if os.path.isdir(dataset_dir):
+                    files = [
+                        name for name in os.listdir(dataset_dir)
+                        if name.startswith(prefix) and name.endswith(".csv")
+                    ]
+                    feature_files = [name for name in files if name.endswith("_features.csv")]
+                    fallback_files = feature_files or files
+                    if fallback_files:
+                        fallback_files.sort()
+                        selected = fallback_files[0]
+                        fallback_tf = _extract_timeframe(selected, prefix) or timeframe_value
+                        warning = (
+                            f"Requested dataset not found for {symbol_value} {timeframe_value}. "
+                            f"Using {fallback_tf} instead."
+                        )
+                        return os.path.join(dataset_dir, selected), fallback_tf, warning
+
+                return None, None, None
+
+            dataset_path, timeframe_used, dataset_warning = _resolve_dataset_path(
+                symbol, payload.timeframe
             )
-            
-            if not os.path.exists(dataset_path):
-                # Try without features suffix
-                dataset_path = os.path.join(
-                    project_root, "data", "dataset", f"hf_{symbol}_{payload.timeframe}.csv"
+            if not dataset_path:
+                available = []
+                if os.path.isdir(dataset_dir):
+                    prefix = f"hf_{symbol}_"
+                    for name in os.listdir(dataset_dir):
+                        if name.startswith(prefix) and name.endswith(".csv"):
+                            tf = _extract_timeframe(name, prefix)
+                            if tf:
+                                available.append(tf)
+                available_msg = (
+                    f" Available timeframes: {', '.join(sorted(set(available)))}."
+                    if available else ""
                 )
-            
-            if not os.path.exists(dataset_path):
                 raise HTTPException(
                     status_code=404,
                     detail=(
-                        f"No dataset found for {symbol} {payload.timeframe}. "
-                        "Run prepare_data.py first."
+                        f"No dataset found for {symbol} {payload.timeframe}."
+                        f" Run prepare_data.py first.{available_msg}"
                     ),
                 )
+
+            timeframe_used = timeframe_used or payload.timeframe
 
             def _parse_range_datetime(value: Optional[str]) -> Optional[datetime]:
                 raw = str(value or "").strip()
@@ -1874,6 +1924,8 @@ if FASTAPI_AVAILABLE:
                 "symbol": symbol,
                 "symbols": payload.symbols or [symbol],
                 "timeframe": payload.timeframe,
+                "timeframe_used": timeframe_used,
+                "warning": dataset_warning,
                 "strategy": payload.strategy,
                 "data_points": len(rows),
                 "equity_curve": equity_curve,

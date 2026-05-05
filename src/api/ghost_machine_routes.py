@@ -119,19 +119,13 @@ async def trigger_single_cycle():
     if not _ghost_machine:
         raise HTTPException(status_code=503, detail="Ghost Machine not initialized")
     
-    result = _ghost_machine.run_single_cycle()
+    results = _ghost_machine.run_single_cycle()
     return {
         "status": "cycle_completed",
-        "result": {
-            "cycle_id": result.cycle_id,
-            "timestamp": result.timestamp,
-            "symbol_results": result.symbol_results,
-            "total_trades_executed": result.total_trades_executed,
-            "total_trades_blocked": result.total_trades_blocked,
-            "total_trades_reduced": result.total_trades_reduced,
-            "execution_time_ms": result.execution_time_ms,
-            "error": result.error,
-        },
+        "results": [
+            r.to_dict() if hasattr(r, "to_dict") else r
+            for r in (results or [])
+        ],
     }
 
 
@@ -146,14 +140,16 @@ async def get_history(limit: int = Query(default=20, ge=1, le=100)):
         "count": len(history),
         "cycles": [
             {
-                "cycle_id": r.cycle_id,
-                "timestamp": r.timestamp,
-                "total_trades_executed": r.total_trades_executed,
-                "total_trades_blocked": r.total_trades_blocked,
-                "execution_time_ms": r.execution_time_ms,
-                "error": r.error,
+                "cycle_id": getattr(r, "cycle_id", None)
+                or f"{getattr(r, 'timestamp', '')}-{getattr(r, 'symbol', '')}-{idx}",
+                "timestamp": getattr(r, "timestamp", None),
+                "symbol": getattr(r, "symbol", None),
+                "total_trades_executed": 1 if getattr(r, "action_taken", None) in ("BUY", "SELL") else 0,
+                "total_trades_blocked": 1 if getattr(r, "action_taken", None) == "BLOCKED" else 0,
+                "execution_time_ms": None,
+                "error": getattr(r, "error", None),
             }
-            for r in history
+            for idx, r in enumerate(history)
         ],
     }
 
@@ -165,14 +161,29 @@ async def get_anomaly_guard_status():
     """Get anomaly guard status and statistics."""
     if not _anomaly_guard:
         raise HTTPException(status_code=503, detail="Anomaly Guard not initialized")
-    
+
+    raw_stats = (
+        _anomaly_guard.get_stats()
+        if hasattr(_anomaly_guard, "get_stats")
+        else getattr(_anomaly_guard, "stats", {})
+    )
+    checks = raw_stats.get("total_evaluations", raw_stats.get("checks", 0))
+    vetoes = raw_stats.get("veto_count", 0) + raw_stats.get("mimo_veto_count", 0)
+    reductions = raw_stats.get("reduce_count", 0)
+
     return {
         "active": True,
-        "stats": _anomaly_guard.stats,
+        "stats": {
+            **raw_stats,
+            "checks": checks,
+            "vetoes": vetoes,
+            "reductions": reductions,
+        },
         "config": {
-            "veto_threshold": _anomaly_guard.config.veto_threshold,
-            "reduce_threshold": _anomaly_guard.config.reduce_threshold,
-            "max_position_multiplier": _anomaly_guard.config.max_position_multiplier,
+            "veto_threshold": getattr(_anomaly_guard, "veto_threshold", None),
+            "reduce_threshold": getattr(_anomaly_guard, "reduce_threshold", None),
+            "min_risk_multiplier": getattr(_anomaly_guard, "min_risk_multiplier", None),
+            "enable_mimo_veto": getattr(_anomaly_guard, "enable_mimo_veto", None),
         },
     }
 
@@ -182,8 +193,15 @@ async def get_anomaly_guard_history(limit: int = Query(default=20, ge=1, le=100)
     """Get recent anomaly guard decisions."""
     if not _anomaly_guard:
         raise HTTPException(status_code=503, detail="Anomaly Guard not initialized")
-    
-    history = _anomaly_guard.get_history(limit)
+
+    if hasattr(_anomaly_guard, "get_recent_blocks"):
+        history = _anomaly_guard.get_recent_blocks(limit)
+    else:
+        raw_history = getattr(_anomaly_guard, "history", []) or []
+        history = [
+            r.to_dict() if hasattr(r, "to_dict") else r
+            for r in raw_history[-limit:]
+        ]
     return {"count": len(history), "decisions": history}
 
 
@@ -194,11 +212,33 @@ async def get_automl_status():
     """Get continuous AutoML pipeline status."""
     if not _automl_pipeline:
         raise HTTPException(status_code=503, detail="AutoML Pipeline not initialized")
-    
+
+    stats = (
+        _automl_pipeline.get_stats()
+        if hasattr(_automl_pipeline, "get_stats")
+        else getattr(_automl_pipeline, "stats", {})
+    )
+    registry = None
+    registry_obj = getattr(_automl_pipeline, "registry", None)
+    if registry_obj is not None:
+        models = (
+            registry_obj.get_all_models()
+            if hasattr(registry_obj, "get_all_models")
+            else []
+        )
+        registry = {
+            "total_models": len(models),
+            "production_model": (
+                registry_obj.get_production_model()
+                if hasattr(registry_obj, "get_production_model")
+                else None
+            ),
+        }
+
     return {
         "active": True,
-        "stats": _automl_pipeline.stats,
-        "registry": _automl_pipeline.registry.get_stats() if _automl_pipeline.registry else None,
+        "stats": stats,
+        "registry": registry,
     }
 
 
@@ -209,7 +249,7 @@ async def trigger_automl():
         raise HTTPException(status_code=503, detail="AutoML Pipeline not initialized")
     
     try:
-        result = _automl_pipeline.run_once()
+        result = _automl_pipeline.run_optimization()
         return {"status": "completed", "result": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AutoML run failed: {e}")
@@ -220,5 +260,5 @@ async def list_automl_models():
     """List all registered models in the AutoML registry."""
     if not _automl_pipeline or not _automl_pipeline.registry:
         raise HTTPException(status_code=503, detail="AutoML Registry not initialized")
-    
-    return _automl_pipeline.registry.list_models()
+
+    return _automl_pipeline.registry.get_all_models()

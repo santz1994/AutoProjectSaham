@@ -6,6 +6,8 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 
+const DEFAULT_SELECTED_SYMBOLS = ['BTC/USDT'];
+
 const POPULAR_SYMBOLS = {
   crypto: [
     { symbol: 'BTC/USDT', name: 'Bitcoin', category: 'Major' },
@@ -33,15 +35,16 @@ const POPULAR_SYMBOLS = {
 };
 
 export default function SymbolSelector({ 
-  selectedSymbols = ['BTC/USDT'], 
+  selectedSymbols,
   onSelectionChange,
   maxSelections = 10,
   showCategories = true,
   darkMode = false 
 }) {
+  const resolvedSelectedSymbols = selectedSymbols ?? DEFAULT_SELECTED_SYMBOLS;
   const [activeTab, setActiveTab] = useState('crypto');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selected, setSelected] = useState(new Set(selectedSymbols));
+  const [selected, setSelected] = useState(() => new Set(resolvedSelectedSymbols));
   const [favorites, setFavorites] = useState(() => {
     try {
       const saved = localStorage.getItem('autosaham.favorites');
@@ -52,7 +55,9 @@ export default function SymbolSelector({
   });
 
   useEffect(() => {
-    setSelected(new Set(selectedSymbols));
+    if (selectedSymbols !== undefined) {
+      setSelected(new Set(selectedSymbols));
+    }
   }, [selectedSymbols]);
 
   const toggleSymbol = useCallback((symbol) => {
