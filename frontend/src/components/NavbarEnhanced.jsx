@@ -194,7 +194,7 @@ export default function NavbarEnhanced({
       const safeUser = encodeURIComponent(notificationUserId);
       const token = await fetchWsToken();
       const qs = token ? `?token=${encodeURIComponent(token)}` : '';
-      const socket = new WebSocket(`${wsBase}/api/notifications/ws/${safeUser}${qs}`);
+      const socket = new WebSocket(`${wsBase}/ws/events${qs}`);
       notifSocketRef.current = socket;
 
       socket.onopen = () => {
