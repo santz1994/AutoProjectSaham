@@ -168,7 +168,21 @@ export default function NavbarEnhanced({
     }
   };
 
-  const connectNotificationSocket = () => {
+  const fetchWsToken = async () => {
+    try {
+      const res = await fetch(`${apiService.baseURL}/auth/ws-token`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.token || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const connectNotificationSocket = async () => {
     if (!notificationUserId) {
       return;
     }
@@ -178,7 +192,9 @@ export default function NavbarEnhanced({
     try {
       const wsBase = getWebSocketBase();
       const safeUser = encodeURIComponent(notificationUserId);
-      const socket = new WebSocket(`${wsBase}/api/notifications/ws/${safeUser}`);
+      const token = await fetchWsToken();
+      const qs = token ? `?token=${encodeURIComponent(token)}` : '';
+      const socket = new WebSocket(`${wsBase}/api/notifications/ws/${safeUser}${qs}`);
       notifSocketRef.current = socket;
 
       socket.onopen = () => {

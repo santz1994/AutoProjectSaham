@@ -644,6 +644,28 @@ def reset_password(reset_token: str, new_password: str) -> bool:
     return True
 
 
+def create_ws_token(session_token: str, ttl_seconds: int = 30) -> Optional[str]:
+    """Create a short-lived WS auth token from a valid session token.
+    
+    The returned token is valid for ``ttl_seconds`` (default 30s) and is
+    consumed/invalidated after the WebSocket connection is authenticated.
+    """
+    context = get_session_context(session_token)
+    if not context:
+        return None
+
+    ws_token = secrets.token_urlsafe(32)
+    _SESSIONS[ws_token] = {
+        "username": context["username"],
+        "role": context.get("role", ""),
+        "csrf_token": "",
+        "issued_at": time.time(),
+        "expires_at": time.time() + float(ttl_seconds),
+        "_ws_token": True,
+    }
+    return ws_token
+
+
 def get_session_context(token: str) -> Optional[Dict[str, Any]]:
     s = _SESSIONS.get(token)
     if not s:

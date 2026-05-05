@@ -60,6 +60,7 @@ if FASTAPI_AVAILABLE:
         invalidate_token,
         request_password_reset,
         reset_password,
+        create_ws_token,
     )
     from src.api.frontend_routes import router as frontend_router
     from src.api.xai_routes import router as xai_router
@@ -973,6 +974,22 @@ if FASTAPI_AVAILABLE:
             "twoFactorEnabled": bool(two_factor_status.get("enabled")),
             "twoFactorRequired": bool(two_factor_status.get("required")),
         }
+
+    @app.get("/auth/ws-token")
+    async def auth_ws_token(request: Request):
+        """Issue a short-lived token for WebSocket authentication.
+
+        The frontend fetches this via a normal HTTP request (which sends
+        the httpOnly auth cookie) and then passes the returned token as a
+        ``?token=`` query parameter when opening the WebSocket connection.
+        """
+        token = str(request.cookies.get("auth_token") or "").strip()
+        if not token:
+            raise HTTPException(status_code=401, detail="not_authenticated")
+        ws_token = create_ws_token(token, ttl_seconds=30)
+        if not ws_token:
+            raise HTTPException(status_code=401, detail="invalid_session")
+        return {"token": ws_token}
 
     @app.get("/auth/2fa/status")
     async def auth_two_factor_status(request: Request):

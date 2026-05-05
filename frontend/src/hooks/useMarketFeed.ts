@@ -210,10 +210,34 @@ export default function startMarketFeed() {
     }, delay)
   }
 
-  const connectSocket = () => {
+  const getApiBaseUrl = () => {
+    if (envApiUrl) return envApiUrl.replace(/\/+$/, '')
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return `${window.location.protocol}//localhost:8000`
+    }
+    return `${window.location.protocol}//${window.location.host}`
+  }
+
+  const fetchWsToken = async (): Promise<string | null> => {
+    try {
+      const resp = await fetch(`${getApiBaseUrl()}/auth/ws-token`, {
+        method: 'GET',
+        credentials: 'include',
+      })
+      if (!resp.ok) return null
+      const data = await resp.json()
+      return data?.token || null
+    } catch {
+      return null
+    }
+  }
+
+  const connectSocket = async () => {
     if (stopped) return
     try {
-      const socket = new WebSocket(wsUrl)
+      const token = await fetchWsToken()
+      const connectUrl = token ? `${wsUrl}?token=${encodeURIComponent(token)}` : wsUrl
+      const socket = new WebSocket(connectUrl)
       activeSocket = socket
 
       socket.onopen = () => {
