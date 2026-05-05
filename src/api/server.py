@@ -318,18 +318,31 @@ if FASTAPI_AVAILABLE:
     if _profiling_enabled:
         app.add_middleware(ProfilingMiddleware)
 
-    # SECURITY FIX: Configure CORS to allow frontend on localhost:5173
+    # SECURITY FIX: Configure CORS to allow frontend origins
+    # Include production server IP via CORS_ORIGINS env var (comma-separated)
+    _default_cors_origins = [
+        "http://localhost:5173",      # Vite dev server
+        "http://localhost:5174",      # Vite fallback port
+        "http://127.0.0.1:5173",      # Loopback variant
+        "http://127.0.0.1:5174",      # Loopback variant
+        "http://localhost:8000",      # API server (for UI served from backend)
+        "http://localhost:8001",      # API direct port via docker-compose
+        "http://localhost:3000",      # Alternative dev port
+    ]
+    _extra_cors_origins = [
+        o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()
+    ]
+    # Auto-detect: if server IP is known, add common variants
+    _server_ip = os.getenv("SERVER_IP", "").strip()
+    if _server_ip:
+        for proto in ("http", "https"):
+            origin = f"{proto}://{_server_ip}"
+            if origin not in _extra_cors_origins:
+                _extra_cors_origins.append(origin)
+    _cors_origins = _default_cors_origins + _extra_cors_origins
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",      # Vite dev server
-            "http://localhost:5174",      # Vite fallback port
-            "http://127.0.0.1:5173",      # Loopback variant
-            "http://127.0.0.1:5174",      # Loopback variant
-            "http://localhost:8000",      # API server (for UI served from backend)
-            "http://localhost:8001",      # API direct port via docker-compose
-            "http://localhost:3000",      # Alternative dev port
-        ],
+        allow_origins=_cors_origins,
         allow_credentials=True,                    # Allow httpOnly cookies
         allow_methods=["*"],                       # Allow all HTTP methods
         allow_headers=["*"],                       # Allow all headers
