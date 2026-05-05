@@ -230,9 +230,18 @@ export default function NavbarEnhanced({
           return;
         }
 
-        notifSocketReconnectRef.current = setTimeout(() => {
+        // Exponential backoff: 2.5s → 5s → 10s → 20s → 40s, then stop retrying
+        const attempt = Number(notifSocketReconnectRef.current?._attempt || 0) + 1;
+        if (attempt > 5) {
+          setNotificationsError('Notification socket unavailable. Refresh to retry.');
+          return;
+        }
+        const delay = Math.min(2500 * Math.pow(2, attempt - 1), 40000);
+        const timer = setTimeout(() => {
           connectNotificationSocket();
-        }, 2500);
+        }, delay);
+        timer._attempt = attempt;
+        notifSocketReconnectRef.current = timer;
       };
     } catch (error) {
       // Connection setup failure should not break the navbar.
