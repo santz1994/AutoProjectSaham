@@ -132,13 +132,14 @@ export default function startMarketFeed() {
   }
 
   const wsUrl = `${proto}://${backendHost}/ws/events`
-  const ws = new WebSocket(wsUrl)
 
-  ws.onopen = () => {
-    emitMarketFeedStatus('connected')
-  }
+  let activeSocket: WebSocket | null = null
+  let reconnectTimer: number | null = null
+  let reconnectAttempt = 0
+  const MAX_RECONNECT = 30
+  let stopped = false
 
-  ws.onmessage = (event) => {
+  const handleMessage = (event: MessageEvent) => {
     let ev: any = null
 
     try {
@@ -199,16 +200,50 @@ export default function startMarketFeed() {
     }
   }
 
-  ws.onerror = () => {
-    emitMarketFeedStatus('disconnected', 'websocket_error')
-    // Keep silent here; app pages should continue without market feed.
+  const scheduleReconnect = () => {
+    if (stopped || reconnectAttempt >= MAX_RECONNECT) return
+    const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempt), 30000)
+    reconnectAttempt += 1
+    reconnectTimer = window.setTimeout(() => {
+      if (stopped) return
+      connectSocket()
+    }, delay)
   }
 
-  ws.onclose = () => {
-    emitMarketFeedStatus('disconnected', 'websocket_closed')
+  const connectSocket = () => {
+    if (stopped) return
+    try {
+      const socket = new WebSocket(wsUrl)
+      activeSocket = socket
+
+      socket.onopen = () => {
+        reconnectAttempt = 0
+        emitMarketFeedStatus('connected')
+      }
+
+      socket.onmessage = handleMessage
+
+      socket.onerror = () => {
+        emitMarketFeedStatus('disconnected', 'websocket_error')
+      }
+
+      socket.onclose = () => {
+        emitMarketFeedStatus('disconnected', 'websocket_closed')
+        scheduleReconnect()
+      }
+    } catch {
+      scheduleReconnect()
+    }
   }
+
+  connectSocket()
 
   return () => {
+    stopped = true
+    if (reconnectTimer !== null) {
+      window.clearTimeout(reconnectTimer)
+      reconnectTimer = null
+    }
     if (tickFlushHandle !== null) {
       window.clearTimeout(tickFlushHandle)
       tickFlushHandle = null
@@ -227,7 +262,9 @@ export default function startMarketFeed() {
     flushMarkers()
 
     try {
-      ws.close()
+      if (activeSocket) {
+        activeSocket.close()
+      }
     } catch {
       // Ignore close failures
     }

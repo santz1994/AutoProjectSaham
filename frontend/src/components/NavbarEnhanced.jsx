@@ -109,6 +109,7 @@ export default function NavbarEnhanced({
   const notifSocketReconnectRef = useRef(null);
   const notifPingRef = useRef(null);
   const shouldReconnectRef = useRef(true);
+  const notifReconnectAttemptRef = useRef(0);
   const notificationUserId = String(user || '').trim();
 
   const refreshNotificationTimes = () => {
@@ -181,6 +182,8 @@ export default function NavbarEnhanced({
       notifSocketRef.current = socket;
 
       socket.onopen = () => {
+        notifReconnectAttemptRef.current = 0;
+        setNotificationsError('');
         notifPingRef.current = setInterval(() => {
           if (socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: 'ping' }));
@@ -222,6 +225,7 @@ export default function NavbarEnhanced({
         const closeCode = Number(event?.code || 0);
         if (closeCode === 4401 || closeCode === 4403) {
           shouldReconnectRef.current = false;
+          notifReconnectAttemptRef.current = 0;
           setNotificationsError('Notification socket unauthorized. Please login again.');
           return;
         }
@@ -231,17 +235,16 @@ export default function NavbarEnhanced({
         }
 
         // Exponential backoff: 2.5s → 5s → 10s → 20s → 40s, then stop retrying
-        const attempt = Number(notifSocketReconnectRef.current?._attempt || 0) + 1;
+        const attempt = notifReconnectAttemptRef.current + 1;
+        notifReconnectAttemptRef.current = attempt;
         if (attempt > 5) {
           setNotificationsError('Notification socket unavailable. Refresh to retry.');
           return;
         }
         const delay = Math.min(2500 * Math.pow(2, attempt - 1), 40000);
-        const timer = setTimeout(() => {
+        notifSocketReconnectRef.current = setTimeout(() => {
           connectNotificationSocket();
         }, delay);
-        timer._attempt = attempt;
-        notifSocketReconnectRef.current = timer;
       };
     } catch (error) {
       // Connection setup failure should not break the navbar.

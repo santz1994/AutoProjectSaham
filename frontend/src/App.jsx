@@ -245,7 +245,7 @@ export default function App() {
         if (!marketFeedConnected && window.navigator.onLine) {
           blockTradingUi(reason)
         }
-      }, 2000)
+      }, 10000)
     }
 
     const handleOffline = () => {
