@@ -147,8 +147,22 @@ if FASTAPI_AVAILABLE:
             from src.ml.continuous_automl import ContinuousAutoMLPipeline
             from src.pipeline.continuous_automl_scheduler import ContinuousAutoMLScheduler
 
+            from src.pipeline.ghost_machine import GhostMachineConfig
+            symbols_env = os.getenv("MARKET_SYMBOLS", "AAPL,SPY")
+            gm_symbols = [s.strip().upper() for s in symbols_env.split(",") if s.strip()]
+            # Use daily timeframe for stocks (yfinance), 5m for crypto
+            has_stock = any("/" not in s and "-" not in s for s in gm_symbols)
+            gm_timeframe = os.getenv("GHOST_MACHINE_TIMEFRAME", "1d" if has_stock else "5m")
+            gm_config = GhostMachineConfig(
+                symbols=gm_symbols,
+                timeframe=gm_timeframe,
+                cycle_interval=float(os.getenv("GHOST_MACHINE_CYCLE_INTERVAL", "300")),
+                candle_lookback=int(os.getenv("GHOST_MACHINE_LOOKBACK", "200")),
+                live_mode=os.getenv("GHOST_MACHINE_LIVE", "0") == "1",
+                max_leverage=float(os.getenv("GHOST_MACHINE_MAX_LEVERAGE", "20.0")),
+            )
             anomaly_guard = AnomalyExecutionGuard()
-            ghost_machine = GhostMachine()
+            ghost_machine = GhostMachine(config=gm_config)
             automl = ContinuousAutoMLPipeline()
             automl_scheduler = ContinuousAutoMLScheduler()
             automl_scheduler.start()

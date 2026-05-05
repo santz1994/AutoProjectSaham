@@ -186,6 +186,65 @@ class GhostMachine:
 
         return modules
 
+    @staticmethod
+    def _is_stock_symbol(symbol: str) -> bool:
+        """Check if symbol is a stock/ETF (not crypto pair)."""
+        # Crypto pairs look like BTC/USDT, ETH/USDT etc.
+        if "/" in symbol:
+            return False
+        # Stock symbols: AAPL, SPY, BBCA.JK, BBRI.JK, etc.
+        # Crypto dash pairs: BTC-USD, ETH-USD
+        # yfinance supports both AAPL and BBCA.JK
+        return True
+
+    def _fetch_candles_yfinance(self, symbol: str) -> Optional["pd.DataFrame"]:
+        """Fetch candles via yfinance for stock/ETF symbols."""
+        import pandas as pd
+        try:
+            import yfinance as yf
+        except ImportError:
+            logger.error("yfinance not installed - cannot fetch stock data")
+            return None
+
+        try:
+            # Map timeframe to yfinance period/interval
+            tf = self.config.timeframe
+            interval_map = {
+                "1m": ("1d", "1m"), "5m": ("5d", "5m"), "15m": ("5d", "15m"),
+                "30m": ("5d", "30m"), "1h": ("5d", "1h"), "60m": ("5d", "1h"),
+                "1d": ("6mo", "1d"), "1w": ("2y", "1wk"), "1mo": ("5y", "1mo"),
+            }
+            period, interval = interval_map.get(tf, ("6mo", "1d"))
+
+            ticker = yf.Ticker(symbol)
+            df = ticker.history(period=period, interval=interval)
+
+            if df is None or df.empty:
+                logger.warning(f"yfinance returned no data for {symbol}")
+                return None
+
+            # Normalize column names
+            df = df.rename(columns={
+                "Open": "open", "High": "high", "Low": "low",
+                "Close": "close", "Volume": "volume",
+            })
+
+            # Ensure required columns
+            for col in ["open", "high", "low", "close", "volume"]:
+                if col not in df.columns:
+                    df[col] = 0.0
+
+            # Limit to requested lookback
+            if len(df) > self.config.candle_lookback:
+                df = df.iloc[-self.config.candle_lookback:]
+
+            logger.info(f"Fetched {len(df)} candles for {symbol} via yfinance")
+            return df[["open", "high", "low", "close", "volume"]]
+
+        except Exception as e:
+            logger.error(f"yfinance fetch failed for {symbol}: {e}")
+            return None
+
     def start(self) -> None:
         """Start the autonomous trading loop in a background thread."""
         if self._running:
@@ -306,24 +365,30 @@ class GhostMachine:
         ts = datetime.now(timezone.utc).isoformat()
 
         try:
-            # 1. Fetch live candles
-            modules = self._lazy_import()
-            HfConnector = modules.get("hf_connector")
-            if HfConnector is None:
-                return TradingCycleResult(
-                    symbol=symbol, timestamp=ts, action_taken="ERROR",
-                    target_fraction=0.0, adjusted_fraction=0.0,
-                    guard_decision="error", anomaly_score=0.0,
-                    sentiment_score=0.0, price=0.0, features_shape=(0,),
-                    error="HfConnector not available",
-                )
+            # 1. Fetch live candles — use yfinance for stocks, HfConnector for crypto
+            candles = None
 
-            connector = HfConnector()
-            candles = connector.fetch_ohlcv(
-                symbol=symbol,
-                timeframe=self.config.timeframe,
-                limit=self.config.candle_lookback,
-            )
+            if self._is_stock_symbol(symbol):
+                # Stock/ETF/IDX symbol — use yfinance
+                candles = self._fetch_candles_yfinance(symbol)
+            else:
+                # Crypto pair — use CCXT via HfConnector
+                modules = self._lazy_import()
+                HfConnector = modules.get("hf_connector")
+                if HfConnector is None:
+                    return TradingCycleResult(
+                        symbol=symbol, timestamp=ts, action_taken="ERROR",
+                        target_fraction=0.0, adjusted_fraction=0.0,
+                        guard_decision="error", anomaly_score=0.0,
+                        sentiment_score=0.0, price=0.0, features_shape=(0,),
+                        error="HfConnector not available for crypto symbol",
+                    )
+                connector = HfConnector()
+                candles = connector.fetch_ohlcv(
+                    symbol=symbol,
+                    timeframe=self.config.timeframe,
+                    limit=self.config.candle_lookback,
+                )
 
             if candles is None or len(candles) == 0:
                 return TradingCycleResult(
